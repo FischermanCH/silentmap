@@ -1,0 +1,40 @@
+# Binaries
+/silentmap
+/silentmap-*
+dist/
+
+# Go
+*.test
+*.out
+vendor/
+
+# Data (Laufzeitdaten, nicht ins Repo)
+data/
+*.db
+*.db-shm
+*.db-wal
+
+# Config (enthält Secrets)
+silentmap.yaml
+!configs/silentmap.example.yaml
+
+# KI-Modelle (zu groß für Git, werden zur Laufzeit geladen)
+*.onnx
+models/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Build-Artefakte
+*.so
+*.a
+
+# Docker
+.docker/
