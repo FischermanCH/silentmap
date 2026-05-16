@@ -8,6 +8,7 @@ all: build
 
 build:
 	CGO_ENABLED=1 go build -ldflags="$(LDFLAGS)" -o silentmap ./cmd/silentmap
+	@/usr/sbin/setcap cap_net_raw+eip silentmap 2>/dev/null && echo "cap_net_raw gesetzt" || echo "Hinweis: 'sudo setcap cap_net_raw+eip silentmap' für ARP-Sniffer nötig"
 
 build-arm64:
 	GOOS=linux GOARCH=arm64 CGO_ENABLED=1 \

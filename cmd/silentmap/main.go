@@ -82,13 +82,15 @@ func main() {
 		os.Exit(1)
 	}
 
-	// SQLite
+	// SQLite — eine einzige Connection verhindert SQLITE_BUSY bei concurrent writes
 	dbPath := filepath.Join(*flagData, "silentmap.db")
-	db, err := sql.Open("sqlite", dbPath+"?_journal=WAL&_timeout=5000")
+	db, err := sql.Open("sqlite", dbPath+"?_journal=WAL&_busy_timeout=10000")
 	if err != nil {
 		slog.Error("cannot open database", "path", dbPath, "err", err)
 		os.Exit(1)
 	}
+	db.SetMaxOpenConns(1)
+	db.SetMaxIdleConns(1)
 	defer db.Close()
 
 	// Core components

@@ -90,7 +90,8 @@ func New(db *sql.DB, b *bus.Bus, offlineTimeout time.Duration) (*Registry, error
 		b:              b,
 		offlineTimeout: offlineTimeout,
 	}
-	b.Subscribe(bus.EventDeviceSeen, r.handleSeen)
+	// Sync: ARP-Bursts sollen sequenziell verarbeitet werden, nicht parallel
+	b.SubscribeSync(bus.EventDeviceSeen, r.handleSeen)
 	return r, nil
 }
 

@@ -43,33 +43,54 @@ func NewEvent(typ EventType, mac, ip, source string, meta map[string]any) Event 
 
 type Handler func(Event)
 
+// handlerEntry pairs a handler with a flag indicating whether it should run
+// synchronously (blocking the publisher) or in its own goroutine.
+type handlerEntry struct {
+	fn   Handler
+	sync bool
+}
+
 type Bus struct {
 	mu       sync.RWMutex
-	handlers map[EventType][]Handler
+	handlers map[EventType][]handlerEntry
 }
 
 func New() *Bus {
 	return &Bus{
-		handlers: make(map[EventType][]Handler),
+		handlers: make(map[EventType][]handlerEntry),
 	}
 }
 
+// Subscribe registers a handler that runs asynchronously (in a goroutine).
+// Use for slow consumers like alerting or AI that must not block the collector.
 func (b *Bus) Subscribe(typ EventType, h Handler) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
-	b.handlers[typ] = append(b.handlers[typ], h)
+	b.handlers[typ] = append(b.handlers[typ], handlerEntry{fn: h, sync: false})
 }
 
-// Publish dispatches the event to all subscribers.
-// Slow handlers run in their own goroutine to avoid blocking the publisher.
+// SubscribeSync registers a handler that runs synchronously on the caller's goroutine.
+// Use for the Registry so that rapid ARP bursts are processed one at a time
+// without spawning thousands of concurrent goroutines that all fight for SQLite.
+func (b *Bus) SubscribeSync(typ EventType, h Handler) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	b.handlers[typ] = append(b.handlers[typ], handlerEntry{fn: h, sync: true})
+}
+
+// Publish dispatches the event. Sync handlers run inline; async handlers in goroutines.
 func (b *Bus) Publish(e Event) {
 	b.mu.RLock()
-	handlers := make([]Handler, len(b.handlers[e.Type]))
-	copy(handlers, b.handlers[e.Type])
+	entries := make([]handlerEntry, len(b.handlers[e.Type]))
+	copy(entries, b.handlers[e.Type])
 	b.mu.RUnlock()
 
-	for _, h := range handlers {
-		h := h
-		go h(e)
+	for _, entry := range entries {
+		if entry.sync {
+			entry.fn(e)
+		} else {
+			fn := entry.fn
+			go fn(e)
+		}
 	}
 }
