@@ -1,0 +1,49 @@
+services:
+
+  silentmap:
+    build: .
+    image: silentmap/silentmap:latest
+    container_name: silentmap
+    restart: unless-stopped
+    network_mode: host          # Pflicht für ARP/mDNS/DHCP-Sniffer
+    cap_add:
+      - NET_RAW                 # Packet-Capturing
+      - NET_ADMIN               # Interface-Konfiguration
+    volumes:
+      - silentmap-data:/data
+    environment:
+      - TZ=Europe/Zurich        # Zeitzone anpassen
+      # Alternativ zur yaml-Config:
+      # - SILENTMAP_INTERFACE=eth0
+      # - SILENTMAP_ALERTS_CHANNELS_NTFY_URL=https://ntfy.sh/mein-topic
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    labels:
+      - "com.silentmap.description=Passiver Netzwerk-Monitor"
+
+  # Optionaler Ollama-Service für KI-Alert-Korrelation
+  # Aktivieren mit: docker compose --profile ai up -d
+  ollama:
+    image: ollama/ollama:latest
+    container_name: silentmap-ollama
+    profiles: ["ai"]
+    restart: unless-stopped
+    volumes:
+      - ollama-data:/root/.ollama
+    ports:
+      - "127.0.0.1:11434:11434"   # Nur lokal erreichbar
+    # Modell beim ersten Start herunterladen:
+    entrypoint: >
+      sh -c "ollama serve &
+             sleep 5 &&
+             ollama pull phi3:mini &&
+             wait"
+
+volumes:
+  silentmap-data:
+    driver: local
+  ollama-data:
+    driver: local

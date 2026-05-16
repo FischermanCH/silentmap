@@ -1,0 +1,77 @@
+{{template "base" .}}
+
+{{define "content"}}
+<div class="mb-6">
+  <h1 class="text-2xl font-bold mb-1">Dashboard</h1>
+  <p class="text-gray-500 text-sm">Passiver Netzwerk-Monitor</p>
+</div>
+
+<!-- Stats -->
+<div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+  <div class="bg-white rounded-lg border p-4">
+    <div class="text-3xl font-bold text-green-600">{{.Online}}</div>
+    <div class="text-sm text-gray-500 mt-1">Online</div>
+  </div>
+  <div class="bg-white rounded-lg border p-4">
+    <div class="text-3xl font-bold text-gray-400">{{.Offline}}</div>
+    <div class="text-sm text-gray-500 mt-1">Offline</div>
+  </div>
+  <div class="bg-white rounded-lg border p-4">
+    <div class="text-3xl font-bold text-gray-800">{{len .Devices}}</div>
+    <div class="text-sm text-gray-500 mt-1">Gesamt</div>
+  </div>
+  <div class="bg-white rounded-lg border p-4">
+    <div class="text-3xl font-bold text-orange-500">{{len .Alerts}}</div>
+    <div class="text-sm text-gray-500 mt-1">Letzte Alerts</div>
+  </div>
+</div>
+
+<!-- Online Devices -->
+<div class="bg-white rounded-lg border mb-6">
+  <div class="px-4 py-3 border-b flex items-center justify-between">
+    <h2 class="font-semibold">Online Geräte</h2>
+    <a href="/devices" class="text-sm text-blue-600 hover:underline">Alle anzeigen →</a>
+  </div>
+  <div class="divide-y">
+    {{range .Devices}}{{if .Online}}
+    <a href="/devices/{{.MAC}}" class="flex items-center px-4 py-3 hover:bg-gray-50 transition-colors">
+      <span class="w-2 h-2 rounded-full bg-green-500 mr-3 flex-shrink-0"></span>
+      <div class="flex-1 min-w-0">
+        <div class="font-medium text-sm truncate">
+          {{if .Label}}{{.Label}}{{else if .Hostname}}{{.Hostname}}{{else}}{{.MAC}}{{end}}
+        </div>
+        <div class="text-xs text-gray-400">{{.IP}} · {{if .Vendor}}{{.Vendor}}{{else}}Unbekannt{{end}}</div>
+      </div>
+      {{if .Priority}}
+      <span class="ml-2 text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded-full">Prio</span>
+      {{end}}
+      <span class="ml-4 text-xs text-gray-400">{{timeAgo .LastSeen}}</span>
+    </a>
+    {{end}}{{end}}
+  </div>
+</div>
+
+<!-- Recent Alerts -->
+{{if .Alerts}}
+<div class="bg-white rounded-lg border">
+  <div class="px-4 py-3 border-b flex items-center justify-between">
+    <h2 class="font-semibold">Letzte Alerts</h2>
+    <a href="/alerts" class="text-sm text-blue-600 hover:underline">Alle →</a>
+  </div>
+  <div class="divide-y">
+    {{range .Alerts}}
+    <div class="px-4 py-3">
+      <div class="flex items-start gap-3">
+        <span class="text-xs px-2 py-0.5 rounded-full font-medium mt-0.5 {{severityClass .Severity}}">{{.Severity}}</span>
+        <div class="flex-1 min-w-0">
+          <div class="text-sm font-medium">{{.Title}}</div>
+          <div class="text-xs text-gray-500 mt-0.5">{{.Summary}}</div>
+        </div>
+        <span class="text-xs text-gray-400 flex-shrink-0">{{timeAgo .FiredAt}}</span>
+      </div>
+    </div>
+    {{end}}
+  </div>
+</div>
+{{end}}
+{{end}}

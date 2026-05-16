@@ -1,0 +1,109 @@
+# silentmap Beispielkonfiguration
+# Alle Einstellungen sind optional — Defaults werden verwendet wenn nicht gesetzt.
+# Kopieren nach /data/silentmap.yaml und anpassen.
+
+# Netzwerk-Interface (leer = automatische Erkennung des ersten aktiven Interface)
+interface: ""
+
+# Web UI
+web:
+  listen: "0.0.0.0:8080"
+  auth:
+    enabled: false
+    username: "admin"
+    password: ""
+
+# Collector-Module
+collectors:
+  arp:
+    enabled: true
+    offline_timeout: 15m
+
+  mdns:
+    enabled: true
+
+  dhcp:
+    enabled: true
+
+  ping:
+    enabled: false
+    targets: "priority"   # "priority" | "all"
+    interval: 60s
+    timeout: 3s
+
+  nmap:
+    enabled: false
+    trigger: "new_device" # "new_device" | "manual" | "scheduled"
+    args: "-sV --top-ports 20 -T3"
+
+# KI-Engine
+ai:
+  fingerprint:
+    enabled: true
+
+  correlation:
+    enabled: false        # Requires Ollama
+    ollama_url: "http://localhost:11434"
+    model: "phi3:mini"
+    window: 90s
+
+  anomaly:
+    enabled: true
+    baseline_days: 14
+    min_observations: 50
+
+# Alerting
+alerts:
+  rules:
+    new_device:
+      enabled: true
+      severity: "high"
+
+    priority_offline:
+      enabled: true
+      severity: "critical"
+      threshold: 10m
+      cooldown: 30m
+
+    device_back:
+      enabled: true
+      severity: "info"
+
+    anomaly:
+      enabled: true
+      severity: "medium"
+      min_score: 0.7
+      cooldown: 60m
+
+  channels:
+    ntfy:
+      enabled: false
+      url: "https://ntfy.sh/mein-topic"
+      token: ""
+
+    telegram:
+      enabled: false
+      token: ""
+      chat_id: ""
+
+    webhook:
+      enabled: false
+      url: ""
+      method: "POST"
+      headers: {}
+
+    email:
+      enabled: false
+      smtp_host: ""
+      smtp_port: 587
+      smtp_user: ""
+      smtp_pass: ""
+      from: ""
+      to: []
+
+  routing:
+    critical: ["ntfy", "telegram", "email"]
+    high:     ["ntfy", "telegram"]
+    medium:   ["webhook"]
+    info:     []
+    low:      []

@@ -1,0 +1,26 @@
+{{define "base"}}
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>silentmap — {{.Title}}</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/htmx.org@1.9.12"></script>
+</head>
+<body class="bg-gray-50 text-gray-900 font-sans">
+
+<nav class="bg-gray-900 text-white px-6 py-3 flex items-center gap-8 shadow">
+  <span class="font-bold text-lg tracking-tight">silentmap</span>
+  <a href="/" class="text-gray-300 hover:text-white text-sm">Dashboard</a>
+  <a href="/devices" class="text-gray-300 hover:text-white text-sm">Geräte</a>
+  <a href="/alerts" class="text-gray-300 hover:text-white text-sm">Alerts</a>
+</nav>
+
+<main class="max-w-6xl mx-auto px-4 py-8">
+  {{block "content" .}}{{end}}
+</main>
+
+</body>
+</html>
+{{end}}

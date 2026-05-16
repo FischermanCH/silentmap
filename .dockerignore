@@ -1,0 +1,25 @@
+# Entwicklung
+.git/
+.gitignore
+.vscode/
+.idea/
+
+# Laufzeitdaten
+data/
+*.db
+
+# Docs (nicht im Image nötig)
+docs/
+
+# Scripts (nicht im Image nötig)
+scripts/
+
+# Test-Dateien
+*_test.go
+testdata/
+
+# Sonstiges
+*.md
+Makefile
+docker-compose*.yml
+.dockerignore

@@ -1,0 +1,80 @@
+{{template "base" .}}
+
+{{define "content"}}
+{{$d := .Device}}
+<div class="mb-6 flex items-center gap-4">
+  <a href="/devices" class="text-gray-400 hover:text-gray-600 text-sm">← Geräte</a>
+  <div>
+    <h1 class="text-2xl font-bold">
+      {{if $d.Label}}{{$d.Label}}{{else if $d.Hostname}}{{$d.Hostname}}{{else}}{{$d.MAC}}{{end}}
+    </h1>
+    <p class="text-gray-500 text-sm font-mono">{{$d.MAC}}</p>
+  </div>
+  {{if $d.Online}}
+  <span class="ml-auto bg-green-100 text-green-800 text-sm px-3 py-1 rounded-full">Online</span>
+  {{else}}
+  <span class="ml-auto bg-gray-100 text-gray-500 text-sm px-3 py-1 rounded-full">Offline</span>
+  {{end}}
+</div>
+
+<div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+  <!-- Info -->
+  <div class="bg-white rounded-lg border p-4">
+    <h2 class="font-semibold mb-3">Geräteinformationen</h2>
+    <dl class="space-y-2 text-sm">
+      <div class="flex justify-between"><dt class="text-gray-500">MAC</dt><dd class="font-mono">{{$d.MAC}}</dd></div>
+      <div class="flex justify-between"><dt class="text-gray-500">IP</dt><dd class="font-mono">{{$d.IP}}</dd></div>
+      <div class="flex justify-between"><dt class="text-gray-500">Hostname</dt><dd>{{if $d.Hostname}}{{$d.Hostname}}{{else}}—{{end}}</dd></div>
+      <div class="flex justify-between"><dt class="text-gray-500">Hersteller</dt><dd>{{if $d.Vendor}}{{$d.Vendor}}{{else}}—{{end}}</dd></div>
+      <div class="flex justify-between"><dt class="text-gray-500">Kategorie</dt><dd>{{if $d.Category}}{{$d.Category}}{{else}}—{{end}}</dd></div>
+      <div class="flex justify-between"><dt class="text-gray-500">Erstmals gesehen</dt><dd>{{$d.FirstSeen.Format "02.01.2006 15:04"}}</dd></div>
+      <div class="flex justify-between"><dt class="text-gray-500">Zuletzt gesehen</dt><dd>{{timeAgo $d.LastSeen}}</dd></div>
+    </dl>
+  </div>
+
+  <!-- Settings -->
+  <div class="bg-white rounded-lg border p-4">
+    <h2 class="font-semibold mb-3">Einstellungen</h2>
+
+    <!-- Label -->
+    <form action="/devices/{{$d.MAC}}/label" method="POST" class="mb-4">
+      <label class="text-sm text-gray-600 block mb-1">Label (eigener Name)</label>
+      <div class="flex gap-2">
+        <input type="text" name="label" value="{{$d.Label}}"
+          class="flex-1 border rounded px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          placeholder="z.B. Mamas iPhone">
+        <button type="submit"
+          class="bg-blue-600 text-white px-3 py-1.5 rounded text-sm hover:bg-blue-700">
+          Speichern
+        </button>
+      </div>
+    </form>
+
+    <!-- Priority -->
+    <div>
+      <label class="text-sm text-gray-600 block mb-2">Priorität</label>
+      {{if $d.Priority}}
+      <form action="/devices/{{$d.MAC}}/priority" method="POST" class="inline">
+        <input type="hidden" name="priority" value="false">
+        <button type="submit"
+          class="bg-red-100 text-red-700 px-3 py-1.5 rounded text-sm hover:bg-red-200">
+          ★ Priorität entfernen
+        </button>
+      </form>
+      <p class="text-xs text-gray-400 mt-1">Dieses Gerät löst einen kritischen Alert aus wenn es offline geht.</p>
+      {{else}}
+      <form action="/devices/{{$d.MAC}}/priority" method="POST" class="inline">
+        <input type="hidden" name="priority" value="true">
+        <button type="submit"
+          class="bg-gray-100 text-gray-700 px-3 py-1.5 rounded text-sm hover:bg-gray-200">
+          ☆ Als Priorität markieren
+        </button>
+      </form>
+      <p class="text-xs text-gray-400 mt-1">Als kritisch markieren um Offline-Alerts zu erhalten.</p>
+      {{end}}
+    </div>
+  </div>
+
+</div>
+{{end}}

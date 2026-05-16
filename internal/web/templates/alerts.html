@@ -1,0 +1,35 @@
+{{template "base" .}}
+
+{{define "content"}}
+<div class="mb-6">
+  <h1 class="text-2xl font-bold">Alerts</h1>
+  <p class="text-gray-500 text-sm mt-1">Letzte 50 Alerts</p>
+</div>
+
+{{if not .Alerts}}
+<div class="bg-white rounded-lg border p-8 text-center text-gray-400">
+  Noch keine Alerts.
+</div>
+{{else}}
+<div class="bg-white rounded-lg border divide-y">
+  {{range .Alerts}}
+  <div class="px-4 py-4 flex items-start gap-4">
+    <span class="text-xs px-2 py-1 rounded-full font-medium flex-shrink-0 {{severityClass .Severity}}">
+      {{.Severity}}
+    </span>
+    <div class="flex-1 min-w-0">
+      <div class="font-medium text-sm">{{.Title}}</div>
+      <div class="text-sm text-gray-600 mt-0.5">{{.Summary}}</div>
+      {{if .MAC}}
+      <div class="text-xs text-gray-400 mt-1 font-mono">{{.MAC}}</div>
+      {{end}}
+    </div>
+    <div class="text-xs text-gray-400 flex-shrink-0 text-right">
+      <div>{{timeAgo .FiredAt}}</div>
+      <div class="mt-0.5">{{.FiredAt.Format "15:04:05"}}</div>
+    </div>
+  </div>
+  {{end}}
+</div>
+{{end}}
+{{end}}
