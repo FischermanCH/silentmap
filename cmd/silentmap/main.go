@@ -111,14 +111,15 @@ func main() {
 	// Start offline checker
 	go reg.RunOfflineChecker(ctx)
 
-	// Start ARP collector
+	// Start ARP collector (non-fatal — needs CAP_NET_RAW or root)
 	if cfg.Collectors.ARP.Enabled {
 		arpCollector := arp.New(cfg.Interface)
 		if err := arpCollector.Start(ctx, b); err != nil {
-			slog.Error("arp collector failed to start", "err", err)
-			os.Exit(1)
+			slog.Warn("arp collector could not start — run as root or with CAP_NET_RAW for passive discovery",
+				"err", err)
+		} else {
+			defer arpCollector.Stop()
 		}
-		defer arpCollector.Stop()
 	}
 
 	// Start HTTP server

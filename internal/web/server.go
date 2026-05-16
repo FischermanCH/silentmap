@@ -19,23 +19,21 @@ import (
 var templateFS embed.FS
 
 type Server struct {
-	reg     *registry.Registry
+	reg      *registry.Registry
 	alertEng *engine.Engine
-	db      *sql.DB
-	tmpl    *template.Template
+	db       *sql.DB
+	funcMap  template.FuncMap
 }
 
 func NewServer(reg *registry.Registry, alertEng *engine.Engine, db *sql.DB) *Server {
-	tmpl := template.Must(template.New("").Funcs(template.FuncMap{
-		"timeAgo": timeAgo,
-		"severityClass": severityClass,
-	}).ParseFS(templateFS, "templates/*.html"))
-
 	return &Server{
 		reg:      reg,
 		alertEng: alertEng,
 		db:       db,
-		tmpl:     tmpl,
+		funcMap: template.FuncMap{
+			"timeAgo":       timeAgo,
+			"severityClass": severityClass,
+		},
 	}
 }
 
@@ -155,9 +153,17 @@ func (s *Server) health(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte(`{"status":"ok"}`))
 }
 
+// render builds a fresh template set per request (base + page) to avoid
+// Go's "last define wins" issue when all pages share a template set.
 func (s *Server) render(w http.ResponseWriter, name string, data any) {
+	tmpl, err := template.New("").Funcs(s.funcMap).ParseFS(templateFS, "templates/base.html", "templates/"+name)
+	if err != nil {
+		slog.Error("template parse failed", "template", name, "err", err)
+		http.Error(w, "template error", http.StatusInternalServerError)
+		return
+	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	if err := s.tmpl.ExecuteTemplate(w, name, data); err != nil {
+	if err := tmpl.ExecuteTemplate(w, "base", data); err != nil {
 		slog.Error("template render failed", "template", name, "err", err)
 	}
 }

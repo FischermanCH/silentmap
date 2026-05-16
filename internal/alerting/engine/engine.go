@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"log/slog"
+	"strings"
 	"sync"
 	"time"
 
@@ -176,6 +177,23 @@ func (e *Engine) persist(a Alert) {
 	}
 }
 
+// parseTime handles SQLite datetime strings in multiple formats.
+func parseTime(s string) time.Time {
+	formats := []string{
+		time.RFC3339,
+		"2006-01-02T15:04:05.999999999",
+		"2006-01-02T15:04:05",
+		"2006-01-02 15:04:05",
+	}
+	s = strings.TrimSuffix(s, "Z")
+	for _, f := range formats {
+		if t, err := time.ParseInLocation(f, s, time.Local); err == nil {
+			return t
+		}
+	}
+	return time.Time{}
+}
+
 // RecentAlerts returns the last N alerts for the web UI.
 func (e *Engine) RecentAlerts(limit int) ([]Alert, error) {
 	rows, err := e.db.Query(`
@@ -189,9 +207,11 @@ func (e *Engine) RecentAlerts(limit int) ([]Alert, error) {
 	var alerts []Alert
 	for rows.Next() {
 		var a Alert
-		if err := rows.Scan(&a.ID, &a.Type, &a.Severity, &a.Title, &a.Summary, &a.MAC, &a.FiredAt); err != nil {
+		var firedAt string
+		if err := rows.Scan(&a.ID, &a.Type, &a.Severity, &a.Title, &a.Summary, &a.MAC, &firedAt); err != nil {
 			continue
 		}
+		a.FiredAt = parseTime(firedAt)
 		alerts = append(alerts, a)
 	}
 	return alerts, nil

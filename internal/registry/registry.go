@@ -12,6 +12,23 @@ import (
 	_ "modernc.org/sqlite"
 )
 
+// parseTime handles SQLite datetime strings in multiple formats.
+func parseTime(s string) time.Time {
+	formats := []string{
+		time.RFC3339,
+		"2006-01-02T15:04:05.999999999",
+		"2006-01-02T15:04:05",
+		"2006-01-02 15:04:05",
+	}
+	s = strings.TrimSuffix(s, "Z")
+	for _, f := range formats {
+		if t, err := time.ParseInLocation(f, s, time.Local); err == nil {
+			return t
+		}
+	}
+	return time.Time{}
+}
+
 type Device struct {
 	MAC       string
 	IP        string
@@ -183,11 +200,14 @@ func (r *Registry) List() ([]Device, error) {
 	var devices []Device
 	for rows.Next() {
 		var d Device
+		var firstSeen, lastSeen string
 		err := rows.Scan(&d.MAC, &d.IP, &d.Hostname, &d.Vendor, &d.Label,
-			&d.Category, &d.Priority, &d.Online, &d.FirstSeen, &d.LastSeen)
+			&d.Category, &d.Priority, &d.Online, &firstSeen, &lastSeen)
 		if err != nil {
 			continue
 		}
+		d.FirstSeen = parseTime(firstSeen)
+		d.LastSeen = parseTime(lastSeen)
 		devices = append(devices, d)
 	}
 	return devices, nil
@@ -211,11 +231,14 @@ func (r *Registry) OnlineCount() (int, error) {
 
 func (r *Registry) get(mac string) (Device, error) {
 	var d Device
+	var firstSeen, lastSeen string
 	err := r.db.QueryRow(`
 		SELECT mac, ip, hostname, vendor, label, category, priority, online, first_seen, last_seen
 		FROM devices WHERE mac = ?`, mac).
 		Scan(&d.MAC, &d.IP, &d.Hostname, &d.Vendor, &d.Label,
-			&d.Category, &d.Priority, &d.Online, &d.FirstSeen, &d.LastSeen)
+			&d.Category, &d.Priority, &d.Online, &firstSeen, &lastSeen)
+	d.FirstSeen = parseTime(firstSeen)
+	d.LastSeen = parseTime(lastSeen)
 	return d, err
 }
 
