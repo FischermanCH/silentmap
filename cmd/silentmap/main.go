@@ -17,6 +17,7 @@ import (
 	"github.com/silentmap/silentmap/internal/alerting/engine"
 	"github.com/silentmap/silentmap/internal/bus"
 	"github.com/silentmap/silentmap/internal/collectors/arp"
+	"github.com/silentmap/silentmap/internal/collectors/mdns"
 	"github.com/silentmap/silentmap/internal/config"
 	"github.com/silentmap/silentmap/internal/registry"
 	"github.com/silentmap/silentmap/internal/web"
@@ -119,6 +120,16 @@ func main() {
 				"err", err)
 		} else {
 			defer arpCollector.Stop()
+		}
+	}
+
+	// Start mDNS collector (non-fatal)
+	if cfg.Collectors.MDNS.Enabled {
+		mdnsCollector := mdns.New(cfg.Interface)
+		if err := mdnsCollector.Start(ctx, b); err != nil {
+			slog.Warn("mdns collector could not start", "err", err)
+		} else {
+			defer mdnsCollector.Stop()
 		}
 	}
 

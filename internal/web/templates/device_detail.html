@@ -1,76 +1,182 @@
 {{define "content"}}
 {{$d := .Device}}
-<div class="mb-6 flex items-center gap-4">
-  <a href="/devices" class="text-gray-400 hover:text-gray-600 text-sm">← Geräte</a>
-  <div>
-    <h1 class="text-2xl font-bold">
-      {{if $d.Label}}{{$d.Label}}{{else if $d.Hostname}}{{$d.Hostname}}{{else}}{{$d.MAC}}{{end}}
-    </h1>
-    <p class="text-gray-500 text-sm font-mono">{{$d.MAC}}</p>
+
+<!-- Header -->
+<div class="mb-6 flex items-start gap-4 flex-wrap">
+  <div class="flex-1 min-w-0">
+    <div class="flex items-center gap-2 mb-1">
+      <a href="/devices" class="text-gray-400 hover:text-gray-600 text-sm">← Geräte</a>
+    </div>
+    <h1 class="text-2xl font-bold truncate">{{.Title}}</h1>
+    <p class="text-gray-400 text-sm font-mono mt-0.5">{{$d.MAC}}</p>
   </div>
-  {{if $d.Online}}
-  <span class="ml-auto bg-green-100 text-green-800 text-sm px-3 py-1 rounded-full">● Online</span>
-  {{else}}
-  <span class="ml-auto bg-gray-100 text-gray-500 text-sm px-3 py-1 rounded-full">○ Offline</span>
-  {{end}}
+  <div class="flex items-center gap-2 flex-shrink-0">
+    {{if $d.Priority}}
+    <span class="text-xs bg-red-100 text-red-700 px-2 py-1 rounded-full font-medium">★ Priorität</span>
+    {{end}}
+    {{if $d.Online}}
+    <span class="bg-green-100 text-green-800 text-sm px-3 py-1 rounded-full font-medium">● Online</span>
+    {{else}}
+    <span class="bg-gray-100 text-gray-500 text-sm px-3 py-1 rounded-full font-medium">○ Offline</span>
+    {{end}}
+  </div>
 </div>
 
-<div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
-  <!-- Info -->
-  <div class="bg-white rounded-lg border p-4">
-    <h2 class="font-semibold mb-3">Geräteinformationen</h2>
-    <dl class="space-y-2 text-sm">
-      <div class="flex justify-between py-1 border-b border-gray-50"><dt class="text-gray-500">MAC</dt><dd class="font-mono text-xs">{{$d.MAC}}</dd></div>
-      <div class="flex justify-between py-1 border-b border-gray-50"><dt class="text-gray-500">IP</dt><dd class="font-mono">{{$d.IP}}</dd></div>
-      <div class="flex justify-between py-1 border-b border-gray-50"><dt class="text-gray-500">Hostname</dt><dd>{{if $d.Hostname}}{{$d.Hostname}}{{else}}<span class="text-gray-300">—</span>{{end}}</dd></div>
-      <div class="flex justify-between py-1 border-b border-gray-50"><dt class="text-gray-500">Hersteller</dt><dd>{{if $d.Vendor}}{{$d.Vendor}}{{else}}<span class="text-gray-300">—</span>{{end}}</dd></div>
-      <div class="flex justify-between py-1 border-b border-gray-50"><dt class="text-gray-500">Kategorie</dt><dd>{{if $d.Category}}<span class="text-xs bg-blue-50 text-blue-700 px-2 py-0.5 rounded">{{$d.Category}}</span>{{else}}<span class="text-gray-300">—</span>{{end}}</dd></div>
-      <div class="flex justify-between py-1 border-b border-gray-50"><dt class="text-gray-500">Erstmals gesehen</dt><dd class="text-xs">{{$d.FirstSeen.Format "02.01.2006 15:04"}}</dd></div>
-      <div class="flex justify-between py-1"><dt class="text-gray-500">Zuletzt gesehen</dt><dd class="text-xs">{{timeAgo $d.LastSeen}}</dd></div>
-    </dl>
+  <!-- Left: Info + Settings -->
+  <div class="lg:col-span-2 space-y-5">
+
+    <!-- Geräteinformationen -->
+    <div class="bg-white rounded-xl border p-5">
+      <h2 class="font-semibold text-gray-800 mb-4">Geräteinformationen</h2>
+      <dl class="divide-y text-sm">
+        <div class="flex justify-between py-2.5">
+          <dt class="text-gray-500">MAC-Adresse</dt>
+          <dd class="font-mono text-xs text-gray-700">{{$d.MAC}}</dd>
+        </div>
+        <div class="flex justify-between py-2.5">
+          <dt class="text-gray-500">IP-Adresse</dt>
+          <dd class="font-mono text-gray-700">{{if $d.IP}}{{$d.IP}}{{else}}<span class="text-gray-300">—</span>{{end}}</dd>
+        </div>
+        <div class="flex justify-between py-2.5">
+          <dt class="text-gray-500">Hersteller</dt>
+          <dd class="text-gray-700">{{if $d.Vendor}}{{$d.Vendor}}{{else}}<span class="text-gray-300">—</span>{{end}}</dd>
+        </div>
+        <div class="flex justify-between py-2.5">
+          <dt class="text-gray-500">Kategorie</dt>
+          <dd>
+            {{if $d.Category}}
+            <span class="text-xs bg-blue-50 text-blue-700 px-2 py-0.5 rounded font-medium">{{$d.Category}}</span>
+            {{else}}<span class="text-gray-300">—</span>{{end}}
+          </dd>
+        </div>
+        <div class="flex justify-between py-2.5">
+          <dt class="text-gray-500">Automatisch erkannter Hostname</dt>
+          <dd class="font-mono text-xs text-gray-500">{{if $d.HostnameAuto}}{{$d.HostnameAuto}}{{else}}<span class="text-gray-300">—</span>{{end}}</dd>
+        </div>
+        {{if $d.Services}}
+        <div class="py-2.5">
+          <dt class="text-gray-500 mb-1.5">mDNS Services</dt>
+          <dd class="flex flex-wrap gap-1.5 mt-1">
+            {{range $d.Services}}
+            <span class="text-xs bg-purple-50 text-purple-700 px-2 py-0.5 rounded font-mono">{{.}}</span>
+            {{end}}
+          </dd>
+        </div>
+        {{end}}
+        <div class="flex justify-between py-2.5">
+          <dt class="text-gray-500">Erstmals gesehen</dt>
+          <dd class="text-gray-600 text-xs">{{$d.FirstSeen.Format "02.01.2006 15:04:05"}}</dd>
+        </div>
+        <div class="flex justify-between py-2.5">
+          <dt class="text-gray-500">Zuletzt gesehen</dt>
+          <dd class="text-gray-600 text-xs">{{timeAgo $d.LastSeen}} ({{$d.LastSeen.Format "02.01.2006 15:04:05"}})</dd>
+        </div>
+      </dl>
+    </div>
+
+    <!-- Aktivitäts-Timeline -->
+    {{if .Events}}
+    <div class="bg-white rounded-xl border p-5">
+      <h2 class="font-semibold text-gray-800 mb-4">Aktivität</h2>
+      <div class="space-y-1">
+        {{range .Events}}
+        <div class="flex items-start gap-3 py-2 border-b border-gray-50 last:border-0">
+          <span class="text-base flex-shrink-0 mt-0.5">{{eventIcon .Type}}</span>
+          <div class="flex-1 min-w-0">
+            <div class="text-sm text-gray-700">{{.Note}}</div>
+            {{if .IP}}<div class="text-xs text-gray-400 font-mono">{{.IP}} · {{.Source}}</div>{{end}}
+          </div>
+          <div class="text-xs text-gray-400 flex-shrink-0 text-right whitespace-nowrap">
+            <div>{{timeAgo .CreatedAt}}</div>
+            <div>{{.CreatedAt.Format "15:04:05"}}</div>
+          </div>
+        </div>
+        {{end}}
+      </div>
+    </div>
+    {{end}}
+
   </div>
 
-  <!-- Settings -->
-  <div class="bg-white rounded-lg border p-4">
-    <h2 class="font-semibold mb-4">Einstellungen</h2>
+  <!-- Right: Einstellungen -->
+  <div class="space-y-4">
 
-    <form action="/devices/{{$d.MAC}}/label" method="POST" class="mb-5">
-      <label class="text-sm font-medium text-gray-700 block mb-1">Label</label>
-      <div class="flex gap-2">
+    <!-- Name / Label -->
+    <div class="bg-white rounded-xl border p-5">
+      <h2 class="font-semibold text-gray-800 mb-4">Name</h2>
+      <form action="/devices/{{$d.MAC}}/label" method="POST" class="mb-3">
+        <label class="text-xs font-medium text-gray-500 uppercase tracking-wide block mb-1.5">Anzeigename</label>
         <input type="text" name="label" value="{{$d.Label}}"
-          class="flex-1 border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          class="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 mb-2"
           placeholder="z.B. Mamas iPhone">
         <button type="submit"
-          class="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-blue-700 transition-colors">
+          class="w-full bg-blue-600 text-white py-2 rounded-lg text-sm hover:bg-blue-700 transition-colors font-medium">
           Speichern
         </button>
-      </div>
-    </form>
+      </form>
 
-    <div class="border-t pt-4">
-      <label class="text-sm font-medium text-gray-700 block mb-2">Priorität</label>
+      <form action="/devices/{{$d.MAC}}/hostname" method="POST">
+        <label class="text-xs font-medium text-gray-500 uppercase tracking-wide block mb-1.5">Hostname (manuell)</label>
+        <input type="text" name="hostname" value="{{$d.Hostname}}"
+          class="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 mb-2"
+          placeholder="z.B. nas.local">
+        <p class="text-xs text-gray-400 mb-2">
+          Überschreibt den automatisch erkannten Hostname
+          {{if $d.HostnameAuto}}<br><span class="font-mono">(auto: {{$d.HostnameAuto}})</span>{{end}}
+        </p>
+        <button type="submit"
+          class="w-full bg-gray-700 text-white py-2 rounded-lg text-sm hover:bg-gray-800 transition-colors font-medium">
+          Hostname setzen
+        </button>
+      </form>
+    </div>
+
+    <!-- Kategorie -->
+    <div class="bg-white rounded-xl border p-5">
+      <h2 class="font-semibold text-gray-800 mb-3">Kategorie</h2>
+      <form action="/devices/{{$d.MAC}}/category" method="POST">
+        <select name="category"
+          class="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 mb-2">
+          <option value="">— automatisch —</option>
+          {{$cat := $d.Category}}
+          {{range slice "smartphone" "tablet" "laptop" "desktop" "smart-tv" "nas" "router" "printer" "iot-device" "gaming-console" "media-player" "smart-speaker" "linux-sbc" "unknown"}}
+          <option value="{{.}}" {{if eq . $cat}}selected{{end}}>{{.}}</option>
+          {{end}}
+        </select>
+        <button type="submit"
+          class="w-full bg-gray-100 text-gray-700 py-2 rounded-lg text-sm hover:bg-gray-200 transition-colors font-medium">
+          Kategorie setzen
+        </button>
+      </form>
+    </div>
+
+    <!-- Priorität -->
+    <div class="bg-white rounded-xl border p-5">
+      <h2 class="font-semibold text-gray-800 mb-2">Priorität</h2>
+      <p class="text-xs text-gray-400 mb-3">
+        Prioritäts-Geräte lösen einen kritischen Alert aus wenn sie offline gehen.
+      </p>
       {{if $d.Priority}}
       <form action="/devices/{{$d.MAC}}/priority" method="POST">
         <input type="hidden" name="priority" value="false">
         <button type="submit"
-          class="w-full bg-red-50 border border-red-200 text-red-700 px-4 py-2 rounded-lg text-sm hover:bg-red-100 transition-colors text-left">
-          ★ Als Priorität markiert — klicken zum Entfernen
+          class="w-full bg-red-50 border border-red-200 text-red-700 py-2 rounded-lg text-sm hover:bg-red-100 transition-colors font-medium">
+          ★ Priorität aktiv — deaktivieren
         </button>
       </form>
-      <p class="text-xs text-gray-400 mt-2">Kritischer Alert wenn dieses Gerät offline geht.</p>
       {{else}}
       <form action="/devices/{{$d.MAC}}/priority" method="POST">
         <input type="hidden" name="priority" value="true">
         <button type="submit"
-          class="w-full bg-gray-50 border border-gray-200 text-gray-600 px-4 py-2 rounded-lg text-sm hover:bg-gray-100 transition-colors text-left">
+          class="w-full bg-gray-50 border border-gray-200 text-gray-600 py-2 rounded-lg text-sm hover:bg-gray-100 transition-colors font-medium">
           ☆ Als Priorität markieren
         </button>
       </form>
-      <p class="text-xs text-gray-400 mt-2">Kritischen Alert aktivieren wenn offline.</p>
       {{end}}
     </div>
-  </div>
 
+  </div>
 </div>
 {{end}}

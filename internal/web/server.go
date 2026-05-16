@@ -33,6 +33,8 @@ func NewServer(reg *registry.Registry, alertEng *engine.Engine, db *sql.DB) *Ser
 		funcMap: template.FuncMap{
 			"timeAgo":       timeAgo,
 			"severityClass": severityClass,
+			"eventIcon":     eventIcon,
+			"slice": func(args ...string) []string { return args },
 		},
 	}
 }
@@ -46,7 +48,9 @@ func (s *Server) Handler() http.Handler {
 	r.Get("/devices", s.deviceList)
 	r.Get("/devices/{mac}", s.deviceDetail)
 	r.Post("/devices/{mac}/label", s.setLabel)
+	r.Post("/devices/{mac}/hostname", s.setHostname)
 	r.Post("/devices/{mac}/priority", s.setPriority)
+	r.Post("/devices/{mac}/category", s.setCategory)
 	r.Get("/alerts", s.alertList)
 	r.Get("/health", s.health)
 
@@ -100,9 +104,12 @@ func (s *Server) deviceDetail(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "internal error", http.StatusInternalServerError)
 		return
 	}
+	events, _ := s.reg.DeviceEvents(mac, 20)
+	title := dev.DisplayName()
 	s.render(w, "device_detail.html", map[string]any{
-		"Title":  "Gerät: " + dev.MAC,
+		"Title":  title,
 		"Device": dev,
+		"Events": events,
 	})
 }
 
@@ -115,6 +122,34 @@ func (s *Server) setLabel(w http.ResponseWriter, r *http.Request) {
 	label := r.FormValue("label")
 	if err := s.reg.SetLabel(mac, label); err != nil {
 		slog.Error("set label failed", "mac", mac, "err", err)
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+	http.Redirect(w, r, "/devices/"+mac, http.StatusSeeOther)
+}
+
+func (s *Server) setHostname(w http.ResponseWriter, r *http.Request) {
+	mac := chi.URLParam(r, "mac")
+	if err := r.ParseForm(); err != nil {
+		http.Error(w, "bad request", http.StatusBadRequest)
+		return
+	}
+	if err := s.reg.SetHostname(mac, r.FormValue("hostname")); err != nil {
+		slog.Error("set hostname failed", "mac", mac, "err", err)
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+	http.Redirect(w, r, "/devices/"+mac, http.StatusSeeOther)
+}
+
+func (s *Server) setCategory(w http.ResponseWriter, r *http.Request) {
+	mac := chi.URLParam(r, "mac")
+	if err := r.ParseForm(); err != nil {
+		http.Error(w, "bad request", http.StatusBadRequest)
+		return
+	}
+	if err := s.reg.SetCategory(mac, r.FormValue("category")); err != nil {
+		slog.Error("set category failed", "mac", mac, "err", err)
 		http.Error(w, "internal error", http.StatusInternalServerError)
 		return
 	}
@@ -182,6 +217,25 @@ func timeAgo(t time.Time) string {
 	default:
 		days := int(d.Hours() / 24)
 		return fmt.Sprintf("%dd", days)
+	}
+}
+
+func eventIcon(typ string) string {
+	switch typ {
+	case "seen":
+		return "👋"
+	case "online":
+		return "🟢"
+	case "offline":
+		return "🔴"
+	case "hostname", "hostname_manual":
+		return "✏️"
+	case "label":
+		return "🏷️"
+	case "services":
+		return "🔌"
+	default:
+		return "•"
 	}
 }
 
