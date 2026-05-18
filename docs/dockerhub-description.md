@@ -14,6 +14,20 @@ Single binary · Embedded SQLite · Zero external dependencies · Docker-native
 
 ---
 
+## Screenshots
+
+![Dashboard](https://raw.githubusercontent.com/FischermanCH/silentmap/master/internal/web/static/PS-SilentMap-Main.png)
+
+| Devices | Alerts |
+|---|---|
+| ![Devices](https://raw.githubusercontent.com/FischermanCH/silentmap/master/internal/web/static/PS-SilentMap-Devices.png) | ![Alerts](https://raw.githubusercontent.com/FischermanCH/silentmap/master/internal/web/static/PS-SilentMap-Alerts.png) |
+
+| Event Log | Settings |
+|---|---|
+| ![Log](https://raw.githubusercontent.com/FischermanCH/silentmap/master/internal/web/static/PS-SilentMap-Log.png) | ![Settings](https://raw.githubusercontent.com/FischermanCH/silentmap/master/internal/web/static/PS-SilentMap-Config.png) |
+
+---
+
 ## Quickstart
 
 ```bash
@@ -159,7 +173,7 @@ Full configuration reference: [silentmap.example.yaml on GitHub](https://github.
 
 - **GitHub:** https://github.com/FischermanCH/silentmap — source code, full documentation, configuration reference, changelog
 - **Issues / Feature requests:** https://github.com/FischermanCH/silentmap/issues
-- **Product page:** https://fischerman.ch/projects/silentmap *(coming soon)*
+- **Product page:** https://fischerman.ch/projects/silentmap/
 
 ---
 

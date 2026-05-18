@@ -8,9 +8,37 @@ Passive network monitor — sees everything, disturbs nothing.
 
 **GitHub:** [FischermanCH/silentmap](https://github.com/FischermanCH/silentmap)
 **Docker Hub:** [fischermanch/silentmap](https://hub.docker.com/r/fischermanch/silentmap) — `docker pull fischermanch/silentmap:latest`
-**Product:** [fischerman.ch/projects/silentmap](https://fischerman.ch/projects/silentmap) *(coming soon)*
+**Product:** [fischerman.ch/projects/silentmap](https://fischerman.ch/projects/silentmap/)
 
 **Languages:** [English](#english) · [Deutsch](#deutsch)
+
+---
+
+<details open>
+<summary><strong>Dashboard &amp; Topology Map</strong></summary>
+<br>
+<a href="internal/web/static/PS-SilentMap-Main.png">
+  <img src="internal/web/static/PS-SilentMap-Main.png" alt="Dashboard with topology map" width="680">
+</a>
+</details>
+
+<details>
+<summary><strong>Devices · Alerts · Log · Settings</strong></summary>
+<br>
+<a href="internal/web/static/PS-SilentMap-Devices.png">
+  <img src="internal/web/static/PS-SilentMap-Devices.png" alt="Device list" width="320">
+</a>
+<a href="internal/web/static/PS-SilentMap-Alerts.png">
+  <img src="internal/web/static/PS-SilentMap-Alerts.png" alt="Alerts" width="320">
+</a>
+<br>
+<a href="internal/web/static/PS-SilentMap-Log.png">
+  <img src="internal/web/static/PS-SilentMap-Log.png" alt="Event log" width="320">
+</a>
+<a href="internal/web/static/PS-SilentMap-Config.png">
+  <img src="internal/web/static/PS-SilentMap-Config.png" alt="Settings" width="320">
+</a>
+</details>
 
 ---
 
@@ -412,4 +440,4 @@ MIT — siehe [LICENSE](LICENSE)
 
 **GitHub:** [FischermanCH/silentmap](https://github.com/FischermanCH/silentmap)
 **Docker Hub:** [fischermanch/silentmap](https://hub.docker.com/r/fischermanch/silentmap) — `docker pull fischermanch/silentmap:latest`
-**Projektseite:** [fischerman.ch/projects/silentmap](https://fischerman.ch/projects/silentmap) *(demnächst)*
+**Projektseite:** [fischerman.ch/projects/silentmap](https://fischerman.ch/projects/silentmap/)
