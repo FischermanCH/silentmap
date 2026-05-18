@@ -33,6 +33,8 @@
     </button>
     <div class="w-px h-3 flex-shrink-0" style="background:var(--sm-card-border)"></div>
     <div id="group-filter" class="flex items-center gap-1.5 flex-wrap flex-1"></div>
+    <div class="w-px h-3 flex-shrink-0" style="background:var(--sm-card-border)"></div>
+    <div class="flex items-center gap-1 flex-shrink-0" id="status-filter"></div>
   </div>
   <svg id="map" width="100%" height="100%"></svg>
 </div>
@@ -125,9 +127,18 @@ let clusterMeta;
 let showAuto=true, showPhysical=true, showLogical=true;
 let initialized=false;
 let hiddenGroups=new Set([UNGROUPED]); // ohne Gruppe standardmässig ausgeblendet
+let statusFilter={online:true, offline:true, neu:false}; // Neu standardmässig aus
 
 // ── Visibility ───────────────────────────────────────────────────────────────
-function visibleNodes() { return allNodes.filter(n=>!hiddenGroups.has(groupOf(n))); }
+function visibleNodes() {
+  return allNodes.filter(n=>{
+    if(hiddenGroups.has(groupOf(n)))     return false;
+    if(!statusFilter.online  &&  n.online)  return false;
+    if(!statusFilter.offline && !n.online)  return false;
+    if(statusFilter.neu      &&  n.approved) return false;
+    return true;
+  });
+}
 function visibleLinks() {
   const vis=new Set(visibleNodes().map(n=>n.id));
   return allLinks.filter(l=>vis.has(idOf(l.source))&&vis.has(idOf(l.target)));
@@ -162,14 +173,14 @@ async function load() {
     // First load: build allNodes fresh
     allNodes=newNodes;
     allLinks=data.links||[];
-    buildGroupFilter();
+    buildGroupFilter(); buildStatusFilter();
     fullRender();
     return;
   }
 
   if(!changed) {
     // Same topology — visuals already updated via in-place mutation above
-    buildGroupFilter();
+    buildGroupFilter(); buildStatusFilter();
     refreshStatus();
     // If sim has cooled, explicitly reposition links from current node coords
     // (handles returning from browser sleep where tick stopped firing)
@@ -189,7 +200,7 @@ async function load() {
   const linkMap=new Map(allLinks.map(l=>[`${idOf(l.source)}→${idOf(l.target)}:${l.type}`,l]));
   allLinks=(data.links||[]).map(l=>linkMap.get(`${l.source}→${l.target}:${l.type}`)||l);
 
-  buildGroupFilter();
+  buildGroupFilter(); buildStatusFilter();
 
   const el=document.getElementById('map');
   const W=el?el.clientWidth:800, H=el?el.clientHeight:400;
@@ -256,10 +267,61 @@ function buildGroupFilter() {
   });
 }
 
+function buildStatusFilter() {
+  const container=document.getElementById('status-filter');
+  if(!container) return;
+  container.innerHTML='';
+  const items=[
+    {key:'online',  label:'● Online',  colorOn:'#4ade80', colorOff:'var(--sm-text-muted)'},
+    {key:'offline', label:'○ Offline', colorOn:'#ef4444', colorOff:'var(--sm-text-muted)'},
+    {key:'neu',     label:'★ Neu',     colorOn:'#f59e0b', colorOff:'var(--sm-text-muted)'},
+  ];
+  items.forEach(item=>{
+    const btn=document.createElement('button');
+    btn.type='button';
+    const refresh=()=>{
+      const on=statusFilter[item.key];
+      Object.assign(btn.style,{
+        border:`1.5px solid ${on?item.colorOn:'var(--sm-card-border)'}`,
+        borderRadius:'4px',padding:'1px 8px',fontSize:'10px',cursor:'pointer',
+        background:on?item.colorOn+'22':'transparent',
+        color:on?item.colorOn:item.colorOff,
+        opacity:on?'1':'0.5',whiteSpace:'nowrap',fontWeight:'600',letterSpacing:'0.04em',
+        transition:'all 0.15s',
+      });
+      btn.textContent=item.label;
+    };
+    refresh();
+    btn.addEventListener('click',()=>{
+      statusFilter[item.key]=!statusFilter[item.key];
+      refresh(); applyStatusFilter();
+    });
+    container.appendChild(btn);
+  });
+}
+
+function applyStatusFilter() {
+  if(nodeSel){
+    nodeSel.attr('opacity',d=>(hiddenGroups.has(groupOf(d))||isHiddenByStatus(d))?0:1)
+           .attr('pointer-events',d=>(hiddenGroups.has(groupOf(d))||isHiddenByStatus(d))?'none':'auto');
+  }
+  drawLinks();
+  updateHulls();
+  const vn=visibleNodes();
+  if(vn.length) fitView(null,null,vn,true);
+}
+
+function isHiddenByStatus(n){
+  if(!statusFilter.online  &&  n.online)   return true;
+  if(!statusFilter.offline && !n.online)   return true;
+  if(statusFilter.neu      &&  n.approved) return true;
+  return false;
+}
+
 function applyGroupFilter() {
   if(nodeSel){
-    nodeSel.attr('opacity',d=>hiddenGroups.has(groupOf(d))?0:1)
-           .attr('pointer-events',d=>hiddenGroups.has(groupOf(d))?'none':'auto');
+    nodeSel.attr('opacity',d=>(hiddenGroups.has(groupOf(d))||isHiddenByStatus(d))?0:1)
+           .attr('pointer-events',d=>(hiddenGroups.has(groupOf(d))||isHiddenByStatus(d))?'none':'auto');
   }
   drawLinks();
   updateHulls();
@@ -473,8 +535,8 @@ function drawNodes() {
   nodeSel=nodeLayer.selectAll('g').data(allNodes).join('g')
     .attr('cursor','pointer')
     .attr('transform',d=>`translate(${d.x||0},${d.y||0})`)
-    .attr('opacity',  d=>hiddenGroups.has(groupOf(d))?0:1)
-    .attr('pointer-events',d=>hiddenGroups.has(groupOf(d))?'none':'auto')
+    .attr('opacity',  d=>(hiddenGroups.has(groupOf(d))||isHiddenByStatus(d))?0:1)
+    .attr('pointer-events',d=>(hiddenGroups.has(groupOf(d))||isHiddenByStatus(d))?'none':'auto')
     .call(d3.drag()
       .on('start',(e,d)=>{sim.alphaTarget(0.1).restart();d.fx=d.x;d.fy=d.y;})
       .on('drag', (e,d)=>{d.fx=e.x;d.fy=e.y;})

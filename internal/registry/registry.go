@@ -578,6 +578,7 @@ type TopoNode struct {
 	Groups   []string `json:"groups"`
 	Online   bool     `json:"online"`
 	Priority bool     `json:"priority"`
+	Approved bool     `json:"approved"`
 }
 
 type TopoGroup struct {
@@ -659,6 +660,7 @@ func (r *Registry) Topology() (*Topology, error) {
 			Groups:   grps,
 			Online:   d.Online,
 			Priority: d.Priority,
+			Approved: d.Approved,
 		})
 	}
 
