@@ -7,8 +7,8 @@
 Passive network monitor — sees everything, disturbs nothing.
 
 **GitHub:** [FischermanCH/silentmap](https://github.com/FischermanCH/silentmap)
-**Docker Hub:** [fischermanch/silentmap](https://hub.docker.com/r/fischermanch/silentmap)
-**Product:** [fischerman.ch/projects/silentmap](https://fischerman.ch/projects/silentmap)
+**Docker Hub:** [fischermanch/silentmap](https://hub.docker.com/r/fischermanch/silentmap) — `docker pull fischermanch/silentmap:latest`
+**Product:** [fischerman.ch/projects/silentmap](https://fischerman.ch/projects/silentmap) *(coming soon)*
 
 **Languages:** [English](#english) · [Deutsch](#deutsch)
 
@@ -410,4 +410,6 @@ Vollständige Referenz: [`configs/silentmap.example.yaml`](configs/silentmap.exa
 
 MIT — siehe [LICENSE](LICENSE)
 
-Projektseite: [fischerman.ch/projects/silentmap](https://fischerman.ch/projects/silentmap)
+**GitHub:** [FischermanCH/silentmap](https://github.com/FischermanCH/silentmap)
+**Docker Hub:** [fischermanch/silentmap](https://hub.docker.com/r/fischermanch/silentmap) — `docker pull fischermanch/silentmap:latest`
+**Projektseite:** [fischerman.ch/projects/silentmap](https://fischerman.ch/projects/silentmap) *(demnächst)*
