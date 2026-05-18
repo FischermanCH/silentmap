@@ -1,0 +1,50 @@
+{{define "content"}}
+<div class="mb-6 flex items-center justify-between">
+  <div>
+    <h1 class="text-2xl font-bold">{{t "log.title"}}</h1>
+    <p class="text-sm mt-1" style="color:var(--sm-text-muted)">{{t "log.subtitle"}}</p>
+  </div>
+  <a href="/log" class="text-sm hover:underline" style="color:var(--sm-accent)">{{t "log.refresh"}}</a>
+</div>
+
+{{if .Events}}
+<div class="rounded-lg border overflow-hidden" style="background-color:var(--sm-card-bg)">
+  <table class="w-full text-sm">
+    <thead class="border-b" style="background-color:var(--sm-thead-bg)">
+      <tr>
+        <th class="text-left px-4 py-2 font-medium w-36" style="color:var(--sm-text-muted)">{{t "col.time"}}</th>
+        <th class="text-left px-4 py-2 font-medium w-28" style="color:var(--sm-text-muted)">{{t "col.type"}}</th>
+        <th class="text-left px-4 py-2 font-medium" style="color:var(--sm-text-muted)">{{t "col.device"}}</th>
+        <th class="text-left px-4 py-2 font-medium w-36" style="color:var(--sm-text-muted)">{{t "col.ip"}}</th>
+        <th class="text-left px-4 py-2 font-medium" style="color:var(--sm-text-muted)">{{t "col.note"}}</th>
+        <th class="text-left px-4 py-2 font-medium w-20" style="color:var(--sm-text-muted)">{{t "col.source"}}</th>
+      </tr>
+    </thead>
+    <tbody class="divide-y" style="border-color:var(--sm-card-border)">
+      {{range .Events}}
+      <tr style="transition:background 0.1s" onmouseover="this.style.background='var(--sm-row-hover)'" onmouseout="this.style.background=''">
+        <td class="px-4 py-2 font-mono text-xs whitespace-nowrap" style="color:var(--sm-text-muted)">
+          {{.CreatedAt.Format "01-02 15:04:05"}}
+        </td>
+        <td class="px-4 py-2">
+          <span class="inline-flex items-center gap-1 text-xs font-medium" style="color:var(--sm-text-secondary)">
+            {{eventIcon .Type}} {{t (printf "event.type.%s" .Type)}}
+          </span>
+        </td>
+        <td class="px-4 py-2 font-mono text-xs">
+          <a href="/devices/{{.MAC}}" class="hover:underline" style="color:var(--sm-accent)">{{.MAC}}</a>
+        </td>
+        <td class="px-4 py-2 font-mono text-xs" style="color:var(--sm-text-secondary)">{{.IP}}</td>
+        <td class="px-4 py-2 text-xs" style="color:var(--sm-text-secondary)">{{.Note}}</td>
+        <td class="px-4 py-2 text-xs" style="color:var(--sm-text-muted)">{{.Source}}</td>
+      </tr>
+      {{end}}
+    </tbody>
+  </table>
+</div>
+{{else}}
+<div class="rounded-lg border p-8 text-center" style="background-color:var(--sm-card-bg);color:var(--sm-text-muted)">
+  {{t "log.empty"}}
+</div>
+{{end}}
+{{end}}

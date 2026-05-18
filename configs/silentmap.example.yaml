@@ -1,8 +1,8 @@
-# silentmap Beispielkonfiguration
-# Alle Einstellungen sind optional — Defaults werden verwendet wenn nicht gesetzt.
-# Kopieren nach /data/silentmap.yaml und anpassen.
+# silentmap example configuration
+# All settings are optional — defaults are used when not set.
+# Copy to your data directory as silentmap.yaml and adjust as needed.
 
-# Netzwerk-Interface (leer = automatische Erkennung des ersten aktiven Interface)
+# Network interface to listen on (empty = auto-detect)
 interface: ""
 
 # Web UI
@@ -13,44 +13,31 @@ web:
     username: "admin"
     password: ""
 
-# Collector-Module
+# Collector modules
 collectors:
   arp:
     enabled: true
-    offline_timeout: 15m
+    offline_timeout: 15m   # time after last packet until device is marked offline
 
   mdns:
-    enabled: true
+    enabled: true          # hostname and service discovery via mDNS
 
   dhcp:
-    enabled: true
+    enabled: true          # hostname discovery via DHCP snooping
 
   ping:
-    enabled: false
-    targets: "priority"   # "priority" | "all"
-    interval: 60s
+    enabled: true
+    targets: "priority"    # "priority" = only ping priority devices
+    interval: 5m           # how often to ping (default: 5 minutes)
     timeout: 3s
 
   nmap:
     enabled: false
-    trigger: "new_device" # "new_device" | "manual" | "scheduled"
     args: "-sV --top-ports 20 -T3"
 
-# KI-Engine
-ai:
-  fingerprint:
-    enabled: true
-
-  correlation:
-    enabled: false        # Requires Ollama
-    ollama_url: "http://localhost:11434"
-    model: "phi3:mini"
-    window: 90s
-
-  anomaly:
-    enabled: true
-    baseline_days: 14
-    min_observations: 50
+# Log / event retention
+storage:
+  log_retention_days: 30   # delete events and alerts older than N days
 
 # Alerting
 alerts:
@@ -69,22 +56,15 @@ alerts:
       enabled: true
       severity: "info"
 
-    anomaly:
-      enabled: true
-      severity: "medium"
-      min_score: 0.7
-      cooldown: 60m
-
   channels:
     ntfy:
       enabled: false
-      url: "https://ntfy.sh/mein-topic"
-      token: ""
+      url: "https://ntfy.sh/your-topic"
+      token: ""              # optional Bearer token for protected topics
 
-    telegram:
+    discord:
       enabled: false
-      token: ""
-      chat_id: ""
+      webhook_url: ""        # Discord webhook URL
 
     webhook:
       enabled: false
@@ -102,8 +82,8 @@ alerts:
       to: []
 
   routing:
-    critical: ["ntfy", "telegram", "email"]
-    high:     ["ntfy", "telegram"]
+    critical: ["ntfy", "discord", "email"]
+    high:     ["ntfy", "discord"]
     medium:   ["webhook"]
     info:     []
     low:      []

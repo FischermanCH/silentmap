@@ -1,0 +1,21 @@
+{
+  "name": "fischerman",
+  "label": "Fischerman",
+  "colors": {
+    "page-bg":         "#000000",
+    "card-bg":         "#0a0a0a",
+    "card-border":     "#00aa00",
+    "nav-bg":          "#000000",
+    "nav-text":        "#00ff00",
+    "text-primary":    "#00ff00",
+    "text-secondary":  "#00cc00",
+    "text-muted":      "#009900",
+    "accent":          "#00ff00",
+    "online":          "#00ff00",
+    "offline":         "#cc2222",
+    "row-hover":       "rgba(0,255,0,0.06)",
+    "badge-info-bg":   "#010601",
+    "badge-info-text": "#00ee00",
+    "thead-bg":        "#050505"
+  }
+}

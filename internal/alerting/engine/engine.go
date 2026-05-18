@@ -1,3 +1,5 @@
+// Package engine routes bus events to alert channels (Discord, ntfy) and
+// persists fired alerts to the database for the alert history view.
 package engine
 
 import (
@@ -66,9 +68,10 @@ func (e *Engine) onDeviceNew(ev bus.Event) {
 	e.fire(Alert{
 		Type:     "new_device",
 		Severity: e.cfg.Rules.NewDevice.Severity,
-		Title:    "Neues Gerät erkannt",
+		Title:    "alert.title.new_device",
 		Summary:  summary,
 		MAC:      ev.MAC,
+		IP:       ev.IP,
 		Meta:     ev.Meta,
 	}, e.cfg.Rules.NewDevice.Cooldown)
 }
@@ -81,18 +84,13 @@ func (e *Engine) onDeviceLost(ev bus.Event) {
 	if !priority {
 		return
 	}
-	label, _ := ev.Meta["label"].(string)
-	display := label
-	if display == "" {
-		display = ev.MAC
-	}
-
 	e.fire(Alert{
 		Type:     "priority_offline",
 		Severity: e.cfg.Rules.PriorityOffline.Severity,
-		Title:    "Prioritäts-Gerät offline",
-		Summary:  display + " ist nicht mehr erreichbar (letzte IP: " + ev.IP + ")",
+		Title:    "alert.title.priority_offline",
+		Summary:  alertSummary(ev),
 		MAC:      ev.MAC,
+		IP:       ev.IP,
 		Meta:     ev.Meta,
 	}, e.cfg.Rules.PriorityOffline.Cooldown)
 }
@@ -101,20 +99,37 @@ func (e *Engine) onDeviceBack(ev bus.Event) {
 	if !e.cfg.Rules.DeviceBack.Enabled {
 		return
 	}
-	label, _ := ev.Meta["label"].(string)
-	display := label
-	if display == "" {
-		display = ev.MAC
-	}
-
 	e.fire(Alert{
 		Type:     "device_back",
 		Severity: e.cfg.Rules.DeviceBack.Severity,
-		Title:    "Gerät wieder online",
-		Summary:  display + " ist wieder erreichbar unter " + ev.IP,
+		Title:    "alert.title.device_back",
+		Summary:  alertSummary(ev),
 		MAC:      ev.MAC,
+		IP:       ev.IP,
 		Meta:     ev.Meta,
 	}, e.cfg.Rules.DeviceBack.Cooldown)
+}
+
+// bestName returns the most human-readable name available in the event metadata:
+// label → hostname → hostnameAuto → vendor. Returns "" when nothing is known —
+// callers should fall back to showing only the IP rather than repeating the MAC.
+func bestName(ev bus.Event) string {
+	for _, key := range []string{"label", "hostname", "hostnameAuto", "vendor"} {
+		if v, _ := ev.Meta[key].(string); v != "" {
+			return v
+		}
+	}
+	return ""
+}
+
+// alertSummary builds the one-line summary for an alert:
+// "Name · IP" when a human-readable name exists, just "IP" otherwise.
+// The MAC is always shown separately as a link in the UI.
+func alertSummary(ev bus.Event) string {
+	if name := bestName(ev); name != "" {
+		return name + " · " + ev.IP
+	}
+	return ev.IP
 }
 
 func (e *Engine) fire(a Alert, cooldownDur time.Duration) {

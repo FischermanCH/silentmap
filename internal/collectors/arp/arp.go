@@ -67,6 +67,10 @@ func (c *Collector) Start(ctx context.Context, b *bus.Bus) error {
 			if ip == "0.0.0.0" {
 				continue
 			}
+			// Ignore link-local (169.254.x.x) — APIPA / mDNS / AirDrop noise
+			if a4 := pkt.SenderIP.As4(); pkt.SenderIP.Is4() && a4[0] == 169 && a4[1] == 254 {
+				continue
+			}
 
 			b.Publish(bus.NewEvent(bus.EventDeviceSeen, mac, ip, "arp", map[string]any{
 				"target_ip": pkt.TargetIP.String(),

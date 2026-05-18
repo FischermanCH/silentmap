@@ -1,3 +1,4 @@
+// Package ntfy sends alerts to a ntfy.sh topic (or self-hosted ntfy server).
 package ntfy
 
 import (
@@ -5,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/silentmap/silentmap/internal/alerting/channels"
@@ -12,6 +14,7 @@ import (
 )
 
 type Channel struct {
+	mu     sync.RWMutex
 	cfg    config.NtfyCfg
 	client *http.Client
 }
@@ -23,16 +26,31 @@ func New(cfg config.NtfyCfg) *Channel {
 	}
 }
 
-func (c *Channel) Name() string    { return "ntfy" }
-func (c *Channel) Enabled() bool   { return c.cfg.Enabled && c.cfg.URL != "" }
+func (c *Channel) Update(cfg config.NtfyCfg) {
+	c.mu.Lock()
+	c.cfg = cfg
+	c.mu.Unlock()
+}
+
+func (c *Channel) Name() string { return "ntfy" }
+func (c *Channel) Enabled() bool {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	return c.cfg.Enabled && c.cfg.URL != ""
+}
 
 func (c *Channel) Send(ctx context.Context, a channels.Alert) error {
+	c.mu.RLock()
+	url := c.cfg.URL
+	token := c.cfg.Token
+	c.mu.RUnlock()
+
 	body := a.Summary
 	if a.MAC != "" {
 		body += "\nMAC: " + a.MAC
 	}
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.cfg.URL, strings.NewReader(body))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, strings.NewReader(body))
 	if err != nil {
 		return err
 	}
@@ -42,8 +60,15 @@ func (c *Channel) Send(ctx context.Context, a channels.Alert) error {
 	req.Header.Set("Tags", ntfyTags(a.Type))
 	req.Header.Set("Content-Type", "text/plain")
 
-	if c.cfg.Token != "" {
-		req.Header.Set("Authorization", "Bearer "+c.cfg.Token)
+	if token != "" {
+		// Strip any CR/LF characters to prevent HTTP header injection.
+		token = strings.Map(func(r rune) rune {
+			if r == '\r' || r == '\n' {
+				return -1
+			}
+			return r
+		}, token)
+		req.Header.Set("Authorization", "Bearer "+token)
 	}
 
 	resp, err := c.client.Do(req)

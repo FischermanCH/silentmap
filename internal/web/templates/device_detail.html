@@ -1,94 +1,118 @@
 {{define "content"}}
 {{$d := .Device}}
 
+{{if $d.Approved}}{{else}}
+<!-- NEW-Banner -->
+<div class="mb-5 flex items-center justify-between gap-4 bg-amber-50 border border-amber-300 rounded-xl px-5 py-3">
+  <div class="flex items-center gap-3">
+    <span class="text-xs bg-amber-400 text-white px-2 py-0.5 rounded font-bold flex-shrink-0">{{t "device.new"}}</span>
+    <span class="text-sm text-amber-800">{{t "device.new.banner"}}</span>
+  </div>
+  <form action="/devices/{{$d.MAC}}/approve" method="POST" class="flex-shrink-0">
+    <button type="submit"
+      class="bg-amber-500 hover:bg-amber-600 text-white text-sm font-medium px-4 py-1.5 rounded-lg transition-colors">
+      {{t "device.confirm"}}
+    </button>
+  </form>
+</div>
+{{end}}
+
 <!-- Header -->
 <div class="mb-6 flex items-start gap-4 flex-wrap">
   <div class="flex-1 min-w-0">
     <div class="flex items-center gap-2 mb-1">
-      <a href="/devices" class="text-gray-400 hover:text-gray-600 text-sm">← Geräte</a>
+      <a href="/devices" class="text-gray-400 hover:text-gray-600 text-sm">{{t "back.devices"}}</a>
     </div>
     <h1 class="text-2xl font-bold truncate">{{.Title}}</h1>
     <p class="text-gray-400 text-sm font-mono mt-0.5">{{$d.MAC}}</p>
   </div>
   <div class="flex items-center gap-2 flex-shrink-0">
     {{if $d.Priority}}
-    <span class="text-xs bg-red-100 text-red-700 px-2 py-1 rounded-full font-medium">★ Priorität</span>
+    <span class="text-xs bg-red-100 text-red-700 px-2 py-1 rounded-full font-medium">{{t "priority.badge"}}</span>
     {{end}}
     {{if $d.Online}}
-    <span class="bg-green-100 text-green-800 text-sm px-3 py-1 rounded-full font-medium">● Online</span>
+    <span class="bg-green-100 text-green-800 text-sm px-3 py-1 rounded-full font-medium">{{t "status.online"}}</span>
     {{else}}
-    <span class="bg-gray-100 text-gray-500 text-sm px-3 py-1 rounded-full font-medium">○ Offline</span>
+    <span class="bg-gray-100 text-gray-500 text-sm px-3 py-1 rounded-full font-medium">{{t "status.offline"}}</span>
     {{end}}
   </div>
 </div>
 
 <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
-  <!-- Left: Info + Settings -->
+  <!-- Left: Info + Activity -->
   <div class="lg:col-span-2 space-y-5">
 
     <!-- Geräteinformationen -->
-    <div class="bg-white rounded-xl border p-5">
-      <h2 class="font-semibold text-gray-800 mb-4">Geräteinformationen</h2>
-      <dl class="divide-y text-sm">
+    <div class="rounded-xl border p-5" style="background-color:var(--sm-card-bg)">
+      <h2 class="font-semibold mb-4" style="color:var(--sm-text-primary)">{{t "section.info"}}</h2>
+      <dl class="divide-y text-sm" style="border-color:var(--sm-card-border)">
         <div class="flex justify-between py-2.5">
-          <dt class="text-gray-500">MAC-Adresse</dt>
-          <dd class="font-mono text-xs text-gray-700">{{$d.MAC}}</dd>
+          <dt style="color:var(--sm-text-muted)">{{t "field.mac"}}</dt>
+          <dd class="font-mono text-xs" style="color:var(--sm-text-secondary)">{{$d.MAC}}</dd>
         </div>
         <div class="flex justify-between py-2.5">
-          <dt class="text-gray-500">IP-Adresse</dt>
-          <dd class="font-mono text-gray-700">{{if $d.IP}}{{$d.IP}}{{else}}<span class="text-gray-300">—</span>{{end}}</dd>
+          <dt style="color:var(--sm-text-muted)">{{t "field.ip"}}</dt>
+          <dd class="font-mono" style="color:var(--sm-text-secondary)">{{if $d.IP}}{{$d.IP}}{{else}}<span style="color:var(--sm-text-muted)">—</span>{{end}}</dd>
         </div>
         <div class="flex justify-between py-2.5">
-          <dt class="text-gray-500">Hersteller</dt>
-          <dd class="text-gray-700">{{if $d.Vendor}}{{$d.Vendor}}{{else}}<span class="text-gray-300">—</span>{{end}}</dd>
+          <dt style="color:var(--sm-text-muted)">{{t "field.vendor"}}</dt>
+          <dd style="color:var(--sm-text-secondary)">{{if $d.Vendor}}{{$d.Vendor}}{{else}}<span style="color:var(--sm-text-muted)">—</span>{{end}}</dd>
         </div>
         <div class="flex justify-between py-2.5">
-          <dt class="text-gray-500">Kategorie</dt>
+          <dt style="color:var(--sm-text-muted)">{{t "field.category"}}</dt>
           <dd>
             {{if $d.Category}}
-            <span class="text-xs bg-blue-50 text-blue-700 px-2 py-0.5 rounded font-medium">{{$d.Category}}</span>
-            {{else}}<span class="text-gray-300">—</span>{{end}}
+            <span class="text-xs px-2 py-0.5 rounded font-medium inline-flex items-center gap-1"
+              style="background-color:var(--sm-badge-info-bg);color:var(--sm-badge-info-text)">{{catIcon $d.Category}}{{t (printf "cat.%s" $d.Category)}}</span>
+            {{else}}<span style="color:var(--sm-text-muted)">—</span>{{end}}
           </dd>
         </div>
         <div class="flex justify-between py-2.5">
-          <dt class="text-gray-500">Automatisch erkannter Hostname</dt>
-          <dd class="font-mono text-xs text-gray-500">{{if $d.HostnameAuto}}{{$d.HostnameAuto}}{{else}}<span class="text-gray-300">—</span>{{end}}</dd>
+          <dt style="color:var(--sm-text-muted)">{{t "field.hostname_auto"}}</dt>
+          <dd class="font-mono text-xs" style="color:var(--sm-text-muted)">{{if $d.HostnameAuto}}{{$d.HostnameAuto}}{{else}}<span style="color:var(--sm-text-muted)">—</span>{{end}}</dd>
         </div>
+        {{if $d.OsInfo}}
+        <div class="flex justify-between py-2.5">
+          <dt style="color:var(--sm-text-muted)">OS</dt>
+          <dd class="text-xs text-right" style="color:var(--sm-text-secondary)">{{$d.OsInfo}}</dd>
+        </div>
+        {{end}}
         {{if $d.Services}}
         <div class="py-2.5">
-          <dt class="text-gray-500 mb-1.5">mDNS Services</dt>
+          <dt style="color:var(--sm-text-muted)" class="mb-1.5">{{t "field.mdns"}}</dt>
           <dd class="flex flex-wrap gap-1.5 mt-1">
             {{range $d.Services}}
-            <span class="text-xs bg-purple-50 text-purple-700 px-2 py-0.5 rounded font-mono">{{.}}</span>
+            <span class="text-xs px-2 py-0.5 rounded font-mono"
+              style="background-color:var(--sm-badge-info-bg);color:var(--sm-accent);border:1px solid var(--sm-card-border)">{{.}}</span>
             {{end}}
           </dd>
         </div>
         {{end}}
         <div class="flex justify-between py-2.5">
-          <dt class="text-gray-500">Erstmals gesehen</dt>
-          <dd class="text-gray-600 text-xs">{{$d.FirstSeen.Format "02.01.2006 15:04:05"}}</dd>
+          <dt style="color:var(--sm-text-muted)">{{t "field.first_seen"}}</dt>
+          <dd class="text-xs" style="color:var(--sm-text-secondary)">{{$d.FirstSeen.Format "02.01.2006 15:04:05"}}</dd>
         </div>
         <div class="flex justify-between py-2.5">
-          <dt class="text-gray-500">Zuletzt gesehen</dt>
-          <dd class="text-gray-600 text-xs">{{timeAgo $d.LastSeen}} ({{$d.LastSeen.Format "02.01.2006 15:04:05"}})</dd>
+          <dt style="color:var(--sm-text-muted)">{{t "field.last_seen"}}</dt>
+          <dd class="text-xs" style="color:var(--sm-text-secondary)">{{timeAgo $d.LastSeen}} ({{$d.LastSeen.Format "02.01.2006 15:04:05"}})</dd>
         </div>
       </dl>
     </div>
 
     <!-- Aktivitäts-Timeline -->
     {{if .Events}}
-    <div class="bg-white rounded-xl border p-5">
-      <h2 class="font-semibold text-gray-800 mb-4">Aktivität</h2>
+    <div class="rounded-xl border p-5" style="background-color:var(--sm-card-bg)">
+      <h2 class="font-semibold mb-4" style="color:var(--sm-text-primary)">{{t "section.activity"}}</h2>
       <div class="space-y-1">
         {{range .Events}}
-        <div class="flex items-start gap-3 py-2 border-b border-gray-50 last:border-0">
+        <div class="flex items-start gap-3 py-2 border-b last:border-0" style="border-color:var(--sm-card-border)">
           <span class="text-base flex-shrink-0 mt-0.5">{{eventIcon .Type}}</span>
           <div class="flex-1 min-w-0">
-            <div class="text-sm text-gray-700">{{.Note}}</div>
-            {{if .IP}}<div class="text-xs text-gray-400 font-mono">{{.IP}} · {{.Source}}</div>{{end}}
+            <div class="text-sm" style="color:var(--sm-text-secondary)">{{.Note}}</div>
+            {{if .IP}}<div class="text-xs font-mono" style="color:var(--sm-text-muted)">{{.IP}} · {{.Source}}</div>{{end}}
           </div>
-          <div class="text-xs text-gray-400 flex-shrink-0 text-right whitespace-nowrap">
+          <div class="text-xs flex-shrink-0 text-right whitespace-nowrap" style="color:var(--sm-text-muted)">
             <div>{{timeAgo .CreatedAt}}</div>
             <div>{{.CreatedAt.Format "15:04:05"}}</div>
           </div>
@@ -104,74 +128,261 @@
   <div class="space-y-4">
 
     <!-- Name / Label -->
-    <div class="bg-white rounded-xl border p-5">
-      <h2 class="font-semibold text-gray-800 mb-4">Name</h2>
+    <div class="rounded-xl border p-5" style="background-color:var(--sm-card-bg)">
+      <h2 class="font-semibold mb-4" style="color:var(--sm-text-primary)">{{t "section.name"}}</h2>
       <form action="/devices/{{$d.MAC}}/label" method="POST" class="mb-3">
-        <label class="text-xs font-medium text-gray-500 uppercase tracking-wide block mb-1.5">Anzeigename</label>
+        <label class="text-xs font-medium uppercase tracking-wide block mb-1.5" style="color:var(--sm-text-muted)">{{t "label.displayname"}}</label>
         <input type="text" name="label" value="{{$d.Label}}"
           class="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 mb-2"
-          placeholder="z.B. Mamas iPhone">
+          placeholder="{{t "label.displayname.ph"}}">
         <button type="submit"
           class="w-full bg-blue-600 text-white py-2 rounded-lg text-sm hover:bg-blue-700 transition-colors font-medium">
-          Speichern
+          {{t "action.save"}}
         </button>
       </form>
 
       <form action="/devices/{{$d.MAC}}/hostname" method="POST">
-        <label class="text-xs font-medium text-gray-500 uppercase tracking-wide block mb-1.5">Hostname (manuell)</label>
+        <label class="text-xs font-medium uppercase tracking-wide block mb-1.5" style="color:var(--sm-text-muted)">{{t "label.hostname"}}</label>
         <input type="text" name="hostname" value="{{$d.Hostname}}"
           class="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 mb-2"
-          placeholder="z.B. nas.local">
-        <p class="text-xs text-gray-400 mb-2">
-          Überschreibt den automatisch erkannten Hostname
+          placeholder="{{t "label.hostname.ph"}}">
+        <p class="text-xs mb-2" style="color:var(--sm-text-muted)">
+          {{t "label.hostname.hint"}}
           {{if $d.HostnameAuto}}<br><span class="font-mono">(auto: {{$d.HostnameAuto}})</span>{{end}}
         </p>
         <button type="submit"
-          class="w-full bg-gray-700 text-white py-2 rounded-lg text-sm hover:bg-gray-800 transition-colors font-medium">
-          Hostname setzen
+          class="w-full py-2 rounded-lg text-sm transition-colors font-medium"
+          style="background-color:var(--sm-card-border);color:var(--sm-text-primary)">
+          {{t "action.hostname_set"}}
         </button>
       </form>
     </div>
 
-    <!-- Kategorie -->
-    <div class="bg-white rounded-xl border p-5">
-      <h2 class="font-semibold text-gray-800 mb-3">Kategorie</h2>
-      <form action="/devices/{{$d.MAC}}/category" method="POST">
-        <select name="category"
-          class="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 mb-2">
-          <option value="">— automatisch —</option>
-          {{$cat := $d.Category}}
-          {{range slice "smartphone" "tablet" "laptop" "desktop" "smart-tv" "nas" "router" "printer" "iot-device" "gaming-console" "media-player" "smart-speaker" "linux-sbc" "unknown"}}
-          <option value="{{.}}" {{if eq . $cat}}selected{{end}}>{{.}}</option>
+    <!-- Parents (Hierarchie) -->
+    <div class="rounded-xl border p-5" style="background-color:var(--sm-card-bg)">
+      <h2 class="font-semibold mb-2" style="color:var(--sm-text-primary)">{{t "section.parents"}}</h2>
+      <p class="text-xs mb-3" style="color:var(--sm-text-muted)">{{t "parents.hint"}}</p>
+
+      {{if .Parents}}
+      <div class="space-y-1 mb-3">
+        {{range .Parents}}
+        {{$pMAC := .}}
+        {{$pName := $pMAC}}
+        {{range $.AllDevices}}{{if eq .MAC $pMAC}}{{$pName = .DisplayName}}{{end}}{{end}}
+        <div class="flex items-center gap-2 text-xs py-1.5 border-b" style="border-color:var(--sm-card-border)">
+          <span class="flex-1 truncate" style="color:var(--sm-text-secondary)">{{$pName}}</span>
+          <form method="POST" action="/devices/{{$d.MAC}}/parents/{{$pMAC}}/delete" class="flex-shrink-0">
+            <button type="submit" class="hover:text-red-500 transition-colors" style="color:var(--sm-text-muted)" title="{{t "action.remove"}}">✕</button>
+          </form>
+        </div>
+        {{end}}
+      </div>
+      {{end}}
+
+      <form action="/devices/{{$d.MAC}}/parents" method="POST" class="space-y-2">
+        <select name="parent_mac"
+          class="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          style="background-color:var(--sm-card-bg);color:var(--sm-text-primary)">
+          <option value="">{{t "parents.add_select"}}</option>
+          {{range .AllDevices}}
+          {{if ne .MAC $.Device.MAC}}
+          <option value="{{.MAC}}">{{.DisplayName}} ({{.IP}})</option>
+          {{end}}
           {{end}}
         </select>
         <button type="submit"
-          class="w-full bg-gray-100 text-gray-700 py-2 rounded-lg text-sm hover:bg-gray-200 transition-colors font-medium">
-          Kategorie setzen
+          class="w-full py-2 rounded-lg text-sm transition-colors font-medium"
+          style="background-color:var(--sm-card-border);color:var(--sm-text-primary)">
+          {{t "action.add_parent"}}
+        </button>
+      </form>
+    </div>
+
+    <!-- Gruppen -->
+    <div class="rounded-xl border p-5" style="background-color:var(--sm-card-bg)">
+      <h2 class="font-semibold mb-2" style="color:var(--sm-text-primary)">{{t "section.groups"}}</h2>
+      <p class="text-xs mb-3" style="color:var(--sm-text-muted)">{{t "groups.hint"}}</p>
+
+      {{if .DevGroups}}
+      <div class="space-y-1 mb-3">
+        {{range .DevGroups}}
+        <div class="flex items-center gap-2 text-xs py-1.5 border-b" style="border-color:var(--sm-card-border)">
+          <span class="w-2.5 h-2.5 rounded-full flex-shrink-0" style="background-color:{{.Color}}"></span>
+          <span class="flex-1" style="color:var(--sm-text-secondary)">{{.Name}}</span>
+          <form method="POST" action="/devices/{{$d.MAC}}/groups/{{.ID}}/remove" class="flex-shrink-0">
+            <button type="submit" class="hover:text-red-500 transition-colors" style="color:var(--sm-text-muted)" title="{{t "action.remove"}}">✕</button>
+          </form>
+        </div>
+        {{end}}
+      </div>
+      {{end}}
+
+      {{if .AllGroups}}
+      <form action="/devices/{{$d.MAC}}/groups" method="POST" class="space-y-2">
+        <select name="group_id"
+          class="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          style="background-color:var(--sm-card-bg);color:var(--sm-text-primary)">
+          <option value="">{{t "groups.add_select"}}</option>
+          {{range .AllGroups}}
+          <option value="{{.ID}}">{{.Name}}</option>
+          {{end}}
+        </select>
+        <button type="submit"
+          class="w-full py-2 rounded-lg text-sm transition-colors font-medium"
+          style="background-color:var(--sm-card-border);color:var(--sm-text-primary)">
+          {{t "action.add_group"}}
+        </button>
+      </form>
+      {{else}}
+      <a href="/groups" class="text-xs" style="color:var(--sm-accent)">{{t "groups.create_first"}}</a>
+      {{end}}
+    </div>
+
+    <!-- Kategorie -->
+    <div class="rounded-xl border p-5" style="background-color:var(--sm-card-bg)">
+      <h2 class="font-semibold mb-3" style="color:var(--sm-text-primary)">{{t "section.category"}}</h2>
+      <form action="/devices/{{$d.MAC}}/category" method="POST">
+        <select name="category"
+          class="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 mb-2"
+          style="background-color:var(--sm-card-bg);color:var(--sm-text-primary)">
+          <option value="">{{t "category.auto"}}</option>
+          {{$cat := $d.Category}}
+          {{range slice "netzwerk" "server" "desktop" "mobile" "smarthome" "iot" "media" "drucker" "virtual" "unbekannt"}}
+          <option value="{{.}}" {{if eq . $cat}}selected{{end}}>{{t (printf "cat.%s" .)}}</option>
+          {{end}}
+        </select>
+        <button type="submit"
+          class="w-full py-2 rounded-lg text-sm transition-colors font-medium"
+          style="background-color:var(--sm-card-border);color:var(--sm-text-primary)">
+          {{t "action.set_category"}}
+        </button>
+      </form>
+    </div>
+
+    <!-- Verbindungen -->
+    <div class="rounded-xl border p-5" style="background-color:var(--sm-card-bg)">
+      <h2 class="font-semibold mb-3" style="color:var(--sm-text-primary)">{{t "section.connections"}}</h2>
+
+      {{if .Connections}}
+      <div class="space-y-1.5 mb-4">
+        {{range .Connections}}
+        {{$peerMAC := .MACb}}{{if eq .MACa $.Device.MAC}}{{$peerMAC = .MACb}}{{else}}{{$peerMAC = .MACa}}{{end}}
+        {{$peerName := $peerMAC}}
+        {{range $.AllDevices}}{{if eq .MAC $peerMAC}}{{$peerName = .DisplayName}}{{end}}{{end}}
+        <div class="flex items-center gap-2 text-xs py-1.5 border-b" style="border-color:var(--sm-card-border)">
+          <span class="flex-shrink-0" style="color:{{if eq .Type "physical"}}var(--sm-online){{else}}var(--sm-accent){{end}}">
+            {{if eq .Type "physical"}}━━{{else}}╌╌{{end}}
+          </span>
+          <a href="/devices/{{$peerMAC}}" class="hover:underline flex-1 truncate" style="color:var(--sm-accent)">
+            {{$peerName}}{{if .Label}} <span style="color:var(--sm-text-muted)">· {{.Label}}</span>{{end}}
+          </a>
+          <form method="POST" action="/devices/{{$.Device.MAC}}/connections/{{.ID}}/delete" class="flex-shrink-0">
+            <button type="submit" class="hover:text-red-500 transition-colors" style="color:var(--sm-text-muted)" title="{{t "action.remove"}}">✕</button>
+          </form>
+        </div>
+        {{end}}
+      </div>
+      {{end}}
+
+      <form action="/devices/{{$d.MAC}}/connections" method="POST" class="space-y-2">
+        <select name="target_mac" class="w-full border rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
+          style="background-color:var(--sm-card-bg);color:var(--sm-text-primary)">
+          <option value="">{{t "connections.device_select"}}</option>
+          {{range .AllDevices}}
+          {{if ne .MAC $.Device.MAC}}
+          <option value="{{.MAC}}">{{.DisplayName}} ({{.IP}})</option>
+          {{end}}
+          {{end}}
+        </select>
+        <div class="flex gap-2">
+          <select name="type" class="flex-1 border rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
+            style="background-color:var(--sm-card-bg);color:var(--sm-text-primary)">
+            <option value="physical">{{t "conn.physical"}}</option>
+            <option value="logical">{{t "conn.logical"}}</option>
+          </select>
+          <input type="text" name="label" placeholder="{{t "conn.label.ph"}}"
+            class="flex-1 border rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
+            style="background-color:var(--sm-card-bg);color:var(--sm-text-primary)">
+        </div>
+        <button type="submit"
+          class="w-full py-1.5 rounded-lg text-xs transition-colors font-medium"
+          style="background-color:var(--sm-card-border);color:var(--sm-text-primary)">
+          {{t "action.add_connection"}}
+        </button>
+      </form>
+    </div>
+
+    <!-- nmap Scan -->
+    {{if $d.IP}}
+    <div class="rounded-xl border p-5" style="background-color:var(--sm-card-bg)">
+      <h2 class="font-semibold mb-2" style="color:var(--sm-text-primary)">Scan</h2>
+      <p class="text-xs mb-3" style="color:var(--sm-text-muted)">Startet einen nmap-Scan gegen {{$d.IP}}. Ergebnisse erscheinen im Aktivitäts-Log.</p>
+      <form action="/devices/{{$d.MAC}}/nmap" method="POST">
+        <button type="submit"
+          class="w-full border py-2 rounded-lg text-sm transition-colors font-medium flex items-center justify-center gap-2"
+          style="background-color:var(--sm-card-bg);border-color:var(--sm-card-border);color:var(--sm-text-secondary)">
+          🔍 nmap starten
+        </button>
+      </form>
+    </div>
+    {{end}}
+
+    <!-- Gerät löschen -->
+    <div class="rounded-xl border p-5" style="background-color:var(--sm-card-bg)">
+      <h2 class="font-semibold mb-2" style="color:var(--sm-text-primary)">{{t "section.delete"}}</h2>
+      <p class="text-xs mb-3" style="color:var(--sm-text-muted)">{{t "delete.hint"}}</p>
+      <form method="POST" action="/devices/{{$d.MAC}}/delete"
+            onsubmit="return confirm('{{tf "confirm.delete_device" (or $d.Label $d.MAC)}}')">
+        <button type="submit"
+          class="w-full bg-red-50 border border-red-200 text-red-700 py-2 rounded-lg text-sm hover:bg-red-100 transition-colors font-medium">
+          {{t "action.delete_device"}}
         </button>
       </form>
     </div>
 
     <!-- Priorität -->
-    <div class="bg-white rounded-xl border p-5">
-      <h2 class="font-semibold text-gray-800 mb-2">Priorität</h2>
-      <p class="text-xs text-gray-400 mb-3">
-        Prioritäts-Geräte lösen einen kritischen Alert aus wenn sie offline gehen.
-      </p>
+    <div class="rounded-xl border p-5" style="background-color:var(--sm-card-bg)">
+      <h2 class="font-semibold mb-2" style="color:var(--sm-text-primary)">{{t "section.priority"}}</h2>
+      <p class="text-xs mb-3" style="color:var(--sm-text-muted)">{{t "priority.hint"}}</p>
       {{if $d.Priority}}
       <form action="/devices/{{$d.MAC}}/priority" method="POST">
         <input type="hidden" name="priority" value="false">
         <button type="submit"
           class="w-full bg-red-50 border border-red-200 text-red-700 py-2 rounded-lg text-sm hover:bg-red-100 transition-colors font-medium">
-          ★ Priorität aktiv — deaktivieren
+          {{t "priority.active"}}
         </button>
       </form>
       {{else}}
       <form action="/devices/{{$d.MAC}}/priority" method="POST">
         <input type="hidden" name="priority" value="true">
         <button type="submit"
-          class="w-full bg-gray-50 border border-gray-200 text-gray-600 py-2 rounded-lg text-sm hover:bg-gray-100 transition-colors font-medium">
-          ☆ Als Priorität markieren
+          class="w-full border py-2 rounded-lg text-sm transition-colors font-medium"
+          style="background-color:var(--sm-card-bg);border-color:var(--sm-card-border);color:var(--sm-text-secondary)">
+          {{t "priority.inactive"}}
+        </button>
+      </form>
+      {{end}}
+    </div>
+
+    <!-- Force Ping -->
+    <div class="rounded-xl border p-5" style="background-color:var(--sm-card-bg)">
+      <h2 class="font-semibold mb-2" style="color:var(--sm-text-primary)">{{t "section.forceping"}}</h2>
+      <p class="text-xs mb-3" style="color:var(--sm-text-muted)">{{t "forceping.hint"}}</p>
+      {{if $d.ForcePing}}
+      <form action="/devices/{{$d.MAC}}/force-ping" method="POST">
+        <input type="hidden" name="force_ping" value="false">
+        <button type="submit"
+          class="w-full bg-blue-50 border border-blue-200 text-blue-700 py-2 rounded-lg text-sm hover:bg-blue-100 transition-colors font-medium">
+          {{t "forceping.active"}}
+        </button>
+      </form>
+      {{else}}
+      <form action="/devices/{{$d.MAC}}/force-ping" method="POST">
+        <input type="hidden" name="force_ping" value="true">
+        <button type="submit"
+          class="w-full border py-2 rounded-lg text-sm transition-colors font-medium"
+          style="background-color:var(--sm-card-bg);border-color:var(--sm-card-border);color:var(--sm-text-secondary)">
+          {{t "forceping.inactive"}}
         </button>
       </form>
       {{end}}

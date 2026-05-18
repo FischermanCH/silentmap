@@ -1,0 +1,21 @@
+{
+  "name": "light",
+  "label": "Hell",
+  "colors": {
+    "page-bg":         "#f9fafb",
+    "card-bg":         "#ffffff",
+    "card-border":     "#e5e7eb",
+    "nav-bg":          "#111827",
+    "nav-text":        "#f9fafb",
+    "text-primary":    "#111827",
+    "text-secondary":  "#6b7280",
+    "text-muted":      "#9ca3af",
+    "accent":          "#2563eb",
+    "online":          "#22c55e",
+    "offline":         "#d1d5db",
+    "row-hover":       "rgba(59,130,246,0.04)",
+    "badge-info-bg":   "#eff6ff",
+    "badge-info-text": "#1d4ed8",
+    "thead-bg":        "#f9fafb"
+  }
+}

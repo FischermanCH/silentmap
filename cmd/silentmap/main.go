@@ -12,12 +12,16 @@ import (
 	"os/signal"
 	"path/filepath"
 	"syscall"
+	"time"
 
+	"github.com/silentmap/silentmap/internal/alerting/channels/discord"
 	"github.com/silentmap/silentmap/internal/alerting/channels/ntfy"
 	"github.com/silentmap/silentmap/internal/alerting/engine"
 	"github.com/silentmap/silentmap/internal/bus"
 	"github.com/silentmap/silentmap/internal/collectors/arp"
+	"github.com/silentmap/silentmap/internal/collectors/dhcp"
 	"github.com/silentmap/silentmap/internal/collectors/mdns"
+	"github.com/silentmap/silentmap/internal/collectors/ping"
 	"github.com/silentmap/silentmap/internal/config"
 	"github.com/silentmap/silentmap/internal/registry"
 	"github.com/silentmap/silentmap/internal/web"
@@ -82,15 +86,14 @@ func main() {
 		os.Exit(1)
 	}
 
-	// SQLite — eine einzige Connection verhindert SQLITE_BUSY bei concurrent writes
 	dbPath := filepath.Join(*flagData, "silentmap.db")
-	db, err := sql.Open("sqlite", dbPath+"?_journal=WAL&_busy_timeout=10000")
+	db, err := sql.Open("sqlite", dbPath+"?_pragma=journal_mode(WAL)&_pragma=busy_timeout(10000)")
 	if err != nil {
 		slog.Error("cannot open database", "path", dbPath, "err", err)
 		os.Exit(1)
 	}
-	db.SetMaxOpenConns(1)
-	db.SetMaxIdleConns(1)
+	db.SetMaxOpenConns(10)
+	db.SetMaxIdleConns(5)
 	defer db.Close()
 
 	// Core components
@@ -103,16 +106,40 @@ func main() {
 	}
 
 	alertEngine := engine.New(cfg.Alerts, db)
-	alertEngine.Register(ntfy.New(cfg.Alerts.Channels.Ntfy))
+	ntfyCh := ntfy.New(cfg.Alerts.Channels.Ntfy)
+	alertEngine.Register(ntfyCh)
+	discordCh := discord.New(cfg.Alerts.Channels.Discord)
+	alertEngine.Register(discordCh)
 	alertEngine.Subscribe(b)
 
-	webServer := web.NewServer(reg, alertEngine, db)
+	pingCollector := ping.New(reg, cfg.Interface, true, cfg.Collectors.Ping.Interval)
+	webServer := web.NewServer(reg, alertEngine, db, *flagData, cfg.Collectors.Nmap.Args, discordCh, ntfyCh, pingCollector, version, commit)
 
 	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer cancel()
 
+	// Backfill vendor and reverse DNS for existing devices
+	reg.BackfillVendors()
+	go reg.BackfillReverseDNS()
+
 	// Start offline checker
 	go reg.RunOfflineChecker(ctx)
+
+	// Start log pruning (daily)
+	go func() {
+		retention := time.Duration(cfg.Storage.LogRetentionDays) * 24 * time.Hour
+		reg.PruneOldLogs(retention)
+		ticker := time.NewTicker(24 * time.Hour)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-ticker.C:
+				reg.PruneOldLogs(retention)
+			}
+		}
+	}()
 
 	// Start ARP collector (non-fatal — needs CAP_NET_RAW or root)
 	if cfg.Collectors.ARP.Enabled {
@@ -132,6 +159,21 @@ func main() {
 			slog.Warn("mdns collector could not start", "err", err)
 		} else {
 			defer mdnsCollector.Stop()
+		}
+	}
+
+	// Start Ping collector (always; enabled state controlled via UI)
+	if err := pingCollector.Start(ctx, b); err != nil {
+		slog.Warn("ping collector could not start", "err", err)
+	}
+
+	// Start DHCP collector (non-fatal)
+	if cfg.Collectors.DHCP.Enabled {
+		dhcpCollector := dhcp.New(cfg.Interface)
+		if err := dhcpCollector.Start(ctx, b); err != nil {
+			slog.Warn("dhcp collector could not start", "err", err)
+		} else {
+			defer dhcpCollector.Stop()
 		}
 	}
 

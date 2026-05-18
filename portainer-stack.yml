@@ -1,3 +1,5 @@
+version: '3.8'
+
 services:
   silentmap:
     image: fischermanch/silentmap:latest
@@ -8,7 +10,7 @@ services:
       - NET_RAW
       - NET_ADMIN
     volumes:
-      - silentmap-data:/data
+      - /opt/silentmap/data:/data
     environment:
       - TZ=Europe/Zurich
     healthcheck:
@@ -16,6 +18,3 @@ services:
       interval: 30s
       timeout: 5s
       retries: 3
-
-volumes:
-  silentmap-data:

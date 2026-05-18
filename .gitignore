@@ -1,6 +1,7 @@
 # Binaries
 /silentmap
 /silentmap-*
+/silentmap.*
 dist/
 
 # Go
@@ -38,3 +39,9 @@ Thumbs.db
 
 # Docker
 .docker/
+
+# Push-Skript (lokal, nicht für andere relevant)
+silentmap-push
+
+# Interne Arbeits-Dokumente
+docs/blog-article-prompt.md

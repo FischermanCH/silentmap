@@ -1,0 +1,21 @@
+{
+  "name": "dark",
+  "label": "Dunkel",
+  "colors": {
+    "page-bg":         "#111111",
+    "card-bg":         "#1a1a1a",
+    "card-border":     "#2a2a2a",
+    "nav-bg":          "#0a0a0a",
+    "nav-text":        "#e0e0e0",
+    "text-primary":    "#e0e0e0",
+    "text-secondary":  "#888888",
+    "text-muted":      "#555555",
+    "accent":          "#60a5fa",
+    "online":          "#4ade80",
+    "offline":         "#333333",
+    "row-hover":       "rgba(255,255,255,0.03)",
+    "badge-info-bg":   "#1e3a5f",
+    "badge-info-text": "#93c5fd",
+    "thead-bg":        "#141414"
+  }
+}

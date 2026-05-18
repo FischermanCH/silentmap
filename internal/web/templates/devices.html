@@ -1,49 +1,262 @@
 {{define "content"}}
-<div class="mb-6">
-  <h1 class="text-2xl font-bold">Geräte</h1>
-  <p class="text-gray-500 text-sm mt-1">{{len .Devices}} bekannte Geräte</p>
+<div class="mb-6 flex items-end justify-between">
+  <div>
+    <h1 class="text-2xl font-bold">{{t "devices.title"}}</h1>
+    <p class="text-gray-500 text-sm mt-1">{{tf "devices.subtitle" (len .Devices)}}</p>
+  </div>
+  <div class="flex items-center gap-2">
+    <a href="/api/export"
+      class="text-xs px-3 py-2 rounded-lg font-medium border hover:bg-gray-50 transition-colors"
+      style="border-color:var(--sm-card-border);color:var(--sm-text-secondary)"
+      title="{{t "export.hint"}}">↓ {{t "action.export"}}</a>
+    <button onclick="document.getElementById('modal-import').classList.remove('hidden')"
+      class="text-xs px-3 py-2 rounded-lg font-medium border hover:bg-gray-50 transition-colors"
+      style="border-color:var(--sm-card-border);color:var(--sm-text-secondary)"
+      title="{{t "import.hint"}}">↑ {{t "action.import"}}</button>
+    <button onclick="document.getElementById('modal-new').classList.remove('hidden')"
+      class="text-sm px-4 py-2 rounded-lg font-medium border border-gray-300 hover:bg-gray-50 transition-colors">
+      {{t "devices.add"}}
+    </button>
+  </div>
 </div>
 
-<div class="bg-white rounded-lg border overflow-hidden">
-  <table class="w-full text-sm">
-    <thead class="bg-gray-50 border-b">
+<!-- Import Modal -->
+<div id="modal-import" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+  <div class="bg-white rounded-xl border shadow-xl p-6 w-full max-w-sm mx-4">
+    <div class="flex items-center justify-between mb-5">
+      <h2 class="font-semibold text-lg">{{t "action.import"}}</h2>
+      <button onclick="document.getElementById('modal-import').classList.add('hidden')"
+        class="text-gray-400 hover:text-gray-700 text-xl leading-none">✕</button>
+    </div>
+    <p class="text-sm text-gray-500 mb-4">{{t "import.hint"}}</p>
+    <form action="/api/import" method="POST" enctype="multipart/form-data" class="space-y-3">
+      <input type="file" name="file" accept=".json"
+        class="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+      <div class="flex gap-2 pt-2">
+        <button type="button" onclick="document.getElementById('modal-import').classList.add('hidden')"
+          class="flex-1 py-2 rounded-lg border text-sm text-gray-600 hover:bg-gray-50 transition-colors">
+          {{t "modal.cancel"}}
+        </button>
+        <button type="submit"
+          class="flex-1 py-2 rounded-lg bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 transition-colors">
+          {{t "action.import"}}
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Modal -->
+<div id="modal-new" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+  <div class="bg-white rounded-xl border shadow-xl p-6 w-full max-w-sm mx-4">
+    <div class="flex items-center justify-between mb-5">
+      <h2 class="font-semibold text-lg">{{t "modal.title"}}</h2>
+      <button onclick="document.getElementById('modal-new').classList.add('hidden')"
+        class="text-gray-400 hover:text-gray-700 text-xl leading-none">✕</button>
+    </div>
+    <form action="/devices/new" method="POST" class="space-y-3">
+      <div>
+        <label class="text-xs font-medium text-gray-500 uppercase tracking-wide block mb-1">{{t "modal.ip"}}</label>
+        <input type="text" name="ip" placeholder="192.168.1.1"
+          class="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+      </div>
+      <div>
+        <label class="text-xs font-medium text-gray-500 uppercase tracking-wide block mb-1">{{t "modal.mac"}} <span class="text-gray-300">{{t "modal.mac.optional"}}</span></label>
+        <input type="text" name="mac" placeholder="AA:BB:CC:DD:EE:FF"
+          class="w-full border rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500">
+        <p class="text-xs text-gray-400 mt-1">{{t "modal.mac.hint"}}</p>
+      </div>
+      <div>
+        <label class="text-xs font-medium text-gray-500 uppercase tracking-wide block mb-1">{{t "modal.name"}}</label>
+        <input type="text" name="label" placeholder="z.B. Core-Switch"
+          class="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+      </div>
+      <div>
+        <label class="text-xs font-medium text-gray-500 uppercase tracking-wide block mb-1">{{t "modal.category"}}</label>
+        <select name="category"
+          class="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+          <option value="">{{t "modal.category.select"}}</option>
+          {{range slice "netzwerk" "server" "desktop" "mobile" "smarthome" "iot" "media" "drucker" "virtual" "unbekannt"}}
+          <option value="{{.}}">{{t (printf "cat.%s" .)}}</option>
+          {{end}}
+        </select>
+      </div>
+      <div class="flex gap-2 pt-2">
+        <button type="button" onclick="document.getElementById('modal-new').classList.add('hidden')"
+          class="flex-1 py-2 rounded-lg border text-sm text-gray-600 hover:bg-gray-50 transition-colors">
+          {{t "modal.cancel"}}
+        </button>
+        <button type="submit"
+          class="flex-1 py-2 rounded-lg bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 transition-colors">
+          {{t "modal.add"}}
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="rounded-lg border overflow-hidden overflow-x-auto" style="background-color:var(--sm-card-bg)">
+  <table id="devtable" class="w-full text-sm">
+    <thead class="border-b text-xs uppercase tracking-wide" style="background-color:var(--sm-thead-bg)">
       <tr>
-        <th class="text-left px-4 py-3 font-medium text-gray-600 w-8"></th>
-        <th class="text-left px-4 py-3 font-medium text-gray-600">Gerät</th>
-        <th class="text-left px-4 py-3 font-medium text-gray-600">IP</th>
-        <th class="text-left px-4 py-3 font-medium text-gray-600">Hersteller</th>
-        <th class="text-left px-4 py-3 font-medium text-gray-600">Kategorie</th>
-        <th class="text-left px-4 py-3 font-medium text-gray-600">Zuletzt gesehen</th>
+        <th class="px-3 md:px-4 py-2 md:py-3 w-8 cursor-pointer select-none" onclick="sortBy('status')"
+            title="Nach Status sortieren">
+          <span id="hdr-status" class="flex items-center gap-1 font-medium" style="color:var(--sm-text-muted)">● <span class="sort-arrow"></span></span>
+        </th>
+        <th class="px-3 md:px-4 py-2 md:py-3 w-32 md:w-36 cursor-pointer select-none text-left" onclick="sortBy('ip')">
+          <span id="hdr-ip" class="flex items-center gap-1 font-medium" style="color:var(--sm-text-muted)">IP <span class="sort-arrow">↑</span></span>
+        </th>
+        <th class="px-2 md:px-3 py-2 md:py-3 w-10 cursor-pointer select-none text-left" onclick="sortBy('category')" title="{{t "col.category.title"}}">
+          <span id="hdr-category" class="flex items-center gap-1 font-medium" style="color:var(--sm-text-muted)">{{t "col.category"}} <span class="sort-arrow"></span></span>
+        </th>
+        <th class="px-3 md:px-4 py-2 md:py-3 cursor-pointer select-none text-left" onclick="sortBy('name')">
+          <span id="hdr-name" class="flex items-center gap-1 font-medium" style="color:var(--sm-text-muted)">{{t "col.name"}} <span class="sort-arrow"></span></span>
+        </th>
+        <th class="px-3 md:px-4 py-2 md:py-3 w-36 cursor-pointer select-none text-left hidden md:table-cell" onclick="sortBy('mac')">
+          <span id="hdr-mac" class="flex items-center gap-1 font-medium" style="color:var(--sm-text-muted)">{{t "col.mac"}} <span class="sort-arrow"></span></span>
+        </th>
+        <th class="px-3 md:px-4 py-2 md:py-3 cursor-pointer select-none text-left hidden lg:table-cell" onclick="sortBy('vendor')">
+          <span id="hdr-vendor" class="flex items-center gap-1 font-medium" style="color:var(--sm-text-muted)">{{t "col.vendor"}} <span class="sort-arrow"></span></span>
+        </th>
+        <th class="px-3 md:px-4 py-2 md:py-3 w-24 cursor-pointer select-none text-left hidden sm:table-cell" onclick="sortBy('seen')">
+          <span id="hdr-seen" class="flex items-center gap-1 font-medium" style="color:var(--sm-text-muted)">{{t "col.seen"}} <span class="sort-arrow"></span></span>
+        </th>
       </tr>
     </thead>
-    <tbody class="divide-y">
+    <tbody class="divide-y divide-gray-50">
       {{range .Devices}}
-      <tr class="hover:bg-gray-50">
+      <tr class="hover:bg-blue-50/30 transition-colors {{if .Online}}{{else}}opacity-50{{end}}"
+          data-status="{{if .Online}}1{{else}}0{{end}}"
+          data-approved="{{if .Approved}}1{{else}}0{{end}}"
+          data-ip="{{.IP}}"
+          data-name="{{if .Label}}{{.Label}}{{else if .Hostname}}{{.Hostname}}{{else if .HostnameAuto}}{{.HostnameAuto}}{{else}}{{end}}"
+          data-mac="{{.MAC}}"
+          data-vendor="{{.Vendor}}"
+          data-seen="{{.LastSeen.Unix}}"
+          data-category="{{.Category}}">
+
+        {{/* Status-Dot */}}
         <td class="px-4 py-3 text-center">
           {{if .Online}}
-          <span class="w-2 h-2 rounded-full bg-green-500 inline-block" title="Online"></span>
+          <span class="w-2 h-2 rounded-full bg-green-400 inline-block shadow-sm" title="Online"></span>
           {{else}}
-          <span class="w-2 h-2 rounded-full bg-gray-300 inline-block" title="Offline"></span>
+          <span class="w-2 h-2 rounded-full bg-gray-200 inline-block" title="Offline"></span>
           {{end}}
         </td>
-        <td class="px-4 py-3">
-          <a href="/devices/{{.MAC}}" class="hover:text-blue-600">
-            <div class="font-medium">{{if .Label}}{{.Label}}{{else if .Hostname}}{{.Hostname}}{{else}}{{.MAC}}{{end}}</div>
-            {{if .Label}}<div class="text-xs text-gray-400 font-mono">{{.MAC}}</div>{{end}}
+
+        {{/* IP + Hostname auf Mobile */}}
+        <td class="px-3 md:px-4 py-2 md:py-3" style="color:{{if .Online}}var(--sm-text-primary){{else}}var(--sm-text-muted){{end}}">
+          <a href="/devices/{{.MAC}}" class="block">
+            {{/* Hostname nur auf Mobile — auf Desktop steht er in der Name-Spalte */}}
+            <div class="md:hidden text-xs font-medium truncate max-w-36 mb-0.5" style="color:{{if .Online}}var(--sm-text-primary){{else}}var(--sm-text-muted){{end}}">
+              {{if .Label}}{{.Label}}{{else if .Hostname}}{{.Hostname}}{{else if .HostnameAuto}}{{.HostnameAuto}}{{else}}&nbsp;{{end}}
+            </div>
+            <div class="font-mono text-xs md:text-sm font-semibold whitespace-nowrap">
+              {{if .IP}}{{.IP}}{{else}}<span style="color:var(--sm-text-muted)" class="font-normal">—</span>{{end}}
+              {{if .Priority}}<span class="ml-1 text-xs text-red-500" title="Priorität">★</span>{{end}}
+              {{if not .Approved}}<span class="ml-1 text-xs bg-amber-400 text-white px-1.5 py-0.5 rounded font-bold" title="{{t "device.new.title"}}">{{t "device.new"}}</span>{{end}}
+            </div>
           </a>
-          {{if .Priority}}<span class="text-xs bg-red-100 text-red-700 px-1.5 py-0.5 rounded">★ Prio</span>{{end}}
         </td>
-        <td class="px-4 py-3 font-mono text-gray-600 text-xs">{{.IP}}</td>
-        <td class="px-4 py-3 text-gray-600">{{if .Vendor}}{{.Vendor}}{{else}}<span class="text-gray-300">—</span>{{end}}</td>
-        <td class="px-4 py-3">
+
+        {{/* Kategorie-Icon */}}
+        <td class="px-2 md:px-3 py-2 md:py-3 text-center" title="{{.Category}}">
           {{if .Category}}
-          <span class="text-xs bg-blue-50 text-blue-700 px-2 py-0.5 rounded">{{.Category}}</span>
-          {{else}}<span class="text-gray-300">—</span>{{end}}
+          <span style="color:{{catColor .Category}};opacity:{{if .Online}}0.9{{else}}0.4{{end}}">{{catIcon .Category}}</span>
+          {{else}}
+          <span style="color:var(--sm-text-muted);opacity:0.3">{{catIcon "unbekannt"}}</span>
+          {{end}}
         </td>
-        <td class="px-4 py-3 text-gray-500 text-xs">{{timeAgo .LastSeen}}</td>
+
+        {{/* Hostname / FQDN / Label  +  OS (falls via nmap bekannt) */}}
+        <td class="px-3 md:px-4 py-2 md:py-3">
+          <a href="/devices/{{.MAC}}" class="flex items-baseline gap-2 flex-wrap">
+            {{if .Label}}
+              <span class="font-medium" style="color:var(--sm-text-primary)">{{.Label}}</span>
+            {{else if .Hostname}}
+              <span class="font-medium" style="color:var(--sm-text-primary)">{{.Hostname}}</span>
+            {{else if .HostnameAuto}}
+              <span style="color:var(--sm-text-secondary)">{{.HostnameAuto}}</span>
+            {{else}}
+              <span class="text-xs" style="color:var(--sm-text-muted)">{{t "device.unknown"}}</span>
+            {{end}}
+            {{if .OsInfo}}
+              <span class="text-xs hidden md:inline" style="color:var(--sm-text-muted)">{{.OsInfo}}</span>
+            {{end}}
+          </a>
+        </td>
+
+        {{/* MAC — hidden on mobile */}}
+        <td class="px-3 md:px-4 py-2 md:py-3 font-mono text-xs hidden md:table-cell" style="color:var(--sm-text-muted)">{{.MAC}}</td>
+
+        {{/* Vendor — hidden on mobile/tablet */}}
+        <td class="px-3 md:px-4 py-2 md:py-3 text-xs hidden lg:table-cell" style="color:var(--sm-text-secondary)">
+          {{if .Vendor}}{{.Vendor}}{{else}}<span style="color:var(--sm-text-muted)">—</span>{{end}}
+        </td>
+
+        {{/* Last seen — hidden on mobile */}}
+        <td class="px-3 md:px-4 py-2 md:py-3 text-xs hidden sm:table-cell" style="color:var(--sm-text-muted)">{{timeAgo .LastSeen}}</td>
+
       </tr>
       {{end}}
     </tbody>
   </table>
 </div>
+
+<script>
+let sortCol = '', sortAsc = true;
+
+function ipNum(ip) {
+  if (!ip) return -1;
+  const p = ip.split('.').map(Number);
+  return p.length === 4 ? p[0]*16777216 + p[1]*65536 + p[2]*256 + p[3] : -1;
+}
+
+function sortBy(col) {
+  if (sortCol === col) { sortAsc = !sortAsc; } else { sortCol = col; sortAsc = true; }
+  updateArrows();
+
+  const tbody = document.querySelector('#devtable tbody');
+  const rows = Array.from(tbody.querySelectorAll('tr'));
+
+  rows.sort((a, b) => {
+    let av = a.dataset[col] ?? '', bv = b.dataset[col] ?? '';
+    let cmp;
+    if (col === 'ip')     { cmp = ipNum(av) - ipNum(bv); }
+    else if (col === 'seen' || col === 'status') { cmp = Number(av) - Number(bv); }
+    else                  { cmp = av.localeCompare(bv, 'de', {sensitivity:'base'}); }
+    return sortAsc ? cmp : -cmp;
+  });
+
+  rows.forEach(r => tbody.appendChild(r));
+}
+
+function updateArrows() {
+  const cols = ['status','ip','name','category','mac','vendor','seen'];
+  cols.forEach(c => {
+    const el = document.querySelector(`#hdr-${c} .sort-arrow`);
+    if (!el) return;
+    el.textContent = c === sortCol ? (sortAsc ? '↑' : '↓') : '↕';
+  });
+}
+
+// Default: IP aufsteigend
+sortBy('ip');
+
+// URL-Filter: ?status=online / ?status=offline
+(function() {
+  var status = new URLSearchParams(window.location.search).get('status');
+  if (!status) return;
+  var tbody = document.querySelector('#devtable tbody');
+  if (!tbody) return;
+  Array.from(tbody.querySelectorAll('tr')).forEach(function(row) {
+    var match;
+    if      (status === 'online')  match = row.dataset.status === '1';
+    else if (status === 'offline') match = row.dataset.status === '0';
+    else if (status === 'new')     match = row.dataset.approved === '0';
+    else                           match = true;
+    row.style.display = match ? '' : 'none';
+  });
+})();
+</script>
 {{end}}
