@@ -1,3 +1,5 @@
+// Package channels defines the Channel interface and the Alert struct shared
+// by all alerting back-ends (Discord, ntfy, …).
 package channels
 
 import (
@@ -13,6 +15,7 @@ type Alert struct {
 	Title    string
 	Summary  string
 	MAC      string
+	IP       string
 	FiredAt  time.Time
 	Meta     map[string]any
 }

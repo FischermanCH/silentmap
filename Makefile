@@ -1,5 +1,5 @@
-VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
-COMMIT  ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo "unknown")
+VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || cat VERSION 2>/dev/null || echo "dev")
+COMMIT  ?= $(shell git rev-parse --short HEAD 2>/dev/null || date '+%Y-%m-%dT%H:%M')
 LDFLAGS  = -s -w -X main.version=$(VERSION) -X main.commit=$(COMMIT)
 
 .PHONY: all build run test lint docker clean
@@ -7,12 +7,10 @@ LDFLAGS  = -s -w -X main.version=$(VERSION) -X main.commit=$(COMMIT)
 all: build
 
 build:
-	CGO_ENABLED=1 go build -ldflags="$(LDFLAGS)" -o silentmap ./cmd/silentmap
-	@/usr/sbin/setcap cap_net_raw+eip silentmap 2>/dev/null && echo "cap_net_raw gesetzt" || echo "Hinweis: 'sudo setcap cap_net_raw+eip silentmap' für ARP-Sniffer nötig"
+	CGO_ENABLED=0 go build -ldflags="$(LDFLAGS)" -o silentmap ./cmd/silentmap
 
 build-arm64:
-	GOOS=linux GOARCH=arm64 CGO_ENABLED=1 \
-	CC=aarch64-linux-gnu-gcc \
+	GOOS=linux GOARCH=arm64 CGO_ENABLED=0 \
 	go build -ldflags="$(LDFLAGS)" -o silentmap-linux-arm64 ./cmd/silentmap
 
 run:
@@ -28,9 +26,13 @@ docker:
 	docker build \
 		--build-arg VERSION=$(VERSION) \
 		--build-arg COMMIT=$(COMMIT) \
-		-t silentmap/silentmap:$(VERSION) \
-		-t silentmap/silentmap:latest \
+		-t fischerman/silentmap:$(VERSION) \
+		-t fischerman/silentmap:latest \
 		.
+
+docker-push:
+	docker push fischerman/silentmap:$(VERSION)
+	docker push fischerman/silentmap:latest
 
 docker-up:
 	docker compose up -d
@@ -41,7 +43,6 @@ docker-logs:
 docker-down:
 	docker compose down
 
-# OUI-Datenbank aktualisieren (IEEE-Download)
 update-oui:
 	./scripts/update-oui.sh
 

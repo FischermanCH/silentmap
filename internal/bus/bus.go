@@ -1,3 +1,6 @@
+// Package bus implements a simple in-process publish/subscribe event bus.
+// Collectors publish events (EventDeviceSeen, etc.) and the registry
+// subscribes to update device state. All operations are goroutine-safe.
 package bus
 
 import (

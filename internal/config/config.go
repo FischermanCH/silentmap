@@ -8,12 +8,17 @@ import (
 )
 
 type Config struct {
-	Interface string        `yaml:"interface"`
-	DataDir   string        `yaml:"-"`
-	Web       WebConfig     `yaml:"web"`
+	Interface  string        `yaml:"interface"`
+	DataDir    string        `yaml:"-"`
+	Web        WebConfig     `yaml:"web"`
 	Collectors CollectorsCfg `yaml:"collectors"`
-	AI        AICfg         `yaml:"ai"`
-	Alerts    AlertsCfg     `yaml:"alerts"`
+	AI         AICfg         `yaml:"ai"`
+	Alerts     AlertsCfg     `yaml:"alerts"`
+	Storage    StorageCfg    `yaml:"storage"`
+}
+
+type StorageCfg struct {
+	LogRetentionDays int `yaml:"log_retention_days"`
 }
 
 type WebConfig struct {
@@ -107,21 +112,20 @@ type RuleCfg struct {
 
 type ChannelsCfg struct {
 	Ntfy     NtfyCfg     `yaml:"ntfy"`
-	Telegram TelegramCfg `yaml:"telegram"`
+	Discord  DiscordCfg  `yaml:"discord"`
 	Webhook  WebhookCfg  `yaml:"webhook"`
 	Email    EmailCfg    `yaml:"email"`
+}
+
+type DiscordCfg struct {
+	Enabled    bool   `yaml:"enabled"`
+	WebhookURL string `yaml:"webhook_url"`
 }
 
 type NtfyCfg struct {
 	Enabled bool   `yaml:"enabled"`
 	URL     string `yaml:"url"`
 	Token   string `yaml:"token"`
-}
-
-type TelegramCfg struct {
-	Enabled bool   `yaml:"enabled"`
-	Token   string `yaml:"token"`
-	ChatID  string `yaml:"chat_id"`
 }
 
 type WebhookCfg struct {
@@ -160,7 +164,7 @@ func Defaults() *Config {
 			ARP:  ARPCfg{Enabled: true, OfflineTimeout: 15 * time.Minute},
 			MDNS: MDNSCfg{Enabled: true},
 			DHCP: DHCPCfg{Enabled: true},
-			Ping: PingCfg{Enabled: false, Targets: "priority", Interval: 60 * time.Second, Timeout: 3 * time.Second},
+			Ping: PingCfg{Enabled: true, Targets: "priority", Interval: 5 * time.Minute, Timeout: 3 * time.Second},
 			Nmap: NmapCfg{Enabled: false, Trigger: "new_device", Args: "-sV --top-ports 20 -T3"},
 		},
 		AI: AICfg{
@@ -168,6 +172,7 @@ func Defaults() *Config {
 			Correlation: CorrelationCfg{Enabled: false, OllamaURL: "http://localhost:11434", Model: "phi3:mini", Window: 90 * time.Second},
 			Anomaly:     AnomalyCfg{Enabled: true, BaselineDays: 14, MinObservations: 50},
 		},
+		Storage: StorageCfg{LogRetentionDays: 30},
 		Alerts: AlertsCfg{
 			Rules: AlertRules{
 				NewDevice:       RuleCfg{Enabled: true, Severity: "high"},
@@ -176,8 +181,8 @@ func Defaults() *Config {
 				Anomaly:         RuleCfg{Enabled: true, Severity: "medium", MinScore: 0.7, Cooldown: 60 * time.Minute},
 			},
 			Routing: RoutingCfg{
-				Critical: []string{"ntfy", "telegram", "email"},
-				High:     []string{"ntfy", "telegram"},
+				Critical: []string{"ntfy", "discord", "email"},
+				High:     []string{"ntfy", "discord"},
 				Medium:   []string{"webhook"},
 				Info:     []string{},
 				Low:      []string{},

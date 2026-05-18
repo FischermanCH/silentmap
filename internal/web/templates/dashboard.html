@@ -1,75 +1,646 @@
 {{define "content"}}
-<div class="mb-6">
-  <h1 class="text-2xl font-bold mb-1">Dashboard</h1>
-  <p class="text-gray-500 text-sm">Passiver Netzwerk-Monitor</p>
-</div>
 
-<!-- Stats -->
-<div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-  <div class="bg-white rounded-lg border p-4">
-    <div class="text-3xl font-bold text-green-600">{{.Online}}</div>
-    <div class="text-sm text-gray-500 mt-1">Online</div>
-  </div>
-  <div class="bg-white rounded-lg border p-4">
-    <div class="text-3xl font-bold text-gray-400">{{.Offline}}</div>
-    <div class="text-sm text-gray-500 mt-1">Offline</div>
-  </div>
-  <div class="bg-white rounded-lg border p-4">
-    <div class="text-3xl font-bold text-gray-800">{{len .Devices}}</div>
-    <div class="text-sm text-gray-500 mt-1">Gesamt</div>
-  </div>
-  <div class="bg-white rounded-lg border p-4">
-    <div class="text-3xl font-bold text-orange-500">{{len .Alerts}}</div>
-    <div class="text-sm text-gray-500 mt-1">Letzte Alerts</div>
-  </div>
-</div>
+<style>
+#map-container {
+  height: calc(100vh - 48px - 1.5rem);
+  height: calc(100svh - 48px - 1.5rem);
+  border-radius: 0.75rem;
+}
+@media (min-width: 768px) {
+  #map-container { height: 78vh; }
+}
+#map-container {
+  box-shadow: 0 0 0 1px var(--sm-card-border), 0 0 24px -4px var(--sm-accent);
+}
+.collapsible-body { transition: none; }
+</style>
 
-<!-- Online Devices -->
-<div class="bg-white rounded-lg border mb-6">
-  <div class="px-4 py-3 border-b flex items-center justify-between">
-    <h2 class="font-semibold">Online Geräte</h2>
-    <a href="/devices" class="text-sm text-blue-600 hover:underline">Alle anzeigen →</a>
-  </div>
-  <div class="divide-y">
-    {{range .Devices}}{{if .Online}}
-    <a href="/devices/{{.MAC}}" class="flex items-center px-4 py-3 hover:bg-gray-50 transition-colors">
-      <span class="w-2 h-2 rounded-full bg-green-500 mr-3 flex-shrink-0"></span>
-      <div class="flex-1 min-w-0">
-        <div class="font-medium text-sm truncate">
-          {{if .Label}}{{.Label}}{{else if .Hostname}}{{.Hostname}}{{else}}{{.MAC}}{{end}}
-        </div>
-        <div class="text-xs text-gray-400">{{.IP}} · {{if .Vendor}}{{.Vendor}}{{else}}Unbekannt{{end}}</div>
-      </div>
-      {{if .Priority}}
-      <span class="ml-2 text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded-full">Prio</span>
-      {{end}}
-      <span class="ml-4 text-xs text-gray-400">{{timeAgo .LastSeen}}</span>
-    </a>
-    {{end}}{{end}}
-  </div>
-</div>
-
-<!-- Recent Alerts -->
-{{if .Alerts}}
-<div class="bg-white rounded-lg border">
-  <div class="px-4 py-3 border-b flex items-center justify-between">
-    <h2 class="font-semibold">Letzte Alerts</h2>
-    <a href="/alerts" class="text-sm text-blue-600 hover:underline">Alle →</a>
-  </div>
-  <div class="divide-y">
-    {{range .Alerts}}
-    <div class="px-4 py-3">
-      <div class="flex items-start gap-3">
-        <span class="text-xs px-2 py-0.5 rounded-full font-medium mt-0.5 {{severityClass .Severity}}">{{.Severity}}</span>
-        <div class="flex-1 min-w-0">
-          <div class="text-sm font-medium">{{.Title}}</div>
-          <div class="text-xs text-gray-500 mt-0.5">{{.Summary}}</div>
-        </div>
-        <span class="text-xs text-gray-400 flex-shrink-0">{{timeAgo .FiredAt}}</span>
-      </div>
+<div id="map-container" class="border overflow-hidden mb-3 md:mb-4" style="background-color:var(--sm-card-bg)">
+  <div id="map-toolbar" class="flex items-center gap-2 md:gap-3 px-3 md:px-4 py-2 border-b flex-wrap" style="border-color:var(--sm-card-border)">
+    <span class="text-xs font-medium uppercase tracking-wide flex-shrink-0" style="color:var(--sm-text-muted)">{{t "map.title"}}</span>
+    <div class="flex items-center gap-2 text-xs flex-shrink-0" style="color:var(--sm-text-muted)">
+      <label class="flex items-center gap-1 cursor-pointer"><input type="checkbox" id="toggle-auto" checked> {{t "map.filter.auto"}}</label>
+      <label class="flex items-center gap-1 cursor-pointer"><input type="checkbox" id="toggle-physical" checked> {{t "map.filter.phys"}}</label>
+      <label class="flex items-center gap-1 cursor-pointer"><input type="checkbox" id="toggle-logical" checked> {{t "map.filter.log"}}</label>
     </div>
-    {{end}}
+    <button onclick="fitView()" title="Karte zentrieren"
+      class="flex items-center justify-center w-6 h-6 rounded cursor-pointer border-0 bg-transparent flex-shrink-0 hover:opacity-80"
+      style="color:var(--sm-text-muted)">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+        <circle cx="12" cy="12" r="3"/><line x1="12" y1="2" x2="12" y2="6"/><line x1="12" y1="18" x2="12" y2="22"/>
+        <line x1="2" y1="12" x2="6" y2="12"/><line x1="18" y1="12" x2="22" y2="12"/>
+      </svg>
+    </button>
+    <div class="w-px h-3 flex-shrink-0" style="background:var(--sm-card-border)"></div>
+    <div id="group-filter" class="flex items-center gap-1.5 flex-wrap flex-1"></div>
+  </div>
+  <svg id="map" width="100%" height="100%"></svg>
+</div>
+
+<!-- Letzte Alerts — aufklappbare Kachel -->
+<div class="rounded-lg border mb-2" style="background:var(--sm-card-bg);border-color:var(--sm-card-border)">
+  <button onclick="toggleSection('alerts')"
+          class="w-full flex items-center justify-between px-4 py-2.5 cursor-pointer bg-transparent border-0 text-left"
+          style="color:var(--sm-text-primary)">
+    <span class="text-xs font-semibold uppercase tracking-widest" style="color:var(--sm-text-muted)">{{t "alerts.recent"}}</span>
+    <div class="flex items-center gap-3">
+      <a href="/alerts" onclick="event.stopPropagation()" class="text-xs hover:underline" style="color:var(--sm-accent)">{{t "alerts.all"}}</a>
+      <svg id="chevron-alerts" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" style="color:var(--sm-text-muted);transition:transform 0.2s">
+        <polyline points="6 9 12 15 18 9"/>
+      </svg>
+    </div>
+  </button>
+  <div id="body-alerts" class="collapsible-body">
+    <div id="alerts-list" data-empty="{{t "alerts.none"}}">
+      {{if .Alerts}}
+      <div class="divide-y text-sm" style="border-color:var(--sm-card-border)">
+        {{range .Alerts}}
+        <div class="px-4 py-2.5 flex items-center gap-3">
+          <span class="text-xs px-1.5 py-0.5 rounded font-medium flex-shrink-0 {{severityClass .Severity}}">{{.Severity}}</span>
+          <div class="flex-1 min-w-0">
+            <div class="text-xs font-medium truncate" style="color:var(--sm-text-primary)">{{t (printf "alert.title.%s" .Type)}}</div>
+            {{if .MAC}}
+            <a href="/devices/{{.MAC}}" class="text-xs truncate block hover:underline" style="color:var(--sm-text-muted)">{{.Summary}}</a>
+            {{else}}
+            <div class="text-xs truncate" style="color:var(--sm-text-muted)">{{.Summary}}</div>
+            {{end}}
+          </div>
+          <span class="text-xs flex-shrink-0" style="color:var(--sm-text-muted)">{{timeAgo .FiredAt}}</span>
+        </div>
+        {{end}}
+      </div>
+      {{else}}
+      <div class="px-4 py-5 text-center text-xs" style="color:var(--sm-text-muted)">{{t "alerts.none"}}</div>
+      {{end}}
+    </div>
   </div>
 </div>
-{{end}}
+
+<div id="tooltip" class="fixed z-50 pointer-events-none opacity-0 transition-opacity duration-150
+     bg-gray-900 text-white text-xs rounded-lg px-3 py-2 shadow-xl max-w-xs"></div>
+
+<script src="/static/d3.min.js"></script>
+<script>
+const CS = getComputedStyle(document.documentElement);
+const cv = k => CS.getPropertyValue(k).trim();
+const COLORS = {
+  online:  cv('--sm-online')       || '#4ade80',
+  offline: cv('--sm-text-muted')   || '#555',
+  accent:  cv('--sm-accent')       || '#38bdf8',
+  text:    cv('--sm-text-primary') || '#f1f5f9',
+  border:  cv('--sm-card-border')  || '#333',
+};
+const ICONPATH = {
+  netzwerk:  "M12 2C6.5 2 2 6.5 2 12C2 17.5 6.5 22 12 22C17.5 22 22 17.5 22 12C22 6.5 17.5 2 12 2M12 20C7.58 20 4 16.42 4 12C4 7.58 7.58 4 12 4C16.42 4 20 7.58 20 12C20 16.42 16.42 20 12 20M13 13V16H15L12 19L9 16H11V13M5 13H8V15L11 12L8 9V11H5M11 11V8H9L12 5L15 8H13V11M19 11H16V9L13 12L16 15V13H19",
+  server:    "M4,1H20A1,1 0 0,1 21,2V6A1,1 0 0,1 20,7H4A1,1 0 0,1 3,6V2A1,1 0 0,1 4,1M4,9H20A1,1 0 0,1 21,10V14A1,1 0 0,1 20,15H4A1,1 0 0,1 3,14V10A1,1 0 0,1 4,9M4,17H20A1,1 0 0,1 21,18V22A1,1 0 0,1 20,23H4A1,1 0 0,1 3,22V18A1,1 0 0,1 4,17M9,5H10V3H9V5M9,13H10V11H9V13M9,21H10V19H9V21M5,3V5H7V3H5M5,11V13H7V11H5M5,19V21H7V19H5Z",
+  desktop:   "M21,16H3V4H21M21,2H3C1.89,2 1,2.89 1,4V16A2,2 0 0,0 3,18H10V20H8V22H16V20H14V18H21A2,2 0 0,0 23,16V4C23,2.89 22.1,2 21,2Z",
+  mobile:    "M17,19H7V5H17M17,1H7C5.89,1 5,1.89 5,3V21A2,2 0 0,0 7,23H17A2,2 0 0,0 19,21V3C19,1.89 18.1,1 17,1Z",
+  smarthome: "M12,3L2,12H5V20H19V12H22L12,3M12,8.5C14.34,8.5 16.46,9.43 18,10.94L16.8,12.12C15.58,10.91 13.88,10.17 12,10.17C10.12,10.17 8.42,10.91 7.2,12.12L6,10.94C7.54,9.43 9.66,8.5 12,8.5M12,11.83C13.4,11.83 14.67,12.39 15.6,13.3L14.4,14.47C13.79,13.87 12.94,13.5 12,13.5C11.06,13.5 10.21,13.87 9.6,14.47L8.4,13.3C9.33,12.39 10.6,11.83 12,11.83M12,15.17C12.94,15.17 13.7,15.91 13.7,16.83C13.7,17.75 12.94,18.5 12,18.5C11.06,18.5 10.3,17.75 10.3,16.83C10.3,15.91 11.06,15.17 12,15.17Z",
+  iot:       "M6,4H18V5H21V7H18V9H21V11H18V13H21V15H18V17H21V19H18V20H6V19H3V17H6V15H3V13H6V11H3V9H6V7H3V5H6V4M11,15V18H12V15H11M13,15V18H14V15H13M15,15V18H16V15H15Z",
+  media:     "M21,17H3V5H21M21,3H3A2,2 0 0,0 1,5V17A2,2 0 0,0 3,19H8V21H16V19H21A2,2 0 0,0 23,17V5A2,2 0 0,0 21,3Z",
+  drucker:   "M18,3H6V7H18M19,12A1,1 0 0,1 18,11A1,1 0 0,1 19,10A1,1 0 0,1 20,11A1,1 0 0,1 19,12M16,19H8V14H16M19,8H5A3,3 0 0,0 2,11V17H6V21H18V17H22V11A3,3 0 0,0 19,8Z",
+  virtual:   "M21,16.5C21,16.88 20.79,17.21 20.47,17.38L12.57,21.82C12.41,21.94 12.21,22 12,22C11.79,22 11.59,21.94 11.43,21.82L3.53,17.38C3.21,17.21 3,16.88 3,16.5V7.5C3,7.12 3.21,6.79 3.53,6.62L11.43,2.18C11.59,2.06 11.79,2 12,2C12.21,2 12.41,2.06 12.57,2.18L20.47,6.62C20.79,6.79 21,7.12 21,7.5V16.5M12,4.15L6.04,7.5L12,10.85L17.96,7.5L12,4.15M5,15.91L11,19.29V12.58L5,9.21V15.91M19,15.91V9.21L13,12.58V19.29L19,15.91Z",
+  unbekannt: "M15.07,11.25L14.17,12.17C13.45,12.89 13,13.5 13,15H11V14.5C11,13.39 11.45,12.39 12.17,11.67L13.41,10.41C13.78,10.05 14,9.55 14,9C14,7.89 13.1,7 12,7A2,2 0 0,0 10,9H8A4,4 0 0,1 12,5A4,4 0 0,1 16,9C16,9.88 15.64,10.67 15.07,11.25M13,19H11V17H13M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12C22,6.47 17.5,2 12,2Z",
+};
+const CATCOLOR = {
+  netzwerk:'#38bdf8', server:'#a78bfa', desktop:'#818cf8', mobile:'#f472b6',
+  smarthome:'#fb923c', iot:'#fbbf24', media:'#22d3ee', drucker:'#94a3b8',
+  virtual:'#c084fc', unbekannt:'#6b7280',
+};
+const UNGROUPED      = '__ungrouped__';
+const UNGROUPED_LABEL = '{{t "groups.ungrouped"}}';
+
+function catColor(cat) { return CATCOLOR[cat] || COLORS.border; }
+function linkColor(t)  { return t==='physical'?COLORS.online:t==='logical'?COLORS.accent:COLORS.border; }
+function groupOf(n)    { return (n.groups&&n.groups.length>0)?n.groups[0]:UNGROUPED; }
+function idOf(ep)      { return typeof ep==='object'?ep.id:ep; }
+
+// ── State ───────────────────────────────────────────────────────────────────
+let allNodes=[], allLinks=[], allGroups=[];
+let sim, svg, g, zoom;
+// Fixed render layers — created once in fullRender, cleared & refilled on redraw
+let hullLayer, linkLayer, nodeLayer;
+let hullSel, linkSel, nodeSel;
+let clusterMeta;
+let showAuto=true, showPhysical=true, showLogical=true;
+let initialized=false;
+let hiddenGroups=new Set([UNGROUPED]); // ohne Gruppe standardmässig ausgeblendet
+
+// ── Visibility ───────────────────────────────────────────────────────────────
+function visibleNodes() { return allNodes.filter(n=>!hiddenGroups.has(groupOf(n))); }
+function visibleLinks() {
+  const vis=new Set(visibleNodes().map(n=>n.id));
+  return allLinks.filter(l=>vis.has(idOf(l.source))&&vis.has(idOf(l.target)));
+}
+
+// ── Data load ────────────────────────────────────────────────────────────────
+let loading=false;
+async function load() {
+  if(loading) return;
+  loading=true;
+  let data=null;
+  try { data=await fetch('/api/topology').then(r=>r.json()); } catch(_){}
+  finally { loading=false; }
+  if(!data) return;
+
+  const newNodes=data.nodes||[];
+  const nodeMap=new Map(allNodes.map(n=>[n.id,n]));
+  const newIDs=new Set(newNodes.map(n=>n.id));
+  const oldIDs=new Set(allNodes.map(n=>n.id));
+  const changed=newIDs.size!==oldIDs.size||[...newIDs].some(id=>!oldIDs.has(id));
+
+  // Always update mutable properties in-place so D3 data refs stay valid.
+  // This makes refreshStatus() correctly reflect current online state.
+  newNodes.forEach(n=>{
+    const ex=nodeMap.get(n.id);
+    if(ex){ex.online=n.online;ex.ip=n.ip;ex.name=n.name;ex.category=n.category;}
+  });
+
+  allGroups=data.groups||[];
+
+  if(!initialized) {
+    // First load: build allNodes fresh
+    allNodes=newNodes;
+    allLinks=data.links||[];
+    buildGroupFilter();
+    fullRender();
+    return;
+  }
+
+  if(!changed) {
+    // Same topology — visuals already updated via in-place mutation above
+    buildGroupFilter();
+    refreshStatus();
+    // If sim has cooled, explicitly reposition links from current node coords
+    // (handles returning from browser sleep where tick stopped firing)
+    if(linkSel && sim && sim.alpha()<0.01) {
+      linkSel.attr('x1',d=>d.source.x).attr('y1',d=>d.source.y)
+             .attr('x2',d=>d.target.x).attr('y2',d=>d.target.y);
+    }
+    return;
+  }
+
+  // Topology changed: preserve positions, rebuild
+  allNodes=newNodes.map(n=>{
+    const ex=nodeMap.get(n.id);
+    if(ex){n.x=ex.x;n.y=ex.y;n.vx=ex.vx||0;n.vy=ex.vy||0;}
+    return n;
+  });
+  const linkMap=new Map(allLinks.map(l=>[`${idOf(l.source)}→${idOf(l.target)}:${l.type}`,l]));
+  allLinks=(data.links||[]).map(l=>linkMap.get(`${l.source}→${l.target}:${l.type}`)||l);
+
+  buildGroupFilter();
+
+  const el=document.getElementById('map');
+  const W=el?el.clientWidth:800, H=el?el.clientHeight:400;
+  allNodes.forEach(n=>{
+    if(n.x===undefined){n.x=W/2+(Math.random()-.5)*80;n.y=H/2+(Math.random()-.5)*80;}
+  });
+  const clusterOf=buildClusters(allNodes);
+  clusterMeta=buildClusterMeta(clusterOf);
+  if(sim){
+    sim.nodes(allNodes);
+    sim.force('cluster',      forceCluster(clusterOf,0.9));
+    sim.force('clusterRepel', forceClusterRepulsion(clusterOf,5.0,800));
+  }
+  drawLinks(); drawNodes(); drawHulls();
+  if(sim) sim.alpha(0.3).restart();
+}
+
+// ── Tier computation ─────────────────────────────────────────────────────────
+function computeTiers(nodes) {
+  const tier={}, nodeMap=Object.fromEntries(nodes.map(n=>[n.id,n]));
+  const roots=nodes.filter(n=>!n.parents||!n.parents.length||!n.parents.some(p=>nodeMap[p]));
+  roots.forEach(n=>{tier[n.id]=0;});
+  const children={};
+  nodes.forEach(n=>{(n.parents||[]).forEach(p=>{if(nodeMap[p])(children[p]=children[p]||[]).push(n.id);});});
+  const q=roots.map(n=>n.id);
+  while(q.length){
+    const cur=q.shift();
+    for(const ch of(children[cur]||[])){
+      const t=tier[cur]+1;
+      if(tier[ch]===undefined||t>tier[ch]){tier[ch]=t;q.push(ch);}
+    }
+  }
+  nodes.forEach(n=>{if(tier[n.id]===undefined)tier[n.id]=0;});
+  return tier;
+}
+
+// ── Group filter chips ───────────────────────────────────────────────────────
+function buildGroupFilter() {
+  const container=document.getElementById('group-filter');
+  if(!container) return;
+  container.innerHTML='';
+  const groups=[...allGroups];
+  if(allNodes.some(n=>!n.groups||!n.groups.length)) groups.push({id:UNGROUPED,name:UNGROUPED_LABEL,color:COLORS.border});
+  groups.forEach(grp=>{
+    const btn=document.createElement('button');
+    btn.type='button'; btn.dataset.gid=grp.id;
+    const refresh=()=>{
+      const on=!hiddenGroups.has(grp.id);
+      Object.assign(btn.style,{
+        border:`1.5px solid ${grp.color}`,borderRadius:'4px',padding:'1px 8px',
+        fontSize:'10px',cursor:'pointer',transition:'all 0.15s',
+        background:on?grp.color+'33':'transparent',
+        color:on?grp.color:'var(--sm-text-muted)',
+        opacity:on?'1':'0.4',whiteSpace:'nowrap',fontWeight:'600',letterSpacing:'0.04em',
+      });
+      btn.textContent=grp.name.toUpperCase();
+    };
+    refresh();
+    btn.addEventListener('click',()=>{
+      if(hiddenGroups.has(grp.id)) hiddenGroups.delete(grp.id); else hiddenGroups.add(grp.id);
+      refresh(); applyGroupFilter();
+    });
+    container.appendChild(btn);
+  });
+}
+
+function applyGroupFilter() {
+  if(nodeSel){
+    nodeSel.attr('opacity',d=>hiddenGroups.has(groupOf(d))?0:1)
+           .attr('pointer-events',d=>hiddenGroups.has(groupOf(d))?'none':'auto');
+  }
+  drawLinks();
+  updateHulls();
+  const vn=visibleNodes();
+  if(vn.length) fitView(null,null,vn,true);
+}
+
+// ── Cluster forces ────────────────────────────────────────────────────────────
+function buildClusters(nodes) {
+  const m=new Map(); nodes.forEach(n=>m.set(n.id,groupOf(n))); return m;
+}
+function forceCluster(clusterOf,strength) {
+  let nodes;
+  function force(alpha) {
+    const cx={},cy={},cnt={};
+    nodes.forEach(n=>{const c=clusterOf.get(n.id)||n.id;cx[c]=(cx[c]||0)+n.x;cy[c]=(cy[c]||0)+n.y;cnt[c]=(cnt[c]||0)+1;});
+    nodes.forEach(n=>{
+      const c=clusterOf.get(n.id)||n.id;
+      if(cnt[c]<2) return;
+      const s=(c===UNGROUPED?strength*0.25:strength)*alpha;
+      n.vx+=(cx[c]/cnt[c]-n.x)*s; n.vy+=(cy[c]/cnt[c]-n.y)*s;
+    });
+  }
+  force.initialize=ns=>{nodes=ns;}; return force;
+}
+function forceClusterRepulsion(clusterOf,strength,maxDist) {
+  let nodes;
+  function force(alpha) {
+    const s=strength*alpha;
+    for(let i=0;i<nodes.length-1;i++){
+      for(let j=i+1;j<nodes.length;j++){
+        const ni=nodes[i],nj=nodes[j];
+        const ci=clusterOf.get(ni.id)||ni.id, cj=clusterOf.get(nj.id)||nj.id;
+        if(ci===cj) continue;
+        const dx=nj.x-ni.x,dy=nj.y-ni.y,dist=Math.sqrt(dx*dx+dy*dy)||1;
+        if(dist>maxDist) continue;
+        const f=s*(1-dist/maxDist)/dist;
+        ni.vx-=dx*f; ni.vy-=dy*f; nj.vx+=dx*f; nj.vy+=dy*f;
+      }
+    }
+  }
+  force.initialize=ns=>{nodes=ns;}; return force;
+}
+
+// ── Hull / cluster meta ───────────────────────────────────────────────────────
+function buildClusterMeta(clusterOf) {
+  const gi=Object.fromEntries(allGroups.map(g=>[g.id,g]));
+  const map=new Map();
+  allNodes.forEach(n=>{
+    const c=clusterOf.get(n.id)||UNGROUPED;
+    if(!map.has(c)){
+      const grp=gi[c];
+      map.set(c,{id:c,name:c===UNGROUPED?UNGROUPED_LABEL:(grp?grp.name:c),nodes:[],color:grp?grp.color:COLORS.border});
+    }
+    map.get(c).nodes.push(n);
+  });
+  return [...map.values()].filter(cl=>cl.nodes.length>1);
+}
+
+function drawHulls() {
+  if(!hullLayer) return;
+  hullLayer.selectAll('*').remove();
+  if(!clusterMeta||!clusterMeta.length) return;
+  hullSel=hullLayer.selectAll('g').data(clusterMeta).join('g').attr('pointer-events','none');
+  hullSel.append('path')
+    .attr('fill',cl=>cl.color+'18').attr('stroke',cl=>cl.color)
+    .attr('stroke-width',1).attr('stroke-opacity',0.45);
+  hullSel.append('text')
+    .attr('font-size',11).attr('font-weight','600').attr('letter-spacing','0.06em')
+    .attr('fill',cl=>cl.color).attr('opacity',0.9)
+    .text(cl=>cl.name.toUpperCase());
+}
+
+function updateHulls() {
+  if(!hullSel) return;
+  const pad=28;
+  hullSel.each(function(cl){
+    const visN=cl.nodes.filter(n=>!hiddenGroups.has(groupOf(n)));
+    if(visN.length<1){
+      d3.select(this).select('path').attr('d',null);
+      d3.select(this).select('text').attr('opacity',0);
+      return;
+    }
+    d3.select(this).select('text').attr('opacity',0.9);
+    const pts=[];
+    visN.forEach(n=>{for(let a=0;a<Math.PI*2;a+=Math.PI/3)pts.push([n.x+Math.cos(a)*pad,n.y+Math.sin(a)*pad]);});
+    const hull=d3.polygonHull(pts);
+    if(!hull||hull.length<3) return;
+    d3.select(this).select('path').attr('d','M'+hull.map(p=>p.join(',')).join('L')+'Z');
+    // Label at outermost hull vertex, pushed outward
+    const cx=visN.reduce((s,n)=>s+n.x,0)/visN.length;
+    const cy=visN.reduce((s,n)=>s+n.y,0)/visN.length;
+    let bestPt=hull[0],bestDist=0;
+    hull.forEach(p=>{const d=Math.hypot(p[0]-cx,p[1]-cy);if(d>bestDist){bestDist=d;bestPt=p;}});
+    const dx=bestPt[0]-cx,dy=bestPt[1]-cy,len=Math.hypot(dx,dy)||1;
+    d3.select(this).select('text')
+      .attr('x',bestPt[0]+dx/len*16).attr('y',bestPt[1]+dy/len*16+4)
+      .attr('text-anchor',dx>=0?'start':'end');
+  });
+}
+
+// ── Full render ───────────────────────────────────────────────────────────────
+function fullRender() {
+  const el=document.getElementById('map');
+  if(!el) return;
+  const W=el.clientWidth||800, H=el.clientHeight||400;
+
+  if(sim) sim.stop();
+  d3.select('#map').selectAll('*').remove();
+
+  svg=d3.select('#map');
+  zoom=d3.zoom().scaleExtent([0.06,5]).on('zoom',e=>g.attr('transform',e.transform));
+  svg.call(zoom);
+
+  const defs=svg.append('defs');
+  ['auto','physical','logical'].forEach(t=>
+    defs.append('marker').attr('id','arr-'+t)
+      .attr('viewBox','0 -4 8 8').attr('refX',20).attr('refY',0)
+      .attr('markerWidth',5).attr('markerHeight',5).attr('orient','auto')
+      .append('path').attr('d','M0,-4L8,0L0,4').attr('fill',linkColor(t))
+  );
+  const gf=defs.append('filter').attr('id','node-glow')
+    .attr('x','-60%').attr('y','-60%').attr('width','220%').attr('height','220%');
+  gf.append('feGaussianBlur').attr('in','SourceGraphic').attr('stdDeviation','3').attr('result','blur');
+  const fm=gf.append('feMerge');
+  fm.append('feMergeNode').attr('in','blur'); fm.append('feMergeNode').attr('in','SourceGraphic');
+
+  const dp=defs.append('pattern').attr('id','bg-dots')
+    .attr('width',28).attr('height',28).attr('patternUnits','userSpaceOnUse');
+  dp.append('circle').attr('cx',14).attr('cy',14).attr('r',0.9).attr('fill',COLORS.online).attr('opacity',0.15);
+  svg.append('rect').attr('width','100%').attr('height','100%')
+    .attr('fill','url(#bg-dots)').attr('pointer-events','none');
+
+  g=svg.append('g');
+
+  // Fixed layer order: hulls (bottom) → links → nodes (top)
+  hullLayer=g.append('g').attr('class','hull-layer');
+  linkLayer=g.append('g').attr('class','link-layer');
+  nodeLayer=g.append('g').attr('class','node-layer');
+
+  // Initial positions: spread by tier (only for nodes without a saved position)
+  const tier=computeTiers(allNodes);
+  const numTiers=Math.max(1,...Object.values(tier))+1;
+  const padY=50;
+  const tierY=t=>padY+(H-padY*2)*(t/Math.max(numTiers-1,1));
+  const byTier={};
+  allNodes.forEach(n=>{const t=tier[n.id]??0;(byTier[t]=byTier[t]||[]).push(n);});
+  Object.entries(byTier).forEach(([t,ns])=>{
+    ns.forEach((n,i)=>{
+      // ?? only fills in undefined/null — preserved positions are kept
+      n.x=n.x??(W*0.05+(W*0.9)*(i+1)/(ns.length+1));
+      n.y=n.y??tierY(+t);
+    });
+  });
+
+  const clusterOf=buildClusters(allNodes);
+  clusterMeta=buildClusterMeta(clusterOf);
+
+  sim=d3.forceSimulation(allNodes)
+    .force('link',    d3.forceLink(allLinks).id(d=>d.id)
+      .distance(d=>d.type==='logical'?30:90)
+      .strength(d=>d.type==='logical'?0.9:0.4))
+    .force('charge',  d3.forceManyBody().strength(-350).distanceMax(700))
+    .force('y',       d3.forceY(d=>tierY(tier[d.id]??0)).strength(0.12))
+    .force('x',       d3.forceX(W/2).strength(0.004))
+    .force('collide', d3.forceCollide(44))
+    .force('cluster', forceCluster(clusterOf,0.9))
+    .force('clusterRepel', forceClusterRepulsion(clusterOf,5.0,800))
+    .alphaDecay(0.04).velocityDecay(0.55);
+
+  drawLinks(); drawNodes(); drawHulls();
+  fitView(W,H,visibleNodes());
+  initialized=true;
+
+  let fitted=false;
+  sim.on('tick',()=>{
+    if(linkSel) linkSel.attr('x1',d=>d.source.x).attr('y1',d=>d.source.y)
+                        .attr('x2',d=>d.target.x).attr('y2',d=>d.target.y);
+    if(nodeSel) nodeSel.attr('transform',d=>`translate(${d.x},${d.y})`);
+    updateHulls();
+    if(!fitted&&sim.alpha()<0.05){fitted=true;fitView(W,H,visibleNodes());}
+  });
+}
+
+// ── Draw links (clears linkLayer, redraws) ────────────────────────────────────
+function drawLinks() {
+  if(!linkLayer) return;
+  linkLayer.selectAll('*').remove();
+  const links=visibleLinks().filter(l=>
+    (l.type==='auto'&&showAuto)||(l.type==='physical'&&showPhysical)||(l.type==='logical'&&showLogical)
+  );
+  linkSel=linkLayer.selectAll('line').data(links).join('line')
+    .attr('stroke',        d=>linkColor(d.type))
+    .attr('stroke-width',  d=>d.type==='physical'?2:1.5)
+    .attr('stroke-dasharray',d=>d.type==='logical'?'6,3':d.type==='auto'?'3,3':null)
+    .attr('stroke-opacity',d=>d.type==='auto'?0.35:0.85)
+    .attr('marker-end',    d=>`url(#arr-${d.type})`)
+    .attr('x1',0).attr('y1',0).attr('x2',0).attr('y2',0);
+  if(sim){
+    // Resolve string IDs → node objects synchronously, then set positions
+    sim.force('link').links(links);
+    linkSel.attr('x1',d=>d.source.x||0).attr('y1',d=>d.source.y||0)
+           .attr('x2',d=>d.target.x||0).attr('y2',d=>d.target.y||0);
+  }
+}
+
+// ── Draw nodes (clears nodeLayer, redraws) ────────────────────────────────────
+function drawNodes() {
+  if(!nodeLayer) return;
+  nodeLayer.selectAll('*').remove();
+  nodeSel=nodeLayer.selectAll('g').data(allNodes).join('g')
+    .attr('cursor','pointer')
+    .attr('transform',d=>`translate(${d.x||0},${d.y||0})`)
+    .attr('opacity',  d=>hiddenGroups.has(groupOf(d))?0:1)
+    .attr('pointer-events',d=>hiddenGroups.has(groupOf(d))?'none':'auto')
+    .call(d3.drag()
+      .on('start',(e,d)=>{sim.alphaTarget(0.1).restart();d.fx=d.x;d.fy=d.y;})
+      .on('drag', (e,d)=>{d.fx=e.x;d.fy=e.y;})
+      .on('end',  (e,d)=>{sim.alphaTarget(0);d.fx=null;d.fy=null;}))
+    .on('click',    (_,d)=>{window.location='/devices/'+d.id;})
+    .on('mouseover',showTip)
+    .on('mouseout', hideTip);
+
+  nodeSel.append('circle')
+    .attr('r',           d=>d.priority?17:12)
+    .attr('fill',        d=>catColor(d.category)+'22')
+    .attr('stroke',      d=>catColor(d.category))
+    .attr('stroke-width',d=>d.priority?2.5:1.5)
+    .attr('stroke-opacity',d=>d.online?1:0.35)
+    .attr('filter',      d=>d.online?'url(#node-glow)':null);
+
+  nodeSel.append('g').attr('transform','translate(-8,-8) scale(0.667)')
+    .attr('pointer-events','none')
+    .append('path')
+    .attr('d',   d=>ICONPATH[d.category]||ICONPATH.unbekannt)
+    .attr('fill',d=>d.online?catColor(d.category):COLORS.offline)
+    .attr('opacity',d=>d.online?0.9:0.4);
+
+  // Status dot: top-right corner of node
+  nodeSel.append('circle')
+    .attr('class','status-dot')
+    .attr('r',3.5)
+    .attr('cx',d=>d.priority?13:9).attr('cy',d=>d.priority?-13:-9)
+    .attr('fill',        d=>d.online?'#4ade80':'#ef4444')
+    .attr('stroke',      'var(--sm-card-bg)')
+    .attr('stroke-width',1.5);
+
+  nodeSel.append('text')
+    .attr('text-anchor','middle').attr('y',25).attr('font-size',9).attr('font-family','monospace')
+    .attr('fill',COLORS.text)
+    .attr('stroke','var(--sm-page-bg)').attr('stroke-width',3).attr('stroke-linejoin','round')
+    .attr('paint-order','stroke').attr('pointer-events','none')
+    .text(d=>d.name.length>16?d.name.slice(0,14)+'…':d.name);
+}
+
+// ── Refresh status (same topology — just update node colors) ──────────────────
+function refreshStatus() {
+  // Do NOT call drawLinks() here — existing linkSel already has correct positions.
+  // Sim may be stopped; recreating lines would put them at 0,0.
+  updateHulls();
+  if(nodeSel){
+    nodeSel.select('circle')
+      .attr('fill',        d=>catColor(d.category)+'22')
+      .attr('stroke',      d=>catColor(d.category))
+      .attr('stroke-opacity',d=>d.online?1:0.35)
+      .attr('filter',      d=>d.online?'url(#node-glow)':null);
+    nodeSel.select('path')
+      .attr('fill',   d=>d.online?catColor(d.category):COLORS.offline)
+      .attr('opacity',d=>d.online?0.9:0.4);
+    nodeSel.select('.status-dot')
+      .attr('fill',d=>d.online?'#4ade80':'#ef4444');
+  }
+}
+
+// ── Fit view to bounding box ──────────────────────────────────────────────────
+function fitView(W,H,nodes,animate) {
+  const el=document.getElementById('map');
+  W=W||(el?el.clientWidth:800); H=H||(el?el.clientHeight:400);
+  const ns=nodes||allNodes;
+  if(!ns.length) return;
+  let x0=Infinity,x1=-Infinity,y0=Infinity,y1=-Infinity;
+  ns.forEach(n=>{x0=Math.min(x0,n.x);x1=Math.max(x1,n.x);y0=Math.min(y0,n.y);y1=Math.max(y1,n.y);});
+  const pad=Math.min(40,Math.max(16,W*0.04));
+  const scale=Math.min(3,0.95*Math.min(W/(Math.max(x1-x0,1)+pad*2),H/(Math.max(y1-y0,1)+pad*2)));
+  const t=d3.zoomIdentity.translate(W/2-scale*(x0+x1)/2,H/2-scale*(y0+y1)/2).scale(scale);
+  if(animate) svg.transition().duration(600).call(zoom.transform,t);
+  else        svg.call(zoom.transform,t);
+}
+
+// ── Tooltip ───────────────────────────────────────────────────────────────────
+function showTip(e,d){
+  const tip=document.getElementById('tooltip');
+  tip.innerHTML=`<div class="font-bold mb-1">${d.name}</div>`
+    +`<div class="opacity-60 font-mono text-xs">${d.id}</div>`
+    +(d.ip?`<div class="mt-1 font-mono">${d.ip}</div>`:'')
+    +(d.category?`<div class="mt-0.5 opacity-70">${d.category}</div>`:'');
+  tip.style.left=(e.pageX+12)+'px'; tip.style.top=(e.pageY-10)+'px';
+  tip.classList.replace('opacity-0','opacity-100');
+}
+function hideTip(){document.getElementById('tooltip').classList.replace('opacity-100','opacity-0');}
+
+// ── Filter toggles ────────────────────────────────────────────────────────────
+document.getElementById('toggle-auto').addEventListener('change',     e=>{showAuto=e.target.checked;    drawLinks();});
+document.getElementById('toggle-physical').addEventListener('change', e=>{showPhysical=e.target.checked;drawLinks();});
+document.getElementById('toggle-logical').addEventListener('change',  e=>{showLogical=e.target.checked; drawLinks();});
+
+// ── Severity badge CSS (mirrors Go severityClass) ────────────────────────────
+function severityClass(s) {
+  return {critical:'bg-red-100 text-red-800',high:'bg-orange-100 text-orange-800',
+          medium:'bg-yellow-100 text-yellow-800',info:'bg-blue-100 text-blue-800'}[s]||'bg-gray-100 text-gray-800';
+}
+function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+
+// ── Dynamic alert widget ──────────────────────────────────────────────────────
+async function loadAlerts() {
+  let data;
+  try { data=await fetch('/api/alerts').then(r=>r.json()); } catch(_){ return; }
+  const el=document.getElementById('alerts-list');
+  if(!el) return;
+  const empty=el.dataset.empty||'—';
+  if(!Array.isArray(data)||!data.length){
+    el.innerHTML=`<div class="px-4 py-5 text-center text-xs" style="color:var(--sm-text-muted)">${esc(empty)}</div>`;
+    return;
+  }
+  el.innerHTML='<div class="divide-y text-sm" style="border-color:var(--sm-card-border)">'
+    +data.map(a=>`
+      <div class="px-4 py-2.5 flex items-center gap-3">
+        <span class="text-xs px-1.5 py-0.5 rounded font-medium flex-shrink-0 ${severityClass(a.severity)}">${esc(a.severity)}</span>
+        <div class="flex-1 min-w-0">
+          <div class="text-xs font-medium truncate" style="color:var(--sm-text-primary)">${esc(a.title)}</div>
+          ${a.mac
+            ?`<a href="/devices/${esc(a.mac)}" class="text-xs truncate block hover:underline" style="color:var(--sm-text-muted)">${esc(a.summary)}</a>`
+            :`<div class="text-xs truncate" style="color:var(--sm-text-muted)">${esc(a.summary)}</div>`}
+        </div>
+        <span class="text-xs flex-shrink-0" style="color:var(--sm-text-muted)">${esc(a.timeAgo)}</span>
+      </div>`).join('')
+    +'</div>';
+}
+
+// ── Polling + visibility / sleep handling ─────────────────────────────────────
+let hiddenAt=0;
+
+setInterval(function(){ load(); loadAlerts(); }, 20000);
+load();
+loadAlerts();
+
+document.addEventListener('visibilitychange', function() {
+  if(document.hidden) {
+    hiddenAt=Date.now();
+  } else {
+    // After long sleep (>5 min) force a full SVG rebuild to fix stale D3 state
+    if(hiddenAt && Date.now()-hiddenAt > 5*60*1000) initialized=false;
+    load();
+    loadAlerts();
+  }
+});
+
+// Safari: page restored from Back/Forward Cache — D3 state is frozen, rebuild
+window.addEventListener('pageshow', function(e) {
+  if(e.persisted){ initialized=false; load(); loadAlerts(); }
+});
+
+// Collapsible sections
+function toggleSection(id) {
+  var body = document.getElementById('body-' + id);
+  var chev = document.getElementById('chevron-' + id);
+  var open = body.style.display !== 'none';
+  body.style.display = open ? 'none' : '';
+  chev.style.transform = open ? 'rotate(-90deg)' : '';
+  try { localStorage.setItem('sm-section-' + id, open ? '0' : '1'); } catch(e){}
+}
+(function(){
+  ['alerts'].forEach(function(id) {
+    var saved = localStorage.getItem('sm-section-' + id);
+    if (saved === '0') {
+      var body = document.getElementById('body-' + id);
+      var chev = document.getElementById('chevron-' + id);
+      if (body) body.style.display = 'none';
+      if (chev) chev.style.transform = 'rotate(-90deg)';
+    }
+  });
+})();
+</script>
 {{end}}

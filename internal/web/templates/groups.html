@@ -1,0 +1,128 @@
+{{define "content"}}
+<div class="mb-6 flex items-end justify-between">
+  <div>
+    <h1 class="text-2xl font-bold">{{t "groups.title"}}</h1>
+    <p class="text-sm mt-1" style="color:var(--sm-text-muted)">{{t "groups.subtitle"}}</p>
+  </div>
+</div>
+
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+  <!-- Gruppe erstellen -->
+  <div class="lg:col-span-1">
+    <div class="rounded-xl border p-5" style="background-color:var(--sm-card-bg)">
+      <h2 class="font-semibold mb-4">{{t "groups.new"}}</h2>
+      <form action="/groups" method="POST" class="space-y-3">
+        <div>
+          <label class="text-xs font-medium uppercase tracking-wide block mb-1" style="color:var(--sm-text-muted)">{{t "field.name"}}</label>
+          <input type="text" name="name" placeholder="{{t "group.name.ph"}}"
+            class="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+        </div>
+        <div>
+          <label class="text-xs font-medium uppercase tracking-wide block mb-1" style="color:var(--sm-text-muted)">{{t "field.color"}}</label>
+          <div class="flex items-center gap-3">
+            <input type="color" name="color" value="#38bdf8"
+              class="w-10 h-9 rounded cursor-pointer border" style="border-color:var(--sm-card-border)">
+            <div class="flex gap-1.5 flex-wrap">
+              {{range slice "#38bdf8" "#f472b6" "#fb923c" "#a78bfa" "#4ade80" "#fbbf24" "#22d3ee" "#f87171" "#e879f9" "#34d399"}}
+              <button type="button" onclick="this.closest('form').querySelector('[type=color]').value='{{.}}'"
+                class="w-5 h-5 rounded-full border-2 border-transparent hover:border-white transition-colors"
+                style="background:{{.}}"></button>
+              {{end}}
+            </div>
+          </div>
+        </div>
+        <button type="submit"
+          class="w-full py-2 rounded-lg text-sm font-medium transition-colors"
+          style="background-color:var(--sm-accent);color:var(--sm-page-bg)">
+          {{t "action.create_group"}}
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Gruppen-Liste -->
+  <div class="lg:col-span-2 space-y-4">
+    {{if not .Groups}}
+    <div class="rounded-xl border p-8 text-center" style="background-color:var(--sm-card-bg);color:var(--sm-text-muted)">
+      <div class="text-3xl mb-3">⬡</div>
+      <p class="text-sm">{{t "groups.empty"}}</p>
+    </div>
+    {{end}}
+
+    {{range .Groups}}
+    <div class="rounded-xl border overflow-hidden" style="background-color:var(--sm-card-bg)">
+      <!-- Header -->
+      <div class="px-5 py-3 flex items-center gap-3 border-b" style="border-color:var(--sm-card-border)">
+        <span class="w-3 h-3 rounded-full flex-shrink-0" style="background-color:{{.Color}}"></span>
+        <form action="/groups/{{.ID}}/update" method="POST" class="flex items-center gap-2 flex-1">
+          <input type="text" name="name" value="{{.Name}}"
+            class="flex-1 bg-transparent border-0 text-sm font-semibold focus:outline-none focus:ring-1 focus:ring-blue-500 rounded px-1"
+            style="color:var(--sm-text-primary)">
+          <input type="color" name="color" value="{{.Color}}"
+            class="w-7 h-7 rounded cursor-pointer border-0 bg-transparent">
+          <button type="submit" class="text-xs px-2 py-1 rounded transition-colors"
+            style="color:var(--sm-text-muted);border:1px solid var(--sm-card-border)">
+            {{t "action.save"}}
+          </button>
+        </form>
+        <span class="text-xs flex-shrink-0" style="color:var(--sm-text-muted)">{{tf "group.devices_count" (len .Devices)}}</span>
+        <form method="POST" action="/groups/{{.ID}}/delete"
+              onsubmit="return confirm('{{tf "confirm.delete_group" .Name}}')">
+          <button type="submit" class="text-xs hover:text-red-500 transition-colors" style="color:var(--sm-text-muted)">✕</button>
+        </form>
+      </div>
+
+      <!-- Devices in group -->
+      {{if .Devices}}
+      <div class="divide-y text-sm" style="border-color:var(--sm-card-border)">
+        {{range .Devices}}
+        <div class="px-5 py-2 flex items-center gap-3">
+          <span class="w-1.5 h-1.5 rounded-full flex-shrink-0 {{if .Online}}bg-green-400{{else}}bg-gray-400{{end}}"></span>
+          <a href="/devices/{{.MAC}}" class="flex-1 truncate text-xs hover:underline" style="color:var(--sm-text-secondary)">
+            {{.DisplayName}}
+          </a>
+          <span class="text-xs font-mono flex-shrink-0" style="color:var(--sm-text-muted)">{{.IP}}</span>
+        </div>
+        {{end}}
+      </div>
+      {{else}}
+      <div class="px-5 py-3 text-xs" style="color:var(--sm-text-muted)">{{t "group.no_devices"}}</div>
+      {{end}}
+    </div>
+    {{end}}
+
+    {{if .Ungrouped}}
+    <div class="rounded-xl border overflow-hidden" style="background-color:var(--sm-card-bg);border-color:var(--sm-card-border)">
+      <div class="px-5 py-3 flex items-center gap-3 border-b" style="border-color:var(--sm-card-border)">
+        <span class="w-3 h-3 rounded-full flex-shrink-0" style="background-color:var(--sm-text-muted)"></span>
+        <span class="flex-1 text-sm font-semibold" style="color:var(--sm-text-muted)">{{t "groups.ungrouped"}}</span>
+        <span class="text-xs flex-shrink-0" style="color:var(--sm-text-muted)">{{tf "group.devices_count" (len .Ungrouped)}}</span>
+      </div>
+      <div class="divide-y text-sm" style="border-color:var(--sm-card-border)">
+        {{range .Ungrouped}}
+        <div class="px-5 py-2 flex items-center gap-3">
+          <span class="w-1.5 h-1.5 rounded-full flex-shrink-0 {{if .Online}}bg-green-400{{else}}bg-gray-400{{end}}"></span>
+          <a href="/devices/{{.MAC}}" class="flex-1 truncate text-xs hover:underline" style="color:var(--sm-text-secondary)">
+            {{.DisplayName}}
+          </a>
+          <span class="text-xs font-mono flex-shrink-0" style="color:var(--sm-text-muted)">{{.IP}}</span>
+          <form method="POST" action="/devices/{{.MAC}}/groups" class="flex items-center gap-1">
+            <select name="group_id" class="text-xs border rounded px-1 py-0.5 bg-transparent" style="border-color:var(--sm-card-border);color:var(--sm-text-muted)">
+              <option value="">+ {{t "nav.groups"}}</option>
+              {{range $.Groups}}
+              <option value="{{.ID}}">{{.Name}}</option>
+              {{end}}
+            </select>
+            <button type="submit" class="text-xs px-1.5 py-0.5 rounded" style="border:1px solid var(--sm-card-border);color:var(--sm-text-muted)">+</button>
+          </form>
+        </div>
+        {{end}}
+      </div>
+    </div>
+    {{end}}
+
+  </div>
+
+</div>
+{{end}}

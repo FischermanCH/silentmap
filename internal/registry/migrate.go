@@ -41,6 +41,16 @@ func migrate(db *sql.DB) error {
 			fired_at   DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 		)`,
 		`CREATE INDEX IF NOT EXISTS idx_alerts_fired_at ON alerts(fired_at)`,
+		`CREATE TABLE IF NOT EXISTS device_connections (
+			id         TEXT PRIMARY KEY,
+			mac_a      TEXT NOT NULL,
+			mac_b      TEXT NOT NULL,
+			type       TEXT NOT NULL DEFAULT 'physical',
+			label      TEXT NOT NULL DEFAULT '',
+			created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+		)`,
+		`CREATE INDEX IF NOT EXISTS idx_conn_mac_a ON device_connections(mac_a)`,
+		`CREATE INDEX IF NOT EXISTS idx_conn_mac_b ON device_connections(mac_b)`,
 	}
 
 	for _, stmt := range stmts {
@@ -48,5 +58,31 @@ func migrate(db *sql.DB) error {
 			return err
 		}
 	}
+	// Add parent_mac column to existing databases (ignore "duplicate column" error).
+	db.Exec(`ALTER TABLE devices ADD COLUMN parent_mac TEXT NOT NULL DEFAULT ''`)
+	// approved=1 default so existing devices aren't flagged NEW after migration.
+	db.Exec(`ALTER TABLE devices ADD COLUMN approved INTEGER NOT NULL DEFAULT 1`)
+	db.Exec(`CREATE TABLE IF NOT EXISTS device_groups (
+		id    TEXT PRIMARY KEY,
+		name  TEXT NOT NULL,
+		color TEXT NOT NULL DEFAULT '#888888'
+	)`)
+	db.Exec(`CREATE TABLE IF NOT EXISTS device_group_members (
+		group_id TEXT NOT NULL,
+		mac      TEXT NOT NULL,
+		PRIMARY KEY (group_id, mac)
+	)`)
+	db.Exec(`CREATE INDEX IF NOT EXISTS idx_grp_members_mac      ON device_group_members(mac)`)
+	db.Exec(`CREATE INDEX IF NOT EXISTS idx_grp_members_group_id ON device_group_members(group_id)`)
+
+	// Multi-parent table (replaces single parent_mac for topology).
+	db.Exec(`CREATE TABLE IF NOT EXISTS device_parents (
+		mac        TEXT NOT NULL,
+		parent_mac TEXT NOT NULL,
+		PRIMARY KEY (mac, parent_mac)
+	)`)
+	db.Exec(`CREATE INDEX IF NOT EXISTS idx_parents_mac ON device_parents(mac)`)
+	db.Exec(`ALTER TABLE devices ADD COLUMN os_info TEXT NOT NULL DEFAULT ''`)
+	db.Exec(`ALTER TABLE devices ADD COLUMN force_ping INTEGER NOT NULL DEFAULT 0`)
 	return createOUITable(db)
 }

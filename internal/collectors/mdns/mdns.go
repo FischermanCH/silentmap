@@ -4,12 +4,36 @@ import (
 	"context"
 	"log/slog"
 	"net"
+	"regexp"
 	"strings"
 
 	"github.com/miekg/dns"
 	"github.com/silentmap/silentmap/internal/bus"
 	"golang.org/x/net/ipv4"
 )
+
+var (
+	// Matches hex UUIDs with or without dashes, optionally followed by a -suffix (e.g. -hap, -sub)
+	reRandomID = regexp.MustCompile(`^[0-9a-fA-F]{8}(-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12}(-\w+)?$|^[0-9a-fA-F]{20,}(-\w+)?$`)
+)
+
+// usableHostname returns false for arpa PTR names, UUIDs, and service instance names.
+func usableHostname(name string) bool {
+	if name == "" {
+		return false
+	}
+	if strings.Contains(name, ".arpa") {
+		return false
+	}
+	if strings.Contains(name, "._tcp") || strings.Contains(name, "._udp") {
+		return false
+	}
+	bare := strings.TrimSuffix(name, ".local")
+	if reRandomID.MatchString(bare) {
+		return false
+	}
+	return true
+}
 
 const mdnsAddr = "224.0.0.251:5353"
 
@@ -101,25 +125,26 @@ func (c *Collector) process(msg *dns.Msg, srcIP net.IP, b *bus.Bus) {
 				ip = r.A.String()
 			}
 			if hostname == "" {
-				hostname = strings.TrimSuffix(r.Hdr.Name, ".")
+				candidate := strings.TrimSuffix(r.Hdr.Name, ".")
+				if usableHostname(candidate) {
+					hostname = candidate
+				}
 			}
 
 		case *dns.PTR:
-			name := strings.TrimSuffix(r.Ptr, ".")
-			// PTR für Hostnamen (z.B. _services._dns-sd)
-			if !strings.HasPrefix(r.Hdr.Name, "_") {
-				if hostname == "" {
-					hostname = strings.TrimSuffix(r.Hdr.Name, ".")
-				}
-			}
 			// Service Discovery (z.B. _airplay._tcp.local)
 			if strings.Contains(r.Hdr.Name, "._tcp.") || strings.Contains(r.Hdr.Name, "._udp.") {
 				svc := extractService(r.Hdr.Name)
 				if svc != "" && !contains(services, svc) {
 					services = append(services, svc)
 				}
+			} else if !strings.HasPrefix(r.Hdr.Name, "_") {
+				// Reverse-PTR → echter Hostname, kein arpa/UUID
+				candidate := strings.TrimSuffix(r.Hdr.Name, ".")
+				if hostname == "" && usableHostname(candidate) {
+					hostname = candidate
+				}
 			}
-			_ = name
 
 		case *dns.SRV:
 			svc := extractService(r.Hdr.Name)
@@ -127,7 +152,10 @@ func (c *Collector) process(msg *dns.Msg, srcIP net.IP, b *bus.Bus) {
 				services = append(services, svc)
 			}
 			if hostname == "" && r.Target != "" {
-				hostname = strings.TrimSuffix(r.Target, ".")
+				candidate := strings.TrimSuffix(r.Target, ".")
+				if usableHostname(candidate) {
+					hostname = candidate
+				}
 			}
 
 		case *dns.TXT:

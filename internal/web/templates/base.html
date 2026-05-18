@@ -4,22 +4,230 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>silentmap — {{.Title}}</title>
+  <title>SilentMap</title>
   <script src="https://cdn.tailwindcss.com"></script>
+  <style>{{.Theme.CSS}}</style>
 </head>
-<body class="bg-gray-50 text-gray-900 font-sans">
+<body class="font-sans" style="background-color:var(--sm-page-bg);color:var(--sm-text-primary)">
 
-<nav class="bg-gray-900 text-white px-6 py-3 flex items-center gap-8 shadow">
-  <a href="/" class="font-bold text-lg tracking-tight hover:text-gray-200">silentmap</a>
-  <a href="/" class="text-gray-300 hover:text-white text-sm">Dashboard</a>
-  <a href="/devices" class="text-gray-300 hover:text-white text-sm">Geräte</a>
-  <a href="/alerts" class="text-gray-300 hover:text-white text-sm">Alerts</a>
+<nav style="background-color:var(--sm-nav-bg);color:var(--sm-nav-text)" class="shadow flex-shrink-0" id="main-nav">
+  <div class="max-w-6xl mx-auto px-3 md:px-4">
+
+    <!-- Zeile 1: Logo | Menü (Desktop links, Mobile rechts) | Stats | REC -->
+    <div class="flex items-center" style="height:56px">
+
+      <!-- Logo (immer, links) -->
+      <a href="/" class="flex items-center gap-2.5 flex-shrink-0" style="text-decoration:none">
+        <img src="/static/silentmap-logo-01.png" width="38" height="38" alt="" style="flex-shrink:0;display:block">
+        <span class="font-bold tracking-tight" style="letter-spacing:0.04em;color:var(--sm-nav-text);font-size:1rem">SilentMap</span>
+      </a>
+
+      <!-- Desktop: Separator + Burger (links, nach Logo) -->
+      <div class="relative hidden md:flex items-center gap-3 ml-3" id="nav-wrap" style="height:56px">
+        <div class="w-px h-5" style="background:var(--sm-card-border)"></div>
+        <button id="nav-btn" onclick="toggleNav(event)"
+                class="flex items-center gap-1.5 cursor-pointer border-0 bg-transparent text-sm"
+                style="color:var(--sm-nav-text);opacity:0.6">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+            <line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/>
+          </svg>
+        </button>
+        <div id="nav-dropdown"
+             class="hidden absolute left-0 z-50 rounded-lg shadow-xl py-1 min-w-52"
+             style="top:calc(100% + 4px);background:var(--sm-card-bg);border:1px solid var(--sm-card-border)">
+          {{template "navmenu" .}}
+        </div>
+      </div>
+
+      <!-- Flex-Spacer -->
+      <div class="flex-1"></div>
+
+      <!-- Stats — Desktop (md+): mit Labels -->
+      <div class="hidden md:flex items-center gap-4 mr-4">
+        <a href="/devices?status=online" class="text-center hover:opacity-70" style="text-decoration:none">
+          <div class="font-mono font-bold text-sm leading-none" id="stat-online" style="color:var(--sm-online)">—</div>
+          <div class="uppercase tracking-wide mt-0.5" style="color:var(--sm-text-muted);font-size:0.6rem">{{t "stats.online"}}</div>
+        </a>
+        <div class="w-px h-6" style="background:var(--sm-card-border)"></div>
+        <a href="/devices?status=offline" class="text-center hover:opacity-70" style="text-decoration:none">
+          <div class="font-mono font-bold text-sm leading-none" id="stat-offline" style="color:var(--sm-text-muted)">—</div>
+          <div class="uppercase tracking-wide mt-0.5" style="color:var(--sm-text-muted);font-size:0.6rem">{{t "stats.offline"}}</div>
+        </a>
+        <div class="w-px h-6" style="background:var(--sm-card-border)"></div>
+        <a href="/devices" class="text-center hover:opacity-70" style="text-decoration:none">
+          <div class="font-mono font-bold text-sm leading-none" id="stat-total" style="color:var(--sm-text-primary)">—</div>
+          <div class="uppercase tracking-wide mt-0.5" style="color:var(--sm-text-muted);font-size:0.6rem">{{t "stats.total"}}</div>
+        </a>
+        <div class="w-px h-6" style="background:var(--sm-card-border)"></div>
+        <a href="/devices?status=new" id="stat-new-wrap" class="text-center hover:opacity-70" style="text-decoration:none;display:none">
+          <div class="font-mono font-bold text-sm leading-none" id="stat-new" style="color:#f59e0b">—</div>
+          <div class="uppercase tracking-wide mt-0.5" style="color:var(--sm-text-muted);font-size:0.6rem">{{t "stats.new"}}</div>
+        </a>
+        <div id="stat-new-sep" class="w-px h-6" style="background:var(--sm-card-border);display:none"></div>
+      </div>
+
+      <!-- REC — nur Desktop (lg+) -->
+      <button id="listen-btn" onclick="toggleListening()"
+        class="hidden lg:flex items-center gap-1.5 text-xs px-2 py-1 rounded border-0 cursor-pointer transition-all"
+        style="background:transparent" title="Listening ein/ausschalten">
+        <span id="listen-dot" class="inline-block w-2 h-2 rounded-full"></span>
+        <span id="listen-label"></span>
+      </button>
+
+      <!-- Mobile: Burger (rechts) -->
+      <div class="relative md:hidden flex items-center ml-2" id="nav-wrap-m" style="height:56px">
+        <button id="nav-btn-m" onclick="toggleNavM(event)"
+                class="flex items-center gap-1.5 cursor-pointer border-0 bg-transparent text-sm"
+                style="color:var(--sm-nav-text);opacity:0.6">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+            <line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/>
+          </svg>
+        </button>
+        <div id="nav-dropdown-m"
+             class="hidden absolute right-0 z-50 rounded-lg shadow-xl py-1 min-w-52"
+             style="top:calc(100% + 4px);background:var(--sm-card-bg);border:1px solid var(--sm-card-border)">
+          {{template "navmenu" .}}
+        </div>
+      </div>
+    </div>
+
+    <!-- Zeile 2: Stats — nur Mobile (<md) -->
+    <div class="md:hidden flex items-center justify-center gap-3 pb-2.5 px-2">
+      <a href="/devices?status=online" class="text-center hover:opacity-70" style="text-decoration:none">
+        <div class="font-mono font-bold text-sm leading-none" id="stat-online-m" style="color:var(--sm-online)">—</div>
+        <div class="uppercase tracking-wide mt-0.5" style="color:var(--sm-text-muted);font-size:0.6rem">{{t "stats.online"}}</div>
+      </a>
+      <div class="w-px h-6" style="background:var(--sm-card-border)"></div>
+      <a href="/devices?status=offline" class="text-center hover:opacity-70" style="text-decoration:none">
+        <div class="font-mono font-bold text-sm leading-none" id="stat-offline-m" style="color:var(--sm-text-muted)">—</div>
+        <div class="uppercase tracking-wide mt-0.5" style="color:var(--sm-text-muted);font-size:0.6rem">{{t "stats.offline"}}</div>
+      </a>
+      <div class="w-px h-6" style="background:var(--sm-card-border)"></div>
+      <a href="/devices" class="text-center hover:opacity-70" style="text-decoration:none">
+        <div class="font-mono font-bold text-sm leading-none" id="stat-total-m" style="color:var(--sm-text-primary)">—</div>
+        <div class="uppercase tracking-wide mt-0.5" style="color:var(--sm-text-muted);font-size:0.6rem">{{t "stats.total"}}</div>
+      </a>
+      <div id="stat-new-sep-m" class="w-px h-6" style="background:var(--sm-card-border);display:none"></div>
+      <a href="/devices?status=new" id="stat-new-wrap-m" class="text-center hover:opacity-70" style="text-decoration:none;display:none">
+        <div class="font-mono font-bold text-sm leading-none" id="stat-new-m" style="color:#f59e0b">—</div>
+        <div class="uppercase tracking-wide mt-0.5" style="color:var(--sm-text-muted);font-size:0.6rem">{{t "stats.new"}}</div>
+      </a>
+    </div>
+
+  </div>
 </nav>
 
-<main class="max-w-6xl mx-auto px-4 py-8">
+<main class="max-w-6xl mx-auto px-2 py-3 md:px-4 md:py-5" id="main-content">
   {{template "content" .}}
 </main>
 
+<footer class="text-center pb-3 mt-4 text-xs" style="color:var(--sm-text-muted);opacity:0.55">
+  SilentMap v{{.Version}} &middot; {{replace .BuildTime "T" " "}}
+</footer>
+
+<script>
+function toggleNav(e) {
+  e.stopPropagation();
+  document.getElementById('nav-dropdown').classList.toggle('hidden');
+  document.getElementById('nav-dropdown-m').classList.add('hidden');
+}
+function toggleNavM(e) {
+  e.stopPropagation();
+  document.getElementById('nav-dropdown-m').classList.toggle('hidden');
+  document.getElementById('nav-dropdown').classList.add('hidden');
+}
+document.addEventListener('click', function(e) {
+  var wd = document.getElementById('nav-wrap');
+  var wm = document.getElementById('nav-wrap-m');
+  if (wd && !wd.contains(e.target)) document.getElementById('nav-dropdown').classList.add('hidden');
+  if (wm && !wm.contains(e.target)) document.getElementById('nav-dropdown-m').classList.add('hidden');
+});
+(function(){
+  var p = location.pathname;
+  document.querySelectorAll('.dd-link').forEach(function(a) {
+    var h = a.getAttribute('href');
+    if (!h) return;
+    var active = h === '/' ? p === '/' : p === h || p.startsWith(h + '/');
+    if (active) a.style.color = 'var(--sm-accent)';
+  });
+})();
+
+function updateListenBtn(listening) {
+  var dot = document.getElementById('listen-dot');
+  var lbl = document.getElementById('listen-label');
+  if (!dot) return;
+  if (listening) {
+    dot.style.background = '#ef4444';
+    dot.style.boxShadow  = '0 0 4px #ef4444';
+    lbl.textContent = 'REC';
+    lbl.style.color = '#ef4444';
+  } else {
+    dot.style.background = 'var(--sm-text-muted)';
+    dot.style.boxShadow  = 'none';
+    lbl.textContent = 'PAUSE';
+    lbl.style.color = 'var(--sm-text-muted)';
+  }
+}
+function loadNavStats() {
+  fetch('/api/stats').then(function(r){ return r.json(); }).then(function(d) {
+    ['', '-m'].forEach(function(s) {
+      var on  = document.getElementById('stat-online'  + s);
+      var off = document.getElementById('stat-offline' + s);
+      var tot = document.getElementById('stat-total'   + s);
+      if (on)  on.textContent  = d.online;
+      if (off) off.textContent = d.offline;
+      if (tot) tot.textContent = d.total;
+      // "Neu" — nur anzeigen wenn > 0
+      var nw   = document.getElementById('stat-new'      + s);
+      var nwWr = document.getElementById('stat-new-wrap' + s);
+      var nwSp = document.getElementById('stat-new-sep'  + s);
+      var show = d.new > 0;
+      if (nw)   nw.textContent        = d.new;
+      if (nwWr) nwWr.style.display    = show ? '' : 'none';
+      if (nwSp) nwSp.style.display    = show ? '' : 'none';
+    });
+    if (typeof d.listening !== 'undefined') updateListenBtn(d.listening);
+  }).catch(function(){});
+}
+function toggleListening() {
+  fetch('/settings/listening', {method:'POST'})
+    .then(function(r){ return r.json(); })
+    .then(function(d){ updateListenBtn(d.listening); })
+    .catch(function(){});
+}
+loadNavStats();
+setInterval(loadNavStats, 30000);
+</script>
 </body>
 </html>
+{{end}}
+
+{{define "navmenu"}}
+<a href="/devices" class="dd-link flex items-center gap-2 px-4 py-2.5 text-sm hover:opacity-80">
+  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="flex-shrink:0"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+  {{t "nav.devices"}}
+</a>
+<a href="/groups" class="dd-link flex items-center gap-2 px-4 py-2.5 text-sm hover:opacity-80">
+  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="flex-shrink:0"><circle cx="9" cy="7" r="4"/><path d="M3 21v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/><path d="M21 21v-2a4 4 0 0 0-3-3.87"/></svg>
+  {{t "nav.groups"}}
+</a>
+<a href="/alerts" class="dd-link flex items-center gap-2 px-4 py-2.5 text-sm hover:opacity-80">
+  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="flex-shrink:0"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+  {{t "nav.alerts"}}
+</a>
+<a href="/log" class="dd-link flex items-center gap-2 px-4 py-2.5 text-sm hover:opacity-80">
+  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="flex-shrink:0"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+  {{t "nav.log"}}
+</a>
+<div class="my-1 mx-3" style="border-top:1px solid var(--sm-card-border)"></div>
+<a href="/settings" class="dd-link flex items-center gap-2 px-4 py-2.5 text-sm hover:opacity-80">
+  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="flex-shrink:0"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+  {{t "nav.settings"}}
+</a>
+<div class="my-1 mx-3" style="border-top:1px solid var(--sm-card-border)"></div>
+<a href="https://github.com/fischerman/silentmap" target="_blank" rel="noopener"
+   class="dd-link flex items-center gap-2 px-4 py-2.5 text-sm hover:opacity-80">
+  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="flex-shrink:0"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+  {{t "nav.help"}}
+</a>
 {{end}}
