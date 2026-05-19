@@ -275,7 +275,7 @@ function buildStatusFilter() {
   const items=[
     {key:'online',  label:'● Online',  colorOn:'#4ade80', colorOff:'var(--sm-text-muted)'},
     {key:'offline', label:'○ Offline', colorOn:'#ef4444', colorOff:'var(--sm-text-muted)'},
-    {key:'neu',     label:'★ Neu',     colorOn:'#f59e0b', colorOff:'var(--sm-text-muted)'},
+    {key:'neu',     label:'★ {{t "map.filter.new"}}', colorOn:'#f59e0b', colorOff:'var(--sm-text-muted)'},
   ];
   items.forEach(item=>{
     const btn=document.createElement('button');
