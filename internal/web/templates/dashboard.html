@@ -618,24 +618,25 @@ function drawNodes() {
     .attr('fill',        d=>catColor(d.category)+'22')
     .attr('stroke',      d=>catColor(d.category))
     .attr('stroke-width',d=>d.priority?2.5:1.5)
-    .attr('stroke-opacity',d=>d.online?1:0.35)
-    .attr('filter',      d=>d.online?'url(#node-glow)':null);
+    .attr('stroke-opacity',d=>(d.online||d.category==='virtual')?1:0.35)
+    .attr('filter',      d=>(d.online||d.category==='virtual')?'url(#node-glow)':null);
 
   nodeSel.append('g').attr('transform','translate(-8,-8) scale(0.667)')
     .attr('pointer-events','none')
     .append('path')
     .attr('d',   d=>ICONPATH[d.category]||ICONPATH.unbekannt)
-    .attr('fill',d=>d.online?catColor(d.category):COLORS.offline)
-    .attr('opacity',d=>d.online?0.9:0.4);
+    .attr('fill',d=>(d.online||d.category==='virtual')?catColor(d.category):COLORS.offline)
+    .attr('opacity',d=>(d.online||d.category==='virtual')?0.9:0.4);
 
-  // Status dot: top-right corner of node
+  // Status dot: top-right corner of node (hidden for virtual devices)
   nodeSel.append('circle')
     .attr('class','status-dot')
     .attr('r',3.5)
     .attr('cx',d=>d.priority?13:9).attr('cy',d=>d.priority?-13:-9)
     .attr('fill',        d=>d.online?'#4ade80':'#ef4444')
     .attr('stroke',      'var(--sm-card-bg)')
-    .attr('stroke-width',1.5);
+    .attr('stroke-width',1.5)
+    .attr('display',     d=>d.category==='virtual'?'none':null);
 
   nodeSel.append('text')
     .attr('text-anchor','middle').attr('y',25).attr('font-size',9).attr('font-family','monospace')
@@ -654,13 +655,14 @@ function refreshStatus() {
     nodeSel.select('circle')
       .attr('fill',        d=>catColor(d.category)+'22')
       .attr('stroke',      d=>catColor(d.category))
-      .attr('stroke-opacity',d=>d.online?1:0.35)
-      .attr('filter',      d=>d.online?'url(#node-glow)':null);
+      .attr('stroke-opacity',d=>(d.online||d.category==='virtual')?1:0.35)
+      .attr('filter',      d=>(d.online||d.category==='virtual')?'url(#node-glow)':null);
     nodeSel.select('path')
-      .attr('fill',   d=>d.online?catColor(d.category):COLORS.offline)
-      .attr('opacity',d=>d.online?0.9:0.4);
+      .attr('fill',   d=>(d.online||d.category==='virtual')?catColor(d.category):COLORS.offline)
+      .attr('opacity',d=>(d.online||d.category==='virtual')?0.9:0.4);
     nodeSel.select('.status-dot')
-      .attr('fill',d=>d.online?'#4ade80':'#ef4444');
+      .attr('fill',d=>d.online?'#4ade80':'#ef4444')
+      .attr('display',d=>d.category==='virtual'?'none':null);
   }
 }
 
