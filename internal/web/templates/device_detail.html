@@ -206,13 +206,17 @@
       <form action="/devices/{{$d.MAC}}/category" method="POST">
         <select name="category"
           class="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 mb-2"
-          style="background-color:var(--sm-card-bg);color:var(--sm-text-primary)">
+          style="background-color:var(--sm-card-bg);color:var(--sm-text-primary)"
+          onchange="document.getElementById('virtual-hint').style.display=this.value==='virtual'?'block':'none'">
           <option value="">{{t "category.auto"}}</option>
           {{$cat := $d.Category}}
           {{range slice "netzwerk" "server" "desktop" "mobile" "smarthome" "iot" "media" "drucker" "virtual" "unbekannt"}}
           <option value="{{.}}" {{if eq . $cat}}selected{{end}}>{{t (printf "cat.%s" .)}}</option>
           {{end}}
         </select>
+        <p id="virtual-hint" class="text-xs mb-2 px-2 py-1.5 rounded" style="display:{{if eq $d.Category "virtual"}}block{{else}}none{{end}};background-color:var(--sm-badge-info-bg);color:var(--sm-accent)">
+          {{t "category.virtual.hint"}}
+        </p>
         <button type="submit"
           class="w-full py-2 rounded-lg text-sm transition-colors font-medium"
           style="background-color:var(--sm-card-border);color:var(--sm-btn-text)">

@@ -124,6 +124,14 @@ Full reference: [configs/silentmap.example.yaml](configs/silentmap.example.yaml)
 
 Every discovered device shows: IP, MAC, hostname, vendor (OUI lookup), category, label, and online/offline status. Click any device to open its detail page where you can set a label, category, priority flag, and run an on-demand nmap scan.
 
+### Category: virtual
+
+The **virtual** category has a special meaning: devices assigned to it are **not monitored** — no ARP or ICMP polling, no online/offline tracking, no offline alerts, and they are excluded from the online/offline counters. They appear with a ◆ badge instead of an online/offline status.
+
+Use **virtual** for logical network nodes that have no real IP to ping — network segments, powerline adapters used as a group, VLANs, or other infrastructure placeholders.
+
+> **Note for VM users:** If you want to track actual virtual machines (running on a hypervisor), use the **server** category instead. Virtual machines have a real IP and should be monitored normally.
+
 ### Priority devices
 
 Mark a device as **Priority** (★) on its detail page. SilentMap actively polls priority devices with ARP requests every 5 minutes (configurable via `collectors.ping.interval`) and triggers a `priority_offline` alert when they go offline. Use `collectors.ping.targets: "all"` to poll all known devices instead of just priority ones.
@@ -296,6 +304,14 @@ Vollständige Referenz: [configs/silentmap.example.yaml](configs/silentmap.examp
 ### Geräte-Inventar
 
 Jedes erkannte Gerät zeigt: IP, MAC, Hostname, Hersteller (OUI), Kategorie, Label und Online/Offline-Status. Klick auf ein Gerät öffnet die Detailseite mit Label, Kategorie, Priorität, nmap-Scan.
+
+### Kategorie: virtual
+
+Die Kategorie **virtual** hat eine besondere Bedeutung: Geräte mit dieser Kategorie werden **nicht überwacht** — kein ARP/ICMP-Polling, kein Online/Offline-Tracking, keine Offline-Alarme, und sie werden aus den Online/Offline-Zählern ausgeschlossen. Stattdessen wird ein ◆-Badge angezeigt.
+
+Geeignet für logische Netzwerkknoten ohne echte IP — Netzwerksegmente, Powerline-Gruppen, VLANs oder andere Infrastruktur-Platzhalter.
+
+> **Hinweis für VM-Nutzer:** Für echte virtuelle Maschinen (auf einem Hypervisor) stattdessen die Kategorie **server** verwenden. Virtuelle Maschinen haben eine echte IP und sollten normal überwacht werden.
 
 ### Prioritäts-Geräte
 
