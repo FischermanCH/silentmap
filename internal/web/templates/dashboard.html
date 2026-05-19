@@ -221,20 +221,8 @@ async function load() {
 
 // ── Tier computation ─────────────────────────────────────────────────────────
 function computeTiers(nodes) {
-  const tier={}, nodeMap=Object.fromEntries(nodes.map(n=>[n.id,n]));
-  const roots=nodes.filter(n=>!n.parents||!n.parents.length||!n.parents.some(p=>nodeMap[p]));
-  roots.forEach(n=>{tier[n.id]=0;});
-  const children={};
-  nodes.forEach(n=>{(n.parents||[]).forEach(p=>{if(nodeMap[p])(children[p]=children[p]||[]).push(n.id);});});
-  const q=roots.map(n=>n.id);
-  while(q.length){
-    const cur=q.shift();
-    for(const ch of(children[cur]||[])){
-      const t=tier[cur]+1;
-      if(tier[ch]===undefined||t>tier[ch]){tier[ch]=t;q.push(ch);}
-    }
-  }
-  nodes.forEach(n=>{if(tier[n.id]===undefined)tier[n.id]=0;});
+  const tier={};
+  nodes.forEach(n=>{tier[n.id]=0;});
   return tier;
 }
 

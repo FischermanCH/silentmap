@@ -75,13 +75,9 @@ func migrate(db *sql.DB) error {
 	db.Exec(`CREATE INDEX IF NOT EXISTS idx_grp_members_mac      ON device_group_members(mac)`)
 	db.Exec(`CREATE INDEX IF NOT EXISTS idx_grp_members_group_id ON device_group_members(group_id)`)
 
-	// Multi-parent table (replaces single parent_mac for topology).
-	db.Exec(`CREATE TABLE IF NOT EXISTS device_parents (
-		mac        TEXT NOT NULL,
-		parent_mac TEXT NOT NULL,
-		PRIMARY KEY (mac, parent_mac)
-	)`)
-	db.Exec(`CREATE INDEX IF NOT EXISTS idx_parents_mac ON device_parents(mac)`)
+	// device_parents table removed — drop it on existing installs.
+	db.Exec(`DROP INDEX IF EXISTS idx_parents_mac`)
+	db.Exec(`DROP TABLE IF EXISTS device_parents`)
 	db.Exec(`ALTER TABLE devices ADD COLUMN os_info TEXT NOT NULL DEFAULT ''`)
 	db.Exec(`ALTER TABLE devices ADD COLUMN force_ping INTEGER NOT NULL DEFAULT 0`)
 	return createOUITable(db)
