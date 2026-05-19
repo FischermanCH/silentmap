@@ -18,7 +18,7 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 ## [1.0.4] — 2026-05-20
 
 ### Added
-- **Map settings panel** — gear icon (⚙) in the map toolbar opens a live settings panel. Adjust repulsion, link distance, collision radius and cluster pull with sliders; changes apply instantly to the running simulation. Settings are persisted in localStorage. On desktop: side panel slides in from the right. On mobile: bottom sheet slides up.
+- **Map settings panel** — gear icon (⚙) in the map toolbar opens a live settings panel. Adjust repulsion, link distance, collision radius and cluster pull with sliders; changes apply instantly to the running simulation. Settings are stored server-side (shared across all devices/browsers) with localStorage as fast cache. On desktop: side panel slides in from the right. On mobile: bottom sheet slides up.
 
 ---
 

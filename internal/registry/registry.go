@@ -407,6 +407,20 @@ func atoi(s string) int {
 	return n
 }
 
+func (r *Registry) GetSetting(key string) (string, error) {
+	var val string
+	err := r.db.QueryRow(`SELECT value FROM settings WHERE key = ?`, key).Scan(&val)
+	return val, err
+}
+
+func (r *Registry) SetSetting(key, value string) error {
+	_, err := r.db.Exec(
+		`INSERT INTO settings(key,value) VALUES(?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value`,
+		key, value,
+	)
+	return err
+}
+
 func (r *Registry) Delete(mac string) error {
 	mac = normalizeMac(mac)
 	r.mu.Lock()
