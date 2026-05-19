@@ -11,6 +11,9 @@ on:
         required: true
         default: "1.0.0"
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -53,10 +56,3 @@ jobs:
             fischermanch/silentmap:latest
             fischermanch/silentmap:${{ steps.meta.outputs.version }}
 
-      - name: Update Docker Hub description
-        uses: peter-evans/dockerhub-description@v4
-        with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
-          repository: fischermanch/silentmap
-          readme-filepath: ./docs/dockerhub-description.md
