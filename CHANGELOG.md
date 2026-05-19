@@ -6,26 +6,45 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [1.0.3] — 2026-05-19
+
+### Added
+- **Category "virtual"** — devices assigned to this category are not monitored (no ARP/ICMP polling, no online/offline tracking, no offline alerts). They appear with a ◆ badge and are excluded from all counters. Intended for logical network nodes like VLANs, network segments, or powerline groups — not for actual VMs (use "server" for those).
+- **Topology map improvements** — 360° cluster distribution, hub-radial force (highly connected nodes pulled toward center), cluster anchor force (prevents small clusters from drifting off-screen)
+- **Status filter on topology map** — filter nodes by Online / Offline / New
+
+### Changed
+- **Device detail sidebar** — Priority, ICMP Ping, Scan, and Delete device are now collapsible accordion sections; Delete is always last
+- **Removed parent devices feature** — the "parent device" relationship has been removed entirely; existing data is cleaned up automatically on first start
+
+### Fixed
+- **Virtual nodes on topology map** — no longer show a red offline dot; rendered at full opacity with category color
+- **Fischerman theme** — button text was green on green background; fixed via `btn-text` theme variable
+- **Mobile layout** — NEW banner on device detail page now stacks vertically on small screens
+- **Translation** — "Neu" shown as "New" in EN locale on topology map filter
+
+---
+
 ## [1.0.0] — 2026-05-18 — Initial public release
 
 ### Added
 - **Passive discovery** via ARP sniffer, mDNS, DHCP snooping
 - **Device inventory** — MAC, IP, hostname, OUI vendor lookup, labels, categories
 - **Device groups** with color coding
-- **Topology map** — visual network graph with parent/child relationships and connections
-- **Priority devices** — configurable ping monitoring (default: every 5 min)
+- **Topology map** — interactive D3.js network graph with connections and group hulls
+- **Priority devices** — configurable ARP polling (default: every 5 min)
 - **On-demand nmap scan** per device
 - **Alert engine** — rules for new devices, priority offline, device back online
 - **ntfy integration** — push notifications via ntfy.sh or self-hosted
 - **Discord integration** — webhook-based alerts
-- **Export / Import** — full JSON export including groups, parents, connections
+- **Export / Import** — full JSON export including groups and connections
 - **Listening toggle** — pause passive discovery with one click (useful for demo instances)
 - **Version display** — version and build time in UI footer and `/api/version`
 - **Dark / light themes** — switchable at runtime, persisted per browser
 - **Bilingual UI** — German and English, switchable at runtime
 - **Zero-config** — works without any configuration file
 - **Single binary** — no CGO, no external dependencies (uses modernc/sqlite)
-- **Docker image** — multi-stage build, `fischerman/silentmap:latest`
+- **Docker image** — multi-stage build, `fischermanch/silentmap:latest`
 - **API** — `/health`, `/api/stats`, `/api/version`, `/api/topology`, `/api/export`, `/api/import`
 - **Log rotation** — automatic cleanup after configurable retention period
 
