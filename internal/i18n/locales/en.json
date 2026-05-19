@@ -114,11 +114,6 @@
   "label.hostname.hint":       "Overrides the auto-discovered hostname",
   "action.hostname_set":       "Set hostname",
 
-  "section.parents":       "Parent devices",
-  "parents.hint":          "Defines the position in the network hierarchy (map). Multiple parents possible.",
-  "parents.add_select":    "— Add parent —",
-  "action.add_parent":     "+ Add parent",
-
   "section.groups":        "Groups",
   "groups.hint":           "For clustering in the map. Multiple groups possible.",
   "groups.add_select":     "— Add to group —",

@@ -162,9 +162,6 @@ func (s *Server) Handler() http.Handler {
 	r.Get("/log", s.eventLog)
 	r.Post("/devices/new", s.createDevice)
 	r.Post("/devices/{mac}/delete", s.deleteDevice)
-	r.Post("/devices/{mac}/parent", s.setParent)
-	r.Post("/devices/{mac}/parents", s.addParent)
-	r.Post("/devices/{mac}/parents/{parentMac}/delete", s.removeParent)
 	r.Post("/devices/{mac}/connections", s.addConnection)
 	r.Post("/devices/{mac}/connections/{id}/delete", s.removeConnection)
 	r.Get("/groups", s.groupList)
@@ -244,7 +241,6 @@ func (s *Server) deviceDetail(w http.ResponseWriter, r *http.Request) {
 	events, _ := s.reg.DeviceEvents(mac, 20)
 	connections, _ := s.reg.GetConnections(mac)
 	allDevices, _ := s.reg.List()
-	parents, _ := s.reg.GetParents(mac)
 	devGroups, _ := s.reg.GetDeviceGroups(mac)
 	allGroups, _ := s.reg.ListGroups()
 	title := dev.DisplayName()
@@ -254,7 +250,6 @@ func (s *Server) deviceDetail(w http.ResponseWriter, r *http.Request) {
 		"Events":      events,
 		"Connections": connections,
 		"AllDevices":  allDevices,
-		"Parents":     parents,
 		"DevGroups":   devGroups,
 		"AllGroups":   allGroups,
 	})
@@ -424,48 +419,6 @@ func (s *Server) eventLog(w http.ResponseWriter, r *http.Request) {
 		"Title":  "Log",
 		"Events": events,
 	})
-}
-
-func (s *Server) setParent(w http.ResponseWriter, r *http.Request) {
-	mac, ok := requireMAC(w, r)
-	if !ok {
-		return
-	}
-	if err := r.ParseForm(); err != nil {
-		http.Error(w, "bad request", http.StatusBadRequest)
-		return
-	}
-	if err := s.reg.SetParent(mac, r.FormValue("parent_mac")); err != nil {
-		slog.Error("set parent failed", "mac", mac, "err", err)
-	}
-	http.Redirect(w, r, "/devices/"+mac, http.StatusSeeOther)
-}
-
-func (s *Server) addParent(w http.ResponseWriter, r *http.Request) {
-	mac, ok := requireMAC(w, r)
-	if !ok {
-		return
-	}
-	if err := r.ParseForm(); err != nil {
-		http.Error(w, "bad request", http.StatusBadRequest)
-		return
-	}
-	parentMAC := r.FormValue("parent_mac")
-	if parentMAC != "" {
-		if err := s.reg.AddParent(mac, parentMAC); err != nil {
-			slog.Error("add parent failed", "mac", mac, "err", err)
-		}
-	}
-	http.Redirect(w, r, "/devices/"+mac, http.StatusSeeOther)
-}
-
-func (s *Server) removeParent(w http.ResponseWriter, r *http.Request) {
-	mac := chi.URLParam(r, "mac")
-	parentMac := chi.URLParam(r, "parentMac")
-	if err := s.reg.RemoveParent(mac, parentMac); err != nil {
-		slog.Error("remove parent failed", "mac", mac, "err", err)
-	}
-	http.Redirect(w, r, "/devices/"+mac, http.StatusSeeOther)
 }
 
 func (s *Server) deleteDevice(w http.ResponseWriter, r *http.Request) {

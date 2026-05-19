@@ -54,7 +54,6 @@ type Device struct {
 	Vendor       string
 	Label        string
 	Category     string
-	ParentMAC    string   // explicit parent for hierarchy
 	Services     []string // mDNS service types, e.g. ["_airplay._tcp","_smb._tcp"]
 	OsInfo       string // from nmap OS detection
 	ForcePing    bool   // use ICMP ping instead of ARP (for devices outside local subnet)
@@ -415,7 +414,6 @@ func (r *Registry) Delete(mac string) error {
 	delete(r.lastWrite, mac)
 	r.db.Exec(`DELETE FROM device_events      WHERE mac = ?`, mac)
 	r.db.Exec(`DELETE FROM device_connections WHERE mac_a = ? OR mac_b = ?`, mac, mac)
-	r.db.Exec(`DELETE FROM device_parents     WHERE mac = ? OR parent_mac = ?`, mac, mac)
 	_, err := r.db.Exec(`DELETE FROM devices WHERE mac = ?`, mac)
 	return err
 }
@@ -453,7 +451,7 @@ func (r *Registry) SetCategory(mac, category string) error {
 
 func (r *Registry) List() ([]Device, error) {
 	rows, err := r.db.Query(`
-		SELECT mac, ip, hostname, hostname_auto, vendor, label, category, parent_mac, services, priority, approved, online, first_seen, last_seen, os_info, force_ping
+		SELECT mac, ip, hostname, hostname_auto, vendor, label, category, services, priority, approved, online, first_seen, last_seen, os_info, force_ping
 		FROM devices
 	`)
 	if err != nil {
@@ -574,7 +572,6 @@ type TopoNode struct {
 	IP       string   `json:"ip"`
 	Vendor   string   `json:"vendor"`
 	Category string   `json:"category"`
-	Parents  []string `json:"parents"`
 	Groups   []string `json:"groups"`
 	Online   bool     `json:"online"`
 	Priority bool     `json:"priority"`
@@ -606,19 +603,6 @@ func (r *Registry) Topology() (*Topology, error) {
 		return nil, err
 	}
 
-	// Load all parent relationships
-	parentRows, err := r.db.Query(`SELECT mac, parent_mac FROM device_parents`)
-	if err != nil {
-		return nil, err
-	}
-	parentsOf := make(map[string][]string)
-	for parentRows.Next() {
-		var mac, pMac string
-		parentRows.Scan(&mac, &pMac)
-		parentsOf[mac] = append(parentsOf[mac], pMac)
-	}
-	parentRows.Close()
-
 	// Load all group memberships
 	groupRows, err := r.db.Query(`SELECT mac, group_id FROM device_group_members`)
 	if err != nil {
@@ -642,10 +626,6 @@ func (r *Registry) Topology() (*Topology, error) {
 
 	// Build nodes
 	for _, d := range devices {
-		parents := parentsOf[d.MAC]
-		if parents == nil {
-			parents = []string{}
-		}
 		grps := groupsOf[d.MAC]
 		if grps == nil {
 			grps = []string{}
@@ -656,7 +636,6 @@ func (r *Registry) Topology() (*Topology, error) {
 			IP:       d.IP,
 			Vendor:   d.Vendor,
 			Category: d.Category,
-			Parents:  parents,
 			Groups:   grps,
 			Online:   d.Online,
 			Priority: d.Priority,
@@ -859,7 +838,7 @@ func (r *Registry) macByIP(ip string) string {
 
 func (r *Registry) get(mac string) (Device, error) {
 	row := r.db.QueryRow(`
-		SELECT mac, ip, hostname, hostname_auto, vendor, label, category, parent_mac, services, priority, approved, online, first_seen, last_seen, os_info, force_ping
+		SELECT mac, ip, hostname, hostname_auto, vendor, label, category, services, priority, approved, online, first_seen, last_seen, os_info, force_ping
 		FROM devices WHERE mac = ?`, mac)
 	return r.scanDevice(row)
 }
@@ -868,7 +847,7 @@ func (r *Registry) scanDevice(row *sql.Row) (Device, error) {
 	var d Device
 	var firstSeen, lastSeen, servicesJSON string
 	err := row.Scan(&d.MAC, &d.IP, &d.Hostname, &d.HostnameAuto, &d.Vendor, &d.Label,
-		&d.Category, &d.ParentMAC, &servicesJSON, &d.Priority, &d.Approved, &d.Online, &firstSeen, &lastSeen, &d.OsInfo, &d.ForcePing)
+		&d.Category, &servicesJSON, &d.Priority, &d.Approved, &d.Online, &firstSeen, &lastSeen, &d.OsInfo, &d.ForcePing)
 	if err != nil {
 		return d, err
 	}
@@ -884,7 +863,7 @@ func (r *Registry) scanDevices(rows *sql.Rows) ([]Device, error) {
 		var d Device
 		var firstSeen, lastSeen, servicesJSON string
 		err := rows.Scan(&d.MAC, &d.IP, &d.Hostname, &d.HostnameAuto, &d.Vendor, &d.Label,
-			&d.Category, &d.ParentMAC, &servicesJSON, &d.Priority, &d.Approved, &d.Online, &firstSeen, &lastSeen, &d.OsInfo, &d.ForcePing)
+			&d.Category, &servicesJSON, &d.Priority, &d.Approved, &d.Online, &firstSeen, &lastSeen, &d.OsInfo, &d.ForcePing)
 		if err != nil {
 			continue
 		}
@@ -898,49 +877,14 @@ func (r *Registry) scanDevices(rows *sql.Rows) ([]Device, error) {
 
 func (r *Registry) insert(d Device) error {
 	_, err := r.db.Exec(`
-		INSERT INTO devices(mac, ip, hostname, hostname_auto, vendor, label, category, parent_mac, services, priority, approved, online, first_seen, last_seen, os_info, force_ping)
-		VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
-		d.MAC, d.IP, d.Hostname, d.HostnameAuto, d.Vendor, d.Label, d.Category, d.ParentMAC,
+		INSERT INTO devices(mac, ip, hostname, hostname_auto, vendor, label, category, services, priority, approved, online, first_seen, last_seen, os_info, force_ping)
+		VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+		d.MAC, d.IP, d.Hostname, d.HostnameAuto, d.Vendor, d.Label, d.Category,
 		marshalServices(d.Services), d.Priority, d.Approved, d.Online, d.FirstSeen, d.LastSeen, d.OsInfo, d.ForcePing,
 	)
 	return err
 }
 
-func (r *Registry) SetParent(mac, parentMAC string) error {
-	_, err := r.db.Exec(`UPDATE devices SET parent_mac = ? WHERE mac = ?`,
-		normalizeMac(parentMAC), normalizeMac(mac))
-	return err
-}
-
-func (r *Registry) AddParent(mac, parentMAC string) error {
-	mac, parentMAC = normalizeMac(mac), normalizeMac(parentMAC)
-	if mac == "" || parentMAC == "" || mac == parentMAC {
-		return nil
-	}
-	_, err := r.db.Exec(`INSERT OR IGNORE INTO device_parents(mac, parent_mac) VALUES(?,?)`, mac, parentMAC)
-	return err
-}
-
-func (r *Registry) RemoveParent(mac, parentMAC string) error {
-	_, err := r.db.Exec(`DELETE FROM device_parents WHERE mac=? AND parent_mac=?`,
-		normalizeMac(mac), normalizeMac(parentMAC))
-	return err
-}
-
-func (r *Registry) GetParents(mac string) ([]string, error) {
-	rows, err := r.db.Query(`SELECT parent_mac FROM device_parents WHERE mac=? ORDER BY parent_mac`, normalizeMac(mac))
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var out []string
-	for rows.Next() {
-		var p string
-		rows.Scan(&p)
-		out = append(out, p)
-	}
-	return out, nil
-}
 
 // update applies a partial UPDATE to a device row. Field names come from
 // internal callers only (never from user input), so concatenating them into
@@ -1070,7 +1014,7 @@ func (r *Registry) GetDeviceGroups(mac string) ([]Group, error) {
 
 func (r *Registry) GetGroupDevices(groupID string) ([]Device, error) {
 	rows, err := r.db.Query(`
-		SELECT d.mac,d.ip,d.hostname,d.hostname_auto,d.vendor,d.label,d.category,d.parent_mac,
+		SELECT d.mac,d.ip,d.hostname,d.hostname_auto,d.vendor,d.label,d.category,
 		       d.services,d.priority,d.approved,d.online,d.first_seen,d.last_seen,d.os_info,d.force_ping
 		FROM devices d JOIN device_group_members m ON m.mac=d.mac
 		WHERE m.group_id=? ORDER BY d.ip`, groupID)
@@ -1097,7 +1041,6 @@ type ExportRecord struct {
 	Vendor       string    `json:"vendor,omitempty"`
 	FirstSeen    time.Time `json:"first_seen"`
 	LastSeen     time.Time `json:"last_seen"`
-	Parents      []string  `json:"parents,omitempty"`
 	Groups       []string  `json:"groups,omitempty"` // group IDs
 }
 
@@ -1137,7 +1080,6 @@ func (r *Registry) Export() (*ExportPayload, error) {
 
 	records := make([]ExportRecord, len(devices))
 	for i, d := range devices {
-		parents, _ := r.GetParents(d.MAC)
 		groups, _ := r.GetDeviceGroups(d.MAC)
 		groupIDs := make([]string, len(groups))
 		for j, g := range groups {
@@ -1156,7 +1098,6 @@ func (r *Registry) Export() (*ExportPayload, error) {
 			Vendor:       d.Vendor,
 			FirstSeen:    d.FirstSeen,
 			LastSeen:     d.LastSeen,
-			Parents:      parents,
 			Groups:       groupIDs,
 		}
 	}
@@ -1284,17 +1225,11 @@ func (r *Registry) Import(payload *ExportPayload) (ImportResult, error) {
 		}
 	}
 
-	// Restore parents and group memberships per device
+	// Restore group memberships per device
 	for _, rec := range payload.Devices {
 		mac := normalizeMac(rec.MAC)
 		if mac == "" {
 			continue
-		}
-		for _, parentMAC := range rec.Parents {
-			p := normalizeMac(parentMAC)
-			if p != "" {
-				r.AddParent(mac, p)
-			}
 		}
 		for _, gid := range rec.Groups {
 			if localID, ok := groupIDMap[gid]; ok {
@@ -1318,7 +1253,7 @@ func (r *Registry) Import(payload *ExportPayload) (ImportResult, error) {
 // PriorityDevices returns all priority devices that have an IP address.
 func (r *Registry) PriorityDevices() []Device {
 	rows, err := r.db.Query(`
-		SELECT mac, ip, hostname, hostname_auto, vendor, label, category, parent_mac, services, priority, approved, online, first_seen, last_seen, os_info, force_ping
+		SELECT mac, ip, hostname, hostname_auto, vendor, label, category, services, priority, approved, online, first_seen, last_seen, os_info, force_ping
 		FROM devices WHERE priority = 1 AND ip != ''`)
 	if err != nil {
 		return nil

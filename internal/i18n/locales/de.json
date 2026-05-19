@@ -114,11 +114,6 @@
   "label.hostname.hint":       "Überschreibt den automatisch erkannten Hostname",
   "action.hostname_set":       "Hostname setzen",
 
-  "section.parents":       "Übergeordnete Geräte",
-  "parents.hint":          "Definiert die Position in der Netzwerk-Hierarchie (Map). Mehrere Parents möglich.",
-  "parents.add_select":    "— Parent hinzufügen —",
-  "action.add_parent":     "+ Parent hinzufügen",
-
   "section.groups":        "Gruppen",
   "groups.hint":           "Für Clustering in der Map. Mehrere Gruppen möglich.",
   "groups.add_select":     "— Gruppe hinzufügen —",

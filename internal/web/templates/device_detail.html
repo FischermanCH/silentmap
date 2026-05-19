@@ -158,46 +158,6 @@
       </form>
     </div>
 
-    <!-- Parents (Hierarchie) -->
-    <div class="rounded-xl border p-5" style="background-color:var(--sm-card-bg)">
-      <h2 class="font-semibold mb-2" style="color:var(--sm-text-primary)">{{t "section.parents"}}</h2>
-      <p class="text-xs mb-3" style="color:var(--sm-text-muted)">{{t "parents.hint"}}</p>
-
-      {{if .Parents}}
-      <div class="space-y-1 mb-3">
-        {{range .Parents}}
-        {{$pMAC := .}}
-        {{$pName := $pMAC}}
-        {{range $.AllDevices}}{{if eq .MAC $pMAC}}{{$pName = .DisplayName}}{{end}}{{end}}
-        <div class="flex items-center gap-2 text-xs py-1.5 border-b" style="border-color:var(--sm-card-border)">
-          <span class="flex-1 truncate" style="color:var(--sm-text-secondary)">{{$pName}}</span>
-          <form method="POST" action="/devices/{{$d.MAC}}/parents/{{$pMAC}}/delete" class="flex-shrink-0">
-            <button type="submit" class="hover:text-red-500 transition-colors" style="color:var(--sm-text-muted)" title="{{t "action.remove"}}">✕</button>
-          </form>
-        </div>
-        {{end}}
-      </div>
-      {{end}}
-
-      <form action="/devices/{{$d.MAC}}/parents" method="POST" class="space-y-2">
-        <select name="parent_mac"
-          class="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-          style="background-color:var(--sm-card-bg);color:var(--sm-text-primary)">
-          <option value="">{{t "parents.add_select"}}</option>
-          {{range .AllDevices}}
-          {{if ne .MAC $.Device.MAC}}
-          <option value="{{.MAC}}">{{.DisplayName}} ({{.IP}})</option>
-          {{end}}
-          {{end}}
-        </select>
-        <button type="submit"
-          class="w-full py-2 rounded-lg text-sm transition-colors font-medium"
-          style="background-color:var(--sm-card-border);color:var(--sm-btn-text)">
-          {{t "action.add_parent"}}
-        </button>
-      </form>
-    </div>
-
     <!-- Gruppen -->
     <div class="rounded-xl border p-5" style="background-color:var(--sm-card-bg)">
       <h2 class="font-semibold mb-2" style="color:var(--sm-text-primary)">{{t "section.groups"}}</h2>
