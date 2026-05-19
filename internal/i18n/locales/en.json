@@ -123,6 +123,7 @@
 
   "section.category":      "Category",
   "category.auto":         "— automatic —",
+  "category.virtual.hint": "⚠ Virtual devices are not monitored — no ARP/ICMP polling, no online/offline tracking. Use this for network segments, VLANs or other logical nodes. For virtual machines use «server» instead.",
   "action.set_category":   "Set category",
 
   "section.connections":       "Connections",

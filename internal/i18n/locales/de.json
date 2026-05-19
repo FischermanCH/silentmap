@@ -123,6 +123,7 @@
 
   "section.category":      "Kategorie",
   "category.auto":         "— automatisch —",
+  "category.virtual.hint": "⚠ Virtuelle Geräte werden nicht überwacht — kein ARP/ICMP-Polling, kein Online/Offline-Tracking. Geeignet für Netzwerksegmente, VLANs oder logische Knoten. Für virtuelle Maschinen stattdessen «server» verwenden.",
   "action.set_category":   "Kategorie setzen",
 
   "section.connections":       "Verbindungen",
