@@ -13,6 +13,60 @@
   box-shadow: 0 0 0 1px var(--sm-card-border), 0 0 24px -4px var(--sm-accent);
 }
 .collapsible-body { transition: none; }
+
+/* ── Map settings panel ──────────────────────────────────────────────────── */
+#map-settings-panel {
+  position: fixed;
+  right: 0;
+  top: 48px;
+  bottom: 0;
+  width: 210px;
+  z-index: 50;
+  background-color: var(--sm-card-bg);
+  border-left: 1px solid var(--sm-card-border);
+  overflow-y: auto;
+  transform: translateX(105%);
+  transition: transform 0.22s cubic-bezier(0.4,0,0.2,1);
+  padding: 12px 14px;
+}
+#map-settings-panel.open {
+  transform: translateX(0);
+  box-shadow: -6px 0 24px rgba(0,0,0,0.18);
+}
+@media (max-width: 767px) {
+  #map-settings-panel {
+    top: auto;
+    left: 0; right: 0;
+    bottom: 0;
+    width: 100%;
+    height: 290px;
+    border-left: none;
+    border-top: 1px solid var(--sm-card-border);
+    border-radius: 14px 14px 0 0;
+    transform: translateY(105%);
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: auto auto auto auto auto;
+    gap: 0 16px;
+    align-content: start;
+    padding: 12px 16px 16px;
+  }
+  #map-settings-panel.open {
+    transform: translateY(0);
+    box-shadow: 0 -6px 24px rgba(0,0,0,0.18);
+  }
+  #map-settings-panel .panel-header { grid-column: 1 / -1; }
+  #map-settings-panel .panel-reset  { grid-column: 1 / -1; }
+}
+.param-block { margin-bottom: 14px; }
+@media (max-width: 767px) { .param-block { margin-bottom: 8px; } }
+.param-slider {
+  width: 100%;
+  accent-color: var(--sm-accent);
+  cursor: pointer;
+  height: 4px;
+  margin-top: 4px;
+}
 </style>
 
 <div id="map-container" class="border overflow-hidden mb-3 md:mb-4" style="background-color:var(--sm-card-bg)">
@@ -31,12 +85,69 @@
         <line x1="2" y1="12" x2="6" y2="12"/><line x1="18" y1="12" x2="22" y2="12"/>
       </svg>
     </button>
+    <button id="map-settings-btn" onclick="toggleMapSettings()" title="{{t "map.settings.title"}}"
+      class="flex items-center justify-center w-6 h-6 rounded cursor-pointer border-0 bg-transparent flex-shrink-0 hover:opacity-80"
+      style="color:var(--sm-text-muted)">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="3"/>
+        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+      </svg>
+    </button>
     <div class="w-px h-3 flex-shrink-0" style="background:var(--sm-card-border)"></div>
     <div id="group-filter" class="flex items-center gap-1.5 flex-wrap flex-1"></div>
     <div class="w-px h-3 flex-shrink-0" style="background:var(--sm-card-border)"></div>
     <div class="flex items-center gap-1 flex-shrink-0" id="status-filter"></div>
   </div>
   <svg id="map" width="100%" height="100%"></svg>
+</div>
+
+<!-- Map settings panel (fixed overlay) -->
+<div id="map-settings-panel">
+  <div class="panel-header" style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+    <span style="font-size:11px;font-weight:700;letter-spacing:0.07em;color:var(--sm-text-muted);text-transform:uppercase">{{t "map.settings.title"}}</span>
+    <button onclick="toggleMapSettings()" style="background:none;border:0;cursor:pointer;color:var(--sm-text-muted);padding:2px 4px;font-size:14px;line-height:1" title="Close">✕</button>
+  </div>
+
+  <div class="param-block">
+    <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:2px">
+      <span style="font-size:10px;font-weight:600;color:var(--sm-text-muted)">{{t "map.settings.repulsion"}}</span>
+      <span id="pv-charge" style="font-size:10px;font-family:monospace;color:var(--sm-text-primary)">-400</span>
+    </div>
+    <input id="si-charge" type="range" class="param-slider" min="-900" max="-50" step="10" value="-400"
+           oninput="updateParam('charge',+this.value,'pv-charge')">
+  </div>
+
+  <div class="param-block">
+    <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:2px">
+      <span style="font-size:10px;font-weight:600;color:var(--sm-text-muted)">{{t "map.settings.linkdist"}}</span>
+      <span id="pv-linkdist" style="font-size:10px;font-family:monospace;color:var(--sm-text-primary)">100</span>
+    </div>
+    <input id="si-linkdist" type="range" class="param-slider" min="30" max="300" step="5" value="100"
+           oninput="updateParam('linkDist',+this.value,'pv-linkdist')">
+  </div>
+
+  <div class="param-block">
+    <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:2px">
+      <span style="font-size:10px;font-weight:600;color:var(--sm-text-muted)">{{t "map.settings.collision"}}</span>
+      <span id="pv-collide" style="font-size:10px;font-family:monospace;color:var(--sm-text-primary)">44</span>
+    </div>
+    <input id="si-collide" type="range" class="param-slider" min="16" max="80" step="2" value="44"
+           oninput="updateParam('collide',+this.value,'pv-collide')">
+  </div>
+
+  <div class="param-block">
+    <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:2px">
+      <span style="font-size:10px;font-weight:600;color:var(--sm-text-muted)">{{t "map.settings.cluster"}}</span>
+      <span id="pv-clusterstr" style="font-size:10px;font-family:monospace;color:var(--sm-text-primary)">0.85</span>
+    </div>
+    <input id="si-clusterstr" type="range" class="param-slider" min="0" max="2" step="0.05" value="0.85"
+           oninput="updateParam('clusterStr',+this.value,'pv-clusterstr',v=>v.toFixed(2))">
+  </div>
+
+  <button class="panel-reset" onclick="resetMapParams()"
+    style="width:100%;font-size:10px;padding:5px 0;border:1px solid var(--sm-card-border);border-radius:5px;background:transparent;color:var(--sm-text-muted);cursor:pointer;margin-top:4px">
+    {{t "map.settings.reset"}}
+  </button>
 </div>
 
 <!-- Letzte Alerts — aufklappbare Kachel -->
@@ -112,6 +223,53 @@ const CATCOLOR = {
 };
 const UNGROUPED      = '__ungrouped__';
 const UNGROUPED_LABEL = '{{t "groups.ungrouped"}}';
+
+// ── Map simulation parameters ─────────────────────────────────────────────────
+const MAP_DEFAULTS = {charge:-400, linkDist:100, collide:44, clusterStr:0.85};
+let mapParams = Object.assign({}, MAP_DEFAULTS);
+let currentClusterOf = null;
+
+function loadMapParams() {
+  try { const s=localStorage.getItem('sm_map_params'); if(s) Object.assign(mapParams,JSON.parse(s)); } catch(_){}
+  syncParamUI();
+}
+function syncParamUI() {
+  const set=(sid,lid,val,fmt)=>{
+    const s=document.getElementById(sid); if(s) s.value=val;
+    const l=document.getElementById(lid); if(l) l.textContent=fmt?fmt(val):val;
+  };
+  set('si-charge',    'pv-charge',     mapParams.charge,     null);
+  set('si-linkdist',  'pv-linkdist',   mapParams.linkDist,   null);
+  set('si-collide',   'pv-collide',    mapParams.collide,    null);
+  set('si-clusterstr','pv-clusterstr', mapParams.clusterStr, v=>v.toFixed(2));
+}
+function updateParam(key, value, labelId, fmt) {
+  mapParams[key]=value;
+  const l=document.getElementById(labelId); if(l) l.textContent=fmt?fmt(value):value;
+  applyParams(true);
+}
+function applyParams(restart=true) {
+  if(!sim) return;
+  const cf=sim.force('charge'); if(cf) cf.strength(mapParams.charge);
+  const lf=sim.force('link');   if(lf) lf.distance(d=>d.type==='logical'?30:mapParams.linkDist);
+  sim.force('collide', d3.forceCollide(mapParams.collide));
+  if(currentClusterOf) sim.force('cluster', forceCluster(currentClusterOf, mapParams.clusterStr));
+  if(restart) sim.alpha(0.3).restart();
+  localStorage.setItem('sm_map_params', JSON.stringify(mapParams));
+}
+function resetMapParams() {
+  Object.assign(mapParams, MAP_DEFAULTS);
+  syncParamUI();
+  applyParams(true);
+  localStorage.removeItem('sm_map_params');
+}
+function toggleMapSettings() {
+  const panel=document.getElementById('map-settings-panel');
+  const btn=document.getElementById('map-settings-btn');
+  if(!panel) return;
+  const open=panel.classList.toggle('open');
+  if(btn) btn.style.color=open?'var(--sm-accent)':'var(--sm-text-muted)';
+}
 
 function catColor(cat) { return CATCOLOR[cat] || COLORS.border; }
 function linkColor(t)  { return t==='physical'?COLORS.online:t==='logical'?COLORS.accent:COLORS.border; }
@@ -547,16 +705,18 @@ function fullRender() {
   const deg=computeDegree(allNodes,allLinks);
   const maxDeg=Math.max(1,...[...deg.values()]);
 
+  currentClusterOf = clusterOf;
+
   sim=d3.forceSimulation(allNodes)
     .force('link',       d3.forceLink(allLinks).id(d=>d.id)
-      .distance(d=>d.type==='logical'?30:100)
+      .distance(d=>d.type==='logical'?30:mapParams.linkDist)
       .strength(d=>d.type==='logical'?0.9:0.35))
-    .force('charge',     d3.forceManyBody().strength(-400).distanceMax(600))
-    .force('collide',    d3.forceCollide(44))
+    .force('charge',     d3.forceManyBody().strength(mapParams.charge).distanceMax(600))
+    .force('collide',    d3.forceCollide(mapParams.collide))
     .force('center',     d3.forceCenter(W/2,H/2).strength(0.04))
     .force('anchor',     forceClusterAnchor(clusterAngles,clusterSizes,clusterOf,W,H))
     .force('radial',     forceHubRadial(deg,maxDeg,W,H))
-    .force('cluster',    forceCluster(clusterOf,0.85))
+    .force('cluster',    forceCluster(clusterOf,mapParams.clusterStr))
     .force('clusterRepel', forceClusterRepulsion(clusterOf,1.2,350))
     .alphaDecay(0.03).velocityDecay(0.4);
 
@@ -734,6 +894,7 @@ async function loadAlerts() {
 // ── Polling + visibility / sleep handling ─────────────────────────────────────
 let hiddenAt=0;
 
+loadMapParams();
 setInterval(function(){ load(); loadAlerts(); }, 20000);
 load();
 loadAlerts();
