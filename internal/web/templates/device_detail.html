@@ -312,81 +312,114 @@
       </form>
     </div>
 
-    <!-- nmap Scan -->
+    <style>
+      details>summary { list-style:none; }
+      details>summary::-webkit-details-marker { display:none; }
+      details[open] .chev { transform:rotate(90deg); }
+      .chev { display:inline-block; transition:transform 0.15s; }
+    </style>
+
+    <!-- Priorität (aufklappbar) -->
+    <details {{if $d.Priority}}open{{end}} class="rounded-xl border" style="background-color:var(--sm-card-bg);border-color:var(--sm-card-border)">
+      <summary class="flex items-center justify-between px-5 py-3.5 cursor-pointer select-none">
+        <span class="font-semibold text-sm flex items-center gap-2" style="color:var(--sm-text-primary)">
+          {{if $d.Priority}}<span class="text-xs bg-red-100 text-red-700 px-1.5 py-0.5 rounded font-medium">★</span>{{else}}<span style="color:var(--sm-text-muted)">☆</span>{{end}}
+          {{t "section.priority"}}
+        </span>
+        <span class="chev text-xs" style="color:var(--sm-text-muted)">▸</span>
+      </summary>
+      <div class="px-5 pb-5 pt-3 border-t" style="border-color:var(--sm-card-border)">
+        <p class="text-xs mb-3" style="color:var(--sm-text-muted)">{{t "priority.hint"}}</p>
+        {{if $d.Priority}}
+        <form action="/devices/{{$d.MAC}}/priority" method="POST">
+          <input type="hidden" name="priority" value="false">
+          <button type="submit"
+            class="w-full bg-red-50 border border-red-200 text-red-700 py-2 rounded-lg text-sm hover:bg-red-100 transition-colors font-medium">
+            {{t "priority.active"}}
+          </button>
+        </form>
+        {{else}}
+        <form action="/devices/{{$d.MAC}}/priority" method="POST">
+          <input type="hidden" name="priority" value="true">
+          <button type="submit"
+            class="w-full border py-2 rounded-lg text-sm transition-colors font-medium"
+            style="background-color:var(--sm-card-bg);border-color:var(--sm-card-border);color:var(--sm-text-secondary)">
+            {{t "priority.inactive"}}
+          </button>
+        </form>
+        {{end}}
+      </div>
+    </details>
+
+    <!-- ICMP Ping / Force Ping (aufklappbar) -->
+    <details {{if $d.ForcePing}}open{{end}} class="rounded-xl border" style="background-color:var(--sm-card-bg);border-color:var(--sm-card-border)">
+      <summary class="flex items-center justify-between px-5 py-3.5 cursor-pointer select-none">
+        <span class="font-semibold text-sm flex items-center gap-2" style="color:var(--sm-text-primary)">
+          {{if $d.ForcePing}}<span class="text-xs bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded font-medium">●</span>{{else}}<span style="color:var(--sm-text-muted)">○</span>{{end}}
+          {{t "section.forceping"}}
+        </span>
+        <span class="chev text-xs" style="color:var(--sm-text-muted)">▸</span>
+      </summary>
+      <div class="px-5 pb-5 pt-3 border-t" style="border-color:var(--sm-card-border)">
+        <p class="text-xs mb-3" style="color:var(--sm-text-muted)">{{t "forceping.hint"}}</p>
+        {{if $d.ForcePing}}
+        <form action="/devices/{{$d.MAC}}/force-ping" method="POST">
+          <input type="hidden" name="force_ping" value="false">
+          <button type="submit"
+            class="w-full bg-blue-50 border border-blue-200 text-blue-700 py-2 rounded-lg text-sm hover:bg-blue-100 transition-colors font-medium">
+            {{t "forceping.active"}}
+          </button>
+        </form>
+        {{else}}
+        <form action="/devices/{{$d.MAC}}/force-ping" method="POST">
+          <input type="hidden" name="force_ping" value="true">
+          <button type="submit"
+            class="w-full border py-2 rounded-lg text-sm transition-colors font-medium"
+            style="background-color:var(--sm-card-bg);border-color:var(--sm-card-border);color:var(--sm-text-secondary)">
+            {{t "forceping.inactive"}}
+          </button>
+        </form>
+        {{end}}
+      </div>
+    </details>
+
+    <!-- nmap Scan (aufklappbar) -->
     {{if $d.IP}}
-    <div class="rounded-xl border p-5" style="background-color:var(--sm-card-bg)">
-      <h2 class="font-semibold mb-2" style="color:var(--sm-text-primary)">Scan</h2>
-      <p class="text-xs mb-3" style="color:var(--sm-text-muted)">Startet einen nmap-Scan gegen {{$d.IP}}. Ergebnisse erscheinen im Aktivitäts-Log.</p>
-      <form action="/devices/{{$d.MAC}}/nmap" method="POST">
-        <button type="submit"
-          class="w-full border py-2 rounded-lg text-sm transition-colors font-medium flex items-center justify-center gap-2"
-          style="background-color:var(--sm-card-bg);border-color:var(--sm-card-border);color:var(--sm-text-secondary)">
-          🔍 nmap starten
-        </button>
-      </form>
-    </div>
+    <details class="rounded-xl border" style="background-color:var(--sm-card-bg);border-color:var(--sm-card-border)">
+      <summary class="flex items-center justify-between px-5 py-3.5 cursor-pointer select-none">
+        <span class="font-semibold text-sm" style="color:var(--sm-text-primary)">🔍 Scan</span>
+        <span class="chev text-xs" style="color:var(--sm-text-muted)">▸</span>
+      </summary>
+      <div class="px-5 pb-5 pt-3 border-t" style="border-color:var(--sm-card-border)">
+        <p class="text-xs mb-3" style="color:var(--sm-text-muted)">Startet einen nmap-Scan gegen {{$d.IP}}. Ergebnisse erscheinen im Aktivitäts-Log.</p>
+        <form action="/devices/{{$d.MAC}}/nmap" method="POST">
+          <button type="submit"
+            class="w-full border py-2 rounded-lg text-sm transition-colors font-medium flex items-center justify-center gap-2"
+            style="background-color:var(--sm-card-bg);border-color:var(--sm-card-border);color:var(--sm-text-secondary)">
+            nmap starten
+          </button>
+        </form>
+      </div>
+    </details>
     {{end}}
 
-    <!-- Gerät löschen -->
-    <div class="rounded-xl border p-5" style="background-color:var(--sm-card-bg)">
-      <h2 class="font-semibold mb-2" style="color:var(--sm-text-primary)">{{t "section.delete"}}</h2>
-      <p class="text-xs mb-3" style="color:var(--sm-text-muted)">{{t "delete.hint"}}</p>
-      <form method="POST" action="/devices/{{$d.MAC}}/delete"
-            onsubmit="return confirm('{{tf "confirm.delete_device" (or $d.Label $d.MAC)}}')">
-        <button type="submit"
-          class="w-full bg-red-50 border border-red-200 text-red-700 py-2 rounded-lg text-sm hover:bg-red-100 transition-colors font-medium">
-          {{t "action.delete_device"}}
-        </button>
-      </form>
-    </div>
-
-    <!-- Priorität -->
-    <div class="rounded-xl border p-5" style="background-color:var(--sm-card-bg)">
-      <h2 class="font-semibold mb-2" style="color:var(--sm-text-primary)">{{t "section.priority"}}</h2>
-      <p class="text-xs mb-3" style="color:var(--sm-text-muted)">{{t "priority.hint"}}</p>
-      {{if $d.Priority}}
-      <form action="/devices/{{$d.MAC}}/priority" method="POST">
-        <input type="hidden" name="priority" value="false">
-        <button type="submit"
-          class="w-full bg-red-50 border border-red-200 text-red-700 py-2 rounded-lg text-sm hover:bg-red-100 transition-colors font-medium">
-          {{t "priority.active"}}
-        </button>
-      </form>
-      {{else}}
-      <form action="/devices/{{$d.MAC}}/priority" method="POST">
-        <input type="hidden" name="priority" value="true">
-        <button type="submit"
-          class="w-full border py-2 rounded-lg text-sm transition-colors font-medium"
-          style="background-color:var(--sm-card-bg);border-color:var(--sm-card-border);color:var(--sm-text-secondary)">
-          {{t "priority.inactive"}}
-        </button>
-      </form>
-      {{end}}
-    </div>
-
-    <!-- Force Ping -->
-    <div class="rounded-xl border p-5" style="background-color:var(--sm-card-bg)">
-      <h2 class="font-semibold mb-2" style="color:var(--sm-text-primary)">{{t "section.forceping"}}</h2>
-      <p class="text-xs mb-3" style="color:var(--sm-text-muted)">{{t "forceping.hint"}}</p>
-      {{if $d.ForcePing}}
-      <form action="/devices/{{$d.MAC}}/force-ping" method="POST">
-        <input type="hidden" name="force_ping" value="false">
-        <button type="submit"
-          class="w-full bg-blue-50 border border-blue-200 text-blue-700 py-2 rounded-lg text-sm hover:bg-blue-100 transition-colors font-medium">
-          {{t "forceping.active"}}
-        </button>
-      </form>
-      {{else}}
-      <form action="/devices/{{$d.MAC}}/force-ping" method="POST">
-        <input type="hidden" name="force_ping" value="true">
-        <button type="submit"
-          class="w-full border py-2 rounded-lg text-sm transition-colors font-medium"
-          style="background-color:var(--sm-card-bg);border-color:var(--sm-card-border);color:var(--sm-text-secondary)">
-          {{t "forceping.inactive"}}
-        </button>
-      </form>
-      {{end}}
-    </div>
+    <!-- Gerät löschen (aufklappbar, immer letzte Kachel) -->
+    <details class="rounded-xl border border-red-200" style="background-color:var(--sm-card-bg)">
+      <summary class="flex items-center justify-between px-5 py-3.5 cursor-pointer select-none">
+        <span class="font-semibold text-sm text-red-600">{{t "section.delete"}}</span>
+        <span class="chev text-xs text-red-400">▸</span>
+      </summary>
+      <div class="px-5 pb-5 pt-3 border-t border-red-100">
+        <p class="text-xs mb-3" style="color:var(--sm-text-muted)">{{t "delete.hint"}}</p>
+        <form method="POST" action="/devices/{{$d.MAC}}/delete"
+              onsubmit="return confirm('{{tf "confirm.delete_device" (or $d.Label $d.MAC)}}')">
+          <button type="submit"
+            class="w-full bg-red-50 border border-red-200 text-red-700 py-2 rounded-lg text-sm hover:bg-red-100 transition-colors font-medium">
+            {{t "action.delete_device"}}
+          </button>
+        </form>
+      </div>
+    </details>
 
   </div>
 </div>
