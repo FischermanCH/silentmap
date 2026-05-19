@@ -612,9 +612,10 @@ func (s *Server) apiStats(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, `{"error":"failed"}`, http.StatusInternalServerError)
 		return
 	}
-	online, offline, newDev := 0, 0, 0
+	online, offline, total, newDev := 0, 0, 0, 0
 	for _, d := range devices {
 		if d.Category != "virtual" {
+			total++
 			if d.Online {
 				online++
 			} else {
@@ -626,7 +627,7 @@ func (s *Server) apiStats(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	w.Header().Set("Content-Type", "application/json")
-	fmt.Fprintf(w, `{"online":%d,"offline":%d,"total":%d,"new":%d,"listening":%t}`, online, offline, len(devices), newDev, s.reg.IsListening())
+	fmt.Fprintf(w, `{"online":%d,"offline":%d,"total":%d,"new":%d,"listening":%t}`, online, offline, total, newDev, s.reg.IsListening())
 }
 
 func (s *Server) apiAlerts(w http.ResponseWriter, r *http.Request) {
