@@ -4,11 +4,11 @@
 
 # SilentMap
 
-**Passive network monitor — sees everything, disturbs nothing.**
+**Passive discovery, minimal footprint — sees everything, disturbs almost nothing.**
 
-SilentMap listens passively on your LAN and builds a live inventory of every device on the network — without sending a single probe packet. It discovers devices from their own traffic (ARP, mDNS, DHCP), draws an interactive topology map, and alerts you when something unexpected appears or a priority device goes offline.
+SilentMap discovers devices passively — it listens to the traffic your network already generates (ARP, mDNS, DHCP) and never probes unknown hosts. Once a device is known, it optionally sends lightweight ARP or ICMP requests to track online/offline state. It draws an interactive topology map and alerts you when something unexpected appears or a priority device goes offline.
 
-No active scanning. No agent to install. No noise on the wire.
+Passive discovery. No agent to install. Minimal wire footprint.
 
 Single binary · Embedded SQLite · Zero external dependencies · Docker-native
 

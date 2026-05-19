@@ -16,6 +16,7 @@
     "row-hover":       "rgba(255,255,255,0.03)",
     "badge-info-bg":   "#1e3a5f",
     "badge-info-text": "#93c5fd",
-    "thead-bg":        "#141414"
+    "thead-bg":        "#141414",
+    "link-opacity":    "0.6"
   }
 }

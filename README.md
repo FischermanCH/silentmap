@@ -4,7 +4,7 @@
 
 # SilentMap
 
-Passive network monitor — sees everything, disturbs nothing.
+Passive discovery, minimal footprint — sees everything, disturbs almost nothing.
 
 **GitHub:** [FischermanCH/silentmap](https://github.com/FischermanCH/silentmap)
 **Docker Hub:** [fischermanch/silentmap](https://hub.docker.com/r/fischermanch/silentmap) — `docker pull fischermanch/silentmap:latest`
@@ -47,9 +47,9 @@ Passive network monitor — sees everything, disturbs nothing.
 
 ## What SilentMap is
 
-SilentMap listens passively on your LAN and builds a live picture of every device on the network — without sending a single probe packet. It discovers devices from the traffic they themselves generate: ARP announcements, mDNS broadcasts, DHCP leases. When something new appears, or a priority device drops off the network, it alerts you.
+SilentMap discovers devices passively — it listens to the traffic your network already generates (ARP announcements, mDNS broadcasts, DHCP leases) and never probes unknown hosts. Once a device is known, it optionally sends lightweight ARP or ICMP requests to track online/offline state. When something unexpected appears, or a priority device drops off the network, it alerts you.
 
-No active scanning. No agent to install. No noise on the wire.
+Passive discovery. No agent to install. Minimal wire footprint.
 
 It is a single self-contained binary with an embedded SQLite database, an embedded web UI, and no external runtime dependencies. Docker or native Linux — your choice.
 
@@ -78,7 +78,7 @@ The project was designed and built in collaboration with Claude (Anthropic) as a
 
 | | |
 |---|---|
-| **100% passive** | No ping, no scan, no network noise by default |
+| **Passive discovery** | New devices found from existing traffic — no probing of unknown hosts |
 | **Zero-config** | Works out of the box with no configuration file required |
 | **Multi-collector** | ARP · mDNS · DHCP · optional ICMP ping · on-demand nmap |
 | **Vendor lookup** | OUI database embedded — MAC resolved to manufacturer |
@@ -287,9 +287,9 @@ MIT — see [LICENSE](LICENSE)
 
 ## Was SilentMap ist
 
-SilentMap lauscht passiv im lokalen Netzwerk und erstellt ein Live-Bild aller Geräte — ohne auch nur ein einziges Paket aktiv zu senden. Geräte werden aus deren eigenem Traffic erkannt: ARP-Announcements, mDNS-Broadcasts, DHCP-Leases. Erscheint ein unbekanntes Gerät oder fällt ein Prioritäts-Gerät aus, kommt sofort eine Benachrichtigung.
+SilentMap erkennt Geräte passiv — es lauscht auf Traffic der im Netzwerk ohnehin entsteht (ARP-Announcements, mDNS-Broadcasts, DHCP-Leases) und sendet nie Probes an unbekannte Hosts. Ist ein Gerät einmal bekannt, sendet SilentMap optional leichtgewichtige ARP- oder ICMP-Anfragen um den Online/Offline-Status zu verfolgen. Erscheint ein unbekanntes Gerät oder fällt ein Prioritäts-Gerät aus, kommt sofort eine Benachrichtigung.
 
-Kein aktives Scannen. Kein Agent. Kein Netzwerklärm.
+Passive Discovery. Kein Agent. Minimaler Netzwerk-Footprint.
 
 SilentMap ist eine einzelne ausführbare Datei mit eingebetteter SQLite-Datenbank, eingebettetem Web-UI und ohne externe Laufzeitabhängigkeiten. Docker oder natives Linux — nach Wahl.
 
@@ -315,7 +315,7 @@ Das Projekt entstand als schlanke, verständliche Alternative zu Tools wie NetAl
 
 | | |
 |---|---|
-| **100% passiv** | Kein Ping, kein Scan, kein Netzwerklärm standardmässig |
+| **Passive Discovery** | Neue Geräte aus bestehendem Traffic erkannt — keine Probes an unbekannte Hosts |
 | **Zero-Config** | Funktioniert ohne Konfigurationsdatei |
 | **Multi-Collector** | ARP · mDNS · DHCP · opt. ICMP-Ping · On-Demand-Nmap |
 | **Vendor-Lookup** | OUI-Datenbank eingebettet — MAC wird zum Hersteller aufgelöst |

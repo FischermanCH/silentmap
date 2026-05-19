@@ -92,6 +92,7 @@ const COLORS = {
   text:    cv('--sm-text-primary') || '#f1f5f9',
   border:  cv('--sm-card-border')  || '#333',
 };
+const LINK_OPACITY = parseFloat(cv('--sm-link-opacity')) || 0.6;
 const ICONPATH = {
   netzwerk:  "M12 2C6.5 2 2 6.5 2 12C2 17.5 6.5 22 12 22C17.5 22 22 17.5 22 12C22 6.5 17.5 2 12 2M12 20C7.58 20 4 16.42 4 12C4 7.58 7.58 4 12 4C16.42 4 20 7.58 20 12C20 16.42 16.42 20 12 20M13 13V16H15L12 19L9 16H11V13M5 13H8V15L11 12L8 9V11H5M11 11V8H9L12 5L15 8H13V11M19 11H16V9L13 12L16 15V13H19",
   server:    "M4,1H20A1,1 0 0,1 21,2V6A1,1 0 0,1 20,7H4A1,1 0 0,1 3,6V2A1,1 0 0,1 4,1M4,9H20A1,1 0 0,1 21,10V14A1,1 0 0,1 20,15H4A1,1 0 0,1 3,14V10A1,1 0 0,1 4,9M4,17H20A1,1 0 0,1 21,18V22A1,1 0 0,1 20,23H4A1,1 0 0,1 3,22V18A1,1 0 0,1 4,17M9,5H10V3H9V5M9,13H10V11H9V13M9,21H10V19H9V21M5,3V5H7V3H5M5,11V13H7V11H5M5,19V21H7V19H5Z",
@@ -517,7 +518,7 @@ function drawLinks() {
     .attr('stroke',        d=>linkColor(d.type))
     .attr('stroke-width',  d=>d.type==='physical'?2:1.5)
     .attr('stroke-dasharray',d=>d.type==='logical'?'6,3':d.type==='auto'?'3,3':null)
-    .attr('stroke-opacity',d=>d.type==='auto'?0.35:0.85)
+    .attr('stroke-opacity',d=>d.type==='auto'?LINK_OPACITY*0.45:LINK_OPACITY)
     .attr('marker-end',    d=>`url(#arr-${d.type})`)
     .attr('x1',0).attr('y1',0).attr('x2',0).attr('y2',0);
   if(sim){
