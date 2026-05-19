@@ -199,6 +199,9 @@ func (s *Server) dashboard(w http.ResponseWriter, r *http.Request) {
 	}
 	online, offline := 0, 0
 	for _, d := range devices {
+		if d.Category == "virtual" {
+			continue
+		}
 		if d.Online {
 			online++
 		} else {
@@ -611,10 +614,12 @@ func (s *Server) apiStats(w http.ResponseWriter, r *http.Request) {
 	}
 	online, offline, newDev := 0, 0, 0
 	for _, d := range devices {
-		if d.Online {
-			online++
-		} else {
-			offline++
+		if d.Category != "virtual" {
+			if d.Online {
+				online++
+			} else {
+				offline++
+			}
 		}
 		if !d.Approved {
 			newDev++
