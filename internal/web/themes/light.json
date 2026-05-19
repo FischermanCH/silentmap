@@ -17,6 +17,7 @@
     "badge-info-bg":   "#eff6ff",
     "badge-info-text": "#1d4ed8",
     "thead-bg":        "#f9fafb",
-    "link-opacity":    "0.55"
+    "link-opacity":    "0.55",
+    "btn-text":        "#111827"
   }
 }
