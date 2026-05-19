@@ -229,8 +229,18 @@ const MAP_DEFAULTS = {charge:-400, linkDist:100, collide:44, clusterStr:0.85};
 let mapParams = Object.assign({}, MAP_DEFAULTS);
 let currentClusterOf = null;
 
-function loadMapParams() {
-  try { const s=localStorage.getItem('sm_map_params'); if(s) Object.assign(mapParams,JSON.parse(s)); } catch(_){}
+async function loadMapParams() {
+  try {
+    const r=await fetch('/api/settings/map-params');
+    if(r.ok) { Object.assign(mapParams, await r.json()); }
+    else {
+      // fallback: localStorage (offline / first load)
+      const s=localStorage.getItem('sm_map_params');
+      if(s) Object.assign(mapParams, JSON.parse(s));
+    }
+  } catch(_) {
+    try { const s=localStorage.getItem('sm_map_params'); if(s) Object.assign(mapParams,JSON.parse(s)); } catch(_){}
+  }
   syncParamUI();
 }
 function syncParamUI() {
@@ -242,6 +252,14 @@ function syncParamUI() {
   set('si-linkdist',  'pv-linkdist',   mapParams.linkDist,   null);
   set('si-collide',   'pv-collide',    mapParams.collide,    null);
   set('si-clusterstr','pv-clusterstr', mapParams.clusterStr, v=>v.toFixed(2));
+}
+let _saveTimer=null;
+function saveMapParams() {
+  localStorage.setItem('sm_map_params', JSON.stringify(mapParams));
+  clearTimeout(_saveTimer);
+  _saveTimer=setTimeout(()=>{
+    fetch('/api/settings/map-params',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(mapParams)}).catch(_=>_);
+  }, 600);
 }
 function updateParam(key, value, labelId, fmt) {
   mapParams[key]=value;
@@ -255,13 +273,15 @@ function applyParams(restart=true) {
   sim.force('collide', d3.forceCollide(mapParams.collide));
   if(currentClusterOf) sim.force('cluster', forceCluster(currentClusterOf, mapParams.clusterStr));
   if(restart) sim.alpha(0.3).restart();
-  localStorage.setItem('sm_map_params', JSON.stringify(mapParams));
+  saveMapParams();
 }
 function resetMapParams() {
   Object.assign(mapParams, MAP_DEFAULTS);
   syncParamUI();
-  applyParams(true);
+  applyParams(false);
   localStorage.removeItem('sm_map_params');
+  fetch('/api/settings/map-params',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(MAP_DEFAULTS)}).catch(_=>_);
+  if(sim) sim.alpha(0.3).restart();
 }
 function toggleMapSettings() {
   const panel=document.getElementById('map-settings-panel');
@@ -894,10 +914,8 @@ async function loadAlerts() {
 // ── Polling + visibility / sleep handling ─────────────────────────────────────
 let hiddenAt=0;
 
-loadMapParams();
+loadMapParams().then(()=>{ load(); loadAlerts(); });
 setInterval(function(){ load(); loadAlerts(); }, 20000);
-load();
-loadAlerts();
 
 document.addEventListener('visibilitychange', function() {
   if(document.hidden) {

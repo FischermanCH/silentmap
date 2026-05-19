@@ -184,6 +184,8 @@ func (s *Server) Handler() http.Handler {
 	r.Get("/api/stats", s.apiStats)
 	r.Get("/api/alerts", s.apiAlerts)
 	r.Get("/api/version", s.apiVersion)
+	r.Get("/api/settings/{key}", s.apiGetSetting)
+	r.Post("/api/settings/{key}", s.apiSetSetting)
 	r.Get("/health", s.health)
 	r.Handle("/static/*", http.FileServer(http.FS(templateFS)))
 
@@ -668,6 +670,36 @@ func (s *Server) apiVersion(w http.ResponseWriter, r *http.Request) {
 func (s *Server) health(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.Write([]byte(`{"status":"ok"}`))
+}
+
+func (s *Server) apiGetSetting(w http.ResponseWriter, r *http.Request) {
+	key := chi.URLParam(r, "key")
+	val, err := s.reg.GetSetting(key)
+	if err != nil {
+		w.WriteHeader(http.StatusNotFound)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.Write([]byte(val))
+}
+
+func (s *Server) apiSetSetting(w http.ResponseWriter, r *http.Request) {
+	key := chi.URLParam(r, "key")
+	body, err := io.ReadAll(io.LimitReader(r.Body, 8192))
+	if err != nil || len(body) == 0 {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+	var js json.RawMessage
+	if err := json.Unmarshal(body, &js); err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+	if err := s.reg.SetSetting(key, string(body)); err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
 }
 
 // detectLang returns the active language for a request.
