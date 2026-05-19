@@ -51,6 +51,7 @@
   "map.filter.auto":  "Auto",
   "map.filter.phys":  "Phys",
   "map.filter.log":   "Log",
+  "map.filter.new":   "Neu",
   "stats.online":     "Online",
   "stats.offline":    "Offline",
   "stats.total":      "Gesamt",

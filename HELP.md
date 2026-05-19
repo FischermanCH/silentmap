@@ -1,7 +1,15 @@
-# silentmap — Help / Hilfe
+# SilentMap — Help
 
-> EN and DE sections are interleaved. Jump to a section:
-> [Installation](#installation) · [Configuration](#configuration) · [Alerts](#alerts) · [Export/Import](#exportimport) · [Docker](#docker) · [FAQ](#faq)
+**Languages:** [English](#english) · [Deutsch](#deutsch)
+
+---
+
+<a name="english"></a>
+# English
+
+## What SilentMap does
+
+SilentMap discovers devices passively from existing network traffic (ARP, mDNS, DHCP) and never probes unknown hosts. Once a device is known, it optionally uses lightweight ARP or ICMP to track its online/offline state.
 
 ---
 
@@ -12,21 +20,24 @@
 ```bash
 docker run -d \
   --name silentmap \
-  --net=host \
-  --cap-add=NET_RAW \
+  --network host \
+  --cap-add NET_RAW \
   -v silentmap-data:/data \
-  fischerman/silentmap:latest
+  -e TZ=Europe/Zurich \
+  fischermanch/silentmap:latest
 ```
 
-`--net=host` is required so silentmap can see raw ARP, mDNS, and DHCP traffic.  
-`--cap-add=NET_RAW` grants the packet-capture capability.
+Open **http://localhost:8080**
+
+`--network host` — required to see ARP, mDNS and DHCP traffic on your LAN.  
+`--cap-add NET_RAW` — grants packet-capture without running as root.
 
 ### Docker Compose
 
 ```yaml
 services:
   silentmap:
-    image: fischerman/silentmap:latest
+    image: fischermanch/silentmap:latest
     container_name: silentmap
     restart: unless-stopped
     network_mode: host
@@ -41,221 +52,292 @@ volumes:
   silentmap-data:
 ```
 
-### Native (Linux)
+**Update:** `docker compose pull && docker compose up -d`
+
+### Native Linux
 
 ```bash
-git clone https://github.com/fischerman/silentmap
+git clone https://github.com/FischermanCH/silentmap
 cd silentmap
 go build -o silentmap ./cmd/silentmap
-
-# Grant packet-capture capability (no root required after this)
 sudo setcap cap_net_raw+eip ./silentmap
-
 ./silentmap --data ./data
 ```
+
+Requires Go 1.25+. Single static binary, no external dependencies.
 
 ---
 
 ## Configuration
 
-All settings are optional. silentmap works out of the box without any configuration file.
+All settings are optional — SilentMap works out of the box without a config file.
 
-Place a `silentmap.yaml` in your data directory (e.g. `/data/silentmap.yaml`):
+Place `silentmap.yaml` in your data directory:
 
 ```yaml
-# Network interface (empty = auto-detect)
-interface: ""
+interface: ""           # empty = auto-detect
 
 web:
   listen: "0.0.0.0:8080"
-  auth:
-    enabled: false
-    username: "admin"
-    password: "changeme"
 
 collectors:
   arp:
-    enabled: true
-    offline_timeout: 15m   # how long until a device is marked offline
-
-  mdns:
-    enabled: true          # hostname and service discovery
-
-  dhcp:
-    enabled: true          # DHCP hostname discovery
-
+    offline_timeout: 15m   # time until a silent device is marked offline
   ping:
     enabled: true
-    targets: "priority"    # "priority" = only priority devices
-    interval: 5m           # ping interval (default: 5 min)
-    timeout: 3s
-
-  nmap:
-    enabled: false
-    args: "-sV --top-ports 20 -T3"
-
-storage:
-  log_retention_days: 30   # delete events older than N days
+    targets: "priority"    # ping only devices marked as Priority
+    interval: 5m
 
 alerts:
   rules:
     new_device:
       enabled: true
       severity: "high"
-
     priority_offline:
       enabled: true
       severity: "critical"
       cooldown: 30m
-
     device_back:
       enabled: true
       severity: "info"
-
   channels:
     ntfy:
-      enabled: false
+      enabled: true
       url: "https://ntfy.sh/your-topic"
-      token: ""            # optional Bearer token
-
+      token: ""
     discord:
       enabled: false
-      webhook_url: "https://discord.com/api/webhooks/..."
-
-    webhook:
-      enabled: false
-      url: "https://your-webhook-endpoint"
-      method: "POST"
-
-    email:
-      enabled: false
-      smtp_host: "smtp.example.com"
-      smtp_port: 587
-      smtp_user: "alerts@example.com"
-      smtp_pass: ""
-      from: "silentmap@example.com"
-      to: ["you@example.com"]
-
+      webhook_url: ""
   routing:
-    critical: ["ntfy", "discord", "email"]
-    high:     ["ntfy", "discord"]
-    medium:   ["webhook"]
+    critical: ["ntfy", "discord"]
+    high:     ["ntfy"]
     info:     []
-    low:      []
 ```
 
----
-
-*DE: Alle Einstellungen sind optional. silentmap läuft ohne Konfigurationsdatei.*
-
-*Datei ablegen unter: `<data-verzeichnis>/silentmap.yaml`*
+Full reference: [configs/silentmap.example.yaml](configs/silentmap.example.yaml)
 
 ---
 
-## Alerts
+## Features
 
-### ntfy
+### Device inventory
 
-[ntfy](https://ntfy.sh) is a simple push notification service. You can use the public server or self-host.
+Every discovered device shows: IP, MAC, hostname, vendor (OUI lookup), category, label, and online/offline status. Click any device to open its detail page where you can set a label, category, priority flag, and run an on-demand nmap scan.
 
+### Priority devices
+
+Mark a device as **Priority** (★) on its detail page. Priority devices are actively ICMP-pinged every 5 minutes (configurable) and trigger a `priority_offline` alert when they go down.
+
+### Force Ping (ICMP)
+
+For devices outside your local subnet (e.g. a router at a different IP range), enable **Force Ping** on the device detail page. SilentMap will use ICMP instead of ARP to monitor the device.
+
+### Topology map
+
+The **Dashboard** shows an interactive D3.js network graph. Devices are grouped by their assigned group (color-coded hulls). Use the toolbar to:
+- Toggle link types: Auto · Physical · Logical
+- Filter by status: Online · Offline · New
+- Toggle groups on/off
+- Click the crosshair to re-center the view
+
+### Groups
+
+Create groups under **Groups** and assign devices to them. Groups appear as colored areas on the map and can be toggled on/off in the map toolbar.
+
+### Alerts
+
+Alerts are triggered by rules and sent to configured channels (ntfy, Discord). The alert history is available under **Alerts**. Alerts are routed by severity — assign channels to each severity level in your config.
+
+**ntfy setup:**
 ```yaml
 alerts:
   channels:
     ntfy:
       enabled: true
       url: "https://ntfy.sh/your-secret-topic"
-      token: ""   # only needed for protected topics
 ```
 
-### Discord
-
+**Discord setup:**  
+Create a webhook: Discord server → Settings → Integrations → Webhooks → New Webhook.
 ```yaml
 alerts:
   channels:
     discord:
       enabled: true
-      webhook_url: "https://discord.com/api/webhooks/YOUR_ID/YOUR_TOKEN"
+      webhook_url: "https://discord.com/api/webhooks/..."
 ```
 
-Create a webhook: Discord server → Settings → Integrations → Webhooks → New Webhook.
+### Export / Import
 
-### Routing
+On the **Devices** page, use **↓ Export** to download a full JSON backup of your device inventory (labels, hostnames, categories, priorities, groups, connections). Use **↑ Import** to restore or migrate to another instance.
 
-Alerts are routed by severity level. Assign channel names to severity buckets:
+### Listening toggle
 
-```yaml
-alerts:
-  routing:
-    critical: ["ntfy", "discord"]
-    high:     ["ntfy"]
-    medium:   []
-    info:     []
-```
-
----
-
-## Export/Import
-
-silentmap can export all device data to a JSON file and import it into another instance. This is useful for migrating from a development setup to production.
-
-**Export:** In the Devices view, click the **↓ Export** button. This downloads `silentmap-export.json`.
-
-**Import:** Click the **↑ Import** button and select your JSON file.
-
-The import updates labels, hostnames, categories, priorities, and approved status. Auto-discovered data (IP, vendor, hostname_auto) is only imported for devices that don't exist yet.
-
----
-
-*DE: Export/Import ermöglicht die Migration zwischen Instanzen (z.B. Dev → Produktion).*
-
-*Export: Taste **↓ Exportieren** auf der Geräte-Seite. Import: Taste **↑ Importieren**.*
-
----
-
-## Docker
-
-### Portainer Stack (local build)
-
-Build the image on your server first:
-
-```bash
-cd silentmap
-docker build -t silentmap:latest .
-```
-
-Then deploy via Portainer using the stack file at `portainer-stack.yml`.
-
-### Capabilities
-
-| Capability   | Required for              |
-|--------------|---------------------------|
-| `NET_RAW`    | ARP sniffing, mDNS, DHCP, ping, nmap |
-
-### Data volume
-
-All data is stored in `/data` inside the container:
-- `silentmap.db` — SQLite database (devices, events, alerts)
-- `silentmap.yaml` — optional configuration file
+The nav bar shows a **REC** indicator. Click it (via Settings) to pause passive discovery — useful when demoing the app or during maintenance.
 
 ---
 
 ## FAQ
 
-**Q: Does silentmap send any data to external servers?**  
-A: No. All data stays local. The only external connections are alert notifications you explicitly configure (ntfy, Discord, webhook, email).
+**Devices are not being discovered.**  
+Make sure you're using `--network host` (Docker) and `--cap-add NET_RAW`. SilentMap only sees devices that generate traffic — a completely quiet device may take a few minutes to appear after it sends its first ARP packet.
 
-**Q: Why does silentmap need NET_RAW?**  
-A: ARP packet capture, mDNS multicast, and DHCP sniffing all require raw socket access at the network layer. Without it, only the ping and nmap features work (and even those need a capable host).
+**A device shows as offline but it's actually online.**  
+If the device is on a different subnet (e.g. your router), enable **Force Ping** on its detail page. ARP cannot cross subnet boundaries.
 
-**Q: The nmap scan says "nmap not found".**  
-A: Install nmap in your environment. In the Docker image it is pre-installed. For native installs: `apt install nmap` or `apk add nmap`.
+**The nmap scan fails.**  
+nmap is pre-installed in the Docker image. For native installs: `apt install nmap` or `apk add nmap`.
 
-**Q: Devices are not being discovered.**  
-A: Make sure you're running with `--net=host` (Docker) or with `CAP_NET_RAW` (native). silentmap only sees devices that generate traffic — quiet devices may take a while to appear.
+**Does SilentMap send data to external servers?**  
+No. All data stays local. The only external connections are the alert channels you configure.
 
-**Q: How do I disable the active ping for priority devices?**  
-A: Set `collectors.ping.enabled: false` in your configuration file.
+**How do I update?**  
+Docker: `docker compose pull && docker compose up -d`  
+Native: pull the latest code, rebuild, restart.
 
 ---
 
-*Weitere Fragen? → https://github.com/fischerman/silentmap/issues*
+**Issues / Feature requests:** [github.com/FischermanCH/silentmap/issues](https://github.com/FischermanCH/silentmap/issues)
+
+---
+
+<a name="deutsch"></a>
+# Deutsch
+
+## Was SilentMap macht
+
+SilentMap erkennt Geräte passiv aus bestehendem Netzwerk-Traffic (ARP, mDNS, DHCP) und sendet nie Probes an unbekannte Hosts. Für bekannte Geräte werden optional leichtgewichtige ARP- oder ICMP-Anfragen verwendet um den Online/Offline-Status zu verfolgen.
+
+---
+
+## Installation
+
+### Docker (empfohlen)
+
+```bash
+docker run -d \
+  --name silentmap \
+  --network host \
+  --cap-add NET_RAW \
+  -v silentmap-data:/data \
+  -e TZ=Europe/Zurich \
+  fischermanch/silentmap:latest
+```
+
+Web-UI: **http://localhost:8080**
+
+### Docker Compose
+
+```yaml
+services:
+  silentmap:
+    image: fischermanch/silentmap:latest
+    container_name: silentmap
+    restart: unless-stopped
+    network_mode: host
+    cap_add:
+      - NET_RAW
+    volumes:
+      - silentmap-data:/data
+    environment:
+      - TZ=Europe/Zurich
+
+volumes:
+  silentmap-data:
+```
+
+**Update:** `docker compose pull && docker compose up -d`
+
+### Native Linux
+
+```bash
+git clone https://github.com/FischermanCH/silentmap
+cd silentmap
+go build -o silentmap ./cmd/silentmap
+sudo setcap cap_net_raw+eip ./silentmap
+./silentmap --data ./data
+```
+
+Benötigt Go 1.25+. Einzelne statische Binary, keine externen Abhängigkeiten.
+
+---
+
+## Konfiguration
+
+Alle Einstellungen sind optional — SilentMap läuft ohne Konfigurationsdatei.
+
+`silentmap.yaml` im Data-Verzeichnis ablegen:
+
+```yaml
+interface: ""           # leer = automatische Erkennung
+
+collectors:
+  ping:
+    enabled: true
+    targets: "priority"    # nur Prioritäts-Geräte pingen
+    interval: 5m
+
+alerts:
+  channels:
+    ntfy:
+      enabled: true
+      url: "https://ntfy.sh/dein-topic"
+    discord:
+      enabled: false
+      webhook_url: ""
+```
+
+Vollständige Referenz: [configs/silentmap.example.yaml](configs/silentmap.example.yaml)
+
+---
+
+## Features
+
+### Geräte-Inventar
+
+Jedes erkannte Gerät zeigt: IP, MAC, Hostname, Hersteller (OUI), Kategorie, Label und Online/Offline-Status. Klick auf ein Gerät öffnet die Detailseite mit Label, Kategorie, Priorität, nmap-Scan.
+
+### Prioritäts-Geräte
+
+Gerät als **Priorität** (★) markieren. Prioritäts-Geräte werden aktiv per ICMP gepingt (Standard: alle 5 Min.) und lösen bei Ausfall einen `priority_offline`-Alarm aus.
+
+### Force Ping (ICMP)
+
+Für Geräte ausserhalb des lokalen Subnetzes (z.B. Router in einem anderen IP-Bereich) **Force Ping** auf der Detailseite aktivieren. SilentMap verwendet dann ICMP statt ARP.
+
+### Topologie-Map
+
+Das **Dashboard** zeigt einen interaktiven D3.js-Netzwerkgraph. Geräte werden nach Gruppe organisiert (farbige Bereiche). Toolbar-Optionen:
+- Link-Typen ein/aus: Auto · Physisch · Logisch
+- Status-Filter: Online · Offline · Neu
+- Gruppen ein/ausblenden
+- Fadenkreuz-Button zum Zentrieren
+
+### Gruppen
+
+Unter **Gruppen** Gruppen erstellen und Geräte zuweisen. Gruppen erscheinen als farbige Bereiche auf der Map.
+
+### Alarme
+
+Alarme werden per Regel ausgelöst und an ntfy oder Discord gesendet. Die Alarm-Historie ist unter **Alarme** einsehbar.
+
+### Export / Import
+
+Auf der **Geräte**-Seite: **↓ Exportieren** für ein vollständiges JSON-Backup, **↑ Importieren** zum Wiederherstellen oder Migrieren.
+
+---
+
+## FAQ
+
+**Geräte werden nicht erkannt.**  
+Docker: `--network host` und `--cap-add NET_RAW` prüfen. SilentMap sieht nur Geräte die selbst Traffic senden — ruhige Geräte erscheinen erst nach ihrem ersten ARP-Paket.
+
+**Ein Gerät wird als offline angezeigt, ist aber online.**  
+Liegt das Gerät in einem anderen Subnetz (z.B. Router)? Dann **Force Ping** auf der Detailseite aktivieren — ARP funktioniert nicht über Subnetz-Grenzen.
+
+**Gibt SilentMap Daten weiter?**  
+Nein. Alle Daten bleiben lokal. Externe Verbindungen entstehen nur durch die konfigurierten Alert-Kanäle.
+
+---
+
+**Fragen / Feature-Wünsche:** [github.com/FischermanCH/silentmap/issues](https://github.com/FischermanCH/silentmap/issues)
