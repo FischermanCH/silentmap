@@ -272,7 +272,7 @@ func (r *Registry) checkOffline() {
 	// Collect candidates first, then close the cursor before writing.
 	rows, err := r.db.Query(
 		`SELECT mac, ip, label, priority, hostname, hostname_auto, category, vendor, last_seen
-		 FROM devices WHERE online = 1 AND last_seen < ?`, cutoff,
+		 FROM devices WHERE online = 1 AND last_seen < ? AND category != 'virtual'`, cutoff,
 	)
 	if err != nil {
 		return
