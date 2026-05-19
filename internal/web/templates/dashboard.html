@@ -211,19 +211,48 @@ async function load() {
   const clusterOf=buildClusters(allNodes);
   clusterMeta=buildClusterMeta(clusterOf);
   if(sim){
+    const el2=document.getElementById('map');
+    const W2=el2?el2.clientWidth:800, H2=el2?el2.clientHeight:400;
+    const deg2=computeDegree(allNodes,allLinks);
+    const maxDeg2=Math.max(1,...[...deg2.values()]);
     sim.nodes(allNodes);
     sim.force('cluster',      forceCluster(clusterOf,0.9));
     sim.force('clusterRepel', forceClusterRepulsion(clusterOf,5.0,800));
+    sim.force('radial',       forceHubRadial(deg2,maxDeg2,W2,H2));
   }
   drawLinks(); drawNodes(); drawHulls();
   if(sim) sim.alpha(0.3).restart();
 }
 
-// ── Tier computation ─────────────────────────────────────────────────────────
-function computeTiers(nodes) {
-  const tier={};
-  nodes.forEach(n=>{tier[n.id]=0;});
-  return tier;
+// ── Degree computation (number of links per node) ────────────────────────────
+function computeDegree(nodes, links) {
+  const deg=new Map(nodes.map(n=>[n.id,0]));
+  links.forEach(l=>{
+    const s=typeof l.source==='object'?l.source.id:l.source;
+    const t=typeof l.target==='object'?l.target.id:l.target;
+    if(deg.has(s)) deg.set(s,deg.get(s)+1);
+    if(deg.has(t)) deg.set(t,deg.get(t)+1);
+  });
+  return deg;
+}
+
+// ── Radial force: hub nodes pulled toward center, leaves toward periphery ────
+function forceHubRadial(deg, maxDeg, W, H) {
+  let nodes;
+  const cx=W/2, cy=H/2, maxR=Math.min(W,H)*0.36;
+  function force(alpha) {
+    nodes.forEach(n=>{
+      const ratio=(deg.get(n.id)||0)/maxDeg;
+      const targetR=maxR*(1-ratio*0.72);
+      const dx=n.x-cx, dy=n.y-cy;
+      const r=Math.sqrt(dx*dx+dy*dy)||1;
+      const k=0.07*alpha;
+      n.vx+=(cx+dx*targetR/r-n.x)*k;
+      n.vy+=(cy+dy*targetR/r-n.y)*k;
+    });
+  }
+  force.initialize=ns=>{nodes=ns;};
+  return force;
 }
 
 // ── Group filter chips ───────────────────────────────────────────────────────
@@ -451,35 +480,44 @@ function fullRender() {
   linkLayer=g.append('g').attr('class','link-layer');
   nodeLayer=g.append('g').attr('class','node-layer');
 
-  // Initial positions: spread by tier (only for nodes without a saved position)
-  const tier=computeTiers(allNodes);
-  const numTiers=Math.max(1,...Object.values(tier))+1;
-  const padY=50;
-  const tierY=t=>padY+(H-padY*2)*(t/Math.max(numTiers-1,1));
-  const byTier={};
-  allNodes.forEach(n=>{const t=tier[n.id]??0;(byTier[t]=byTier[t]||[]).push(n);});
-  Object.entries(byTier).forEach(([t,ns])=>{
-    ns.forEach((n,i)=>{
-      // ?? only fills in undefined/null — preserved positions are kept
-      n.x=n.x??(W*0.05+(W*0.9)*(i+1)/(ns.length+1));
-      n.y=n.y??tierY(+t);
-    });
-  });
-
   const clusterOf=buildClusters(allNodes);
   clusterMeta=buildClusterMeta(clusterOf);
 
+  // Initial positions: spread clusters evenly around a circle (360°)
+  const clusterBuckets=new Map();
+  allNodes.forEach(n=>{
+    const c=clusterOf.get(n.id)||UNGROUPED;
+    if(!clusterBuckets.has(c)) clusterBuckets.set(c,[]);
+    clusterBuckets.get(c).push(n);
+  });
+  const clsList=[...clusterBuckets.entries()];
+  const R_init=Math.min(W,H)*0.28;
+  clsList.forEach(([,cnodes],i)=>{
+    const angle=(i/Math.max(clsList.length,1))*Math.PI*2-Math.PI/2;
+    const cx=W/2+R_init*Math.cos(angle);
+    const cy=H/2+R_init*Math.sin(angle);
+    const spread=Math.min(70,100/Math.sqrt(cnodes.length+1));
+    cnodes.forEach((n,j)=>{
+      const na=(j/Math.max(cnodes.length,1))*Math.PI*2;
+      n.x=n.x??(cx+Math.cos(na)*spread);
+      n.y=n.y??(cy+Math.sin(na)*spread);
+    });
+  });
+
+  const deg=computeDegree(allNodes,allLinks);
+  const maxDeg=Math.max(1,...[...deg.values()]);
+
   sim=d3.forceSimulation(allNodes)
-    .force('link',    d3.forceLink(allLinks).id(d=>d.id)
-      .distance(d=>d.type==='logical'?30:90)
-      .strength(d=>d.type==='logical'?0.9:0.4))
-    .force('charge',  d3.forceManyBody().strength(-350).distanceMax(700))
-    .force('y',       d3.forceY(d=>tierY(tier[d.id]??0)).strength(0.12))
-    .force('x',       d3.forceX(W/2).strength(0.004))
-    .force('collide', d3.forceCollide(44))
-    .force('cluster', forceCluster(clusterOf,0.9))
+    .force('link',       d3.forceLink(allLinks).id(d=>d.id)
+      .distance(d=>d.type==='logical'?30:100)
+      .strength(d=>d.type==='logical'?0.9:0.35))
+    .force('charge',     d3.forceManyBody().strength(-450).distanceMax(800))
+    .force('collide',    d3.forceCollide(44))
+    .force('center',     d3.forceCenter(W/2,H/2).strength(0.03))
+    .force('radial',     forceHubRadial(deg,maxDeg,W,H))
+    .force('cluster',    forceCluster(clusterOf,0.9))
     .force('clusterRepel', forceClusterRepulsion(clusterOf,5.0,800))
-    .alphaDecay(0.04).velocityDecay(0.55);
+    .alphaDecay(0.03).velocityDecay(0.45);
 
   drawLinks(); drawNodes(); drawHulls();
   fitView(W,H,visibleNodes());
