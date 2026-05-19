@@ -8,6 +8,29 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ## [1.0.3] — 2026-05-19
 
+> Note: 1.0.1 was skipped — version jumped from 1.0.0 directly to 1.0.2.
+
+---
+
+## [1.0.2] — 2026-05-18
+
+### Added
+- **Status filter on topology map** — filter nodes by Online / Offline / New / Hidden
+- **Favicon** — browser tab icon
+- **Screenshots** in README and Docker Hub description
+
+### Fixed
+- **Translation** — "Neu" shown as "New" in EN locale on the topology map
+- **Help link** — now points to HELP.md instead of external README anchor
+
+### Docs
+- HELP.md completely rewritten with installation, configuration and FAQ sections
+- Docker Hub description and README cross-referenced
+
+---
+
+## [1.0.3] — 2026-05-19
+
 ### Added
 - **Category "virtual"** — devices assigned to this category are not monitored (no ARP/ICMP polling, no online/offline tracking, no offline alerts). They appear with a ◆ badge and are excluded from all counters. Intended for logical network nodes like VLANs, network segments, or powerline groups — not for actual VMs (use "server" for those).
 - **Topology map improvements** — 360° cluster distribution, hub-radial force (highly connected nodes pulled toward center), cluster anchor force (prevents small clusters from drifting off-screen)
