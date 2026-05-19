@@ -85,7 +85,7 @@ collectors:
     offline_timeout: 15m   # time until a silent device is marked offline
   ping:
     enabled: true
-    targets: "priority"    # ping only devices marked as Priority
+    targets: "priority"    # ARP-poll only Priority devices ("all" = all known)
     interval: 5m
 
 alerts:
@@ -126,11 +126,11 @@ Every discovered device shows: IP, MAC, hostname, vendor (OUI lookup), category,
 
 ### Priority devices
 
-Mark a device as **Priority** (★) on its detail page. Priority devices are actively ICMP-pinged every 5 minutes (configurable) and trigger a `priority_offline` alert when they go down.
+Mark a device as **Priority** (★) on its detail page. SilentMap actively polls priority devices with ARP requests every 5 minutes (configurable via `collectors.ping.interval`) and triggers a `priority_offline` alert when they go offline. Use `collectors.ping.targets: "all"` to poll all known devices instead of just priority ones.
 
 ### Force Ping (ICMP)
 
-For devices outside your local subnet (e.g. a router at a different IP range), enable **Force Ping** on the device detail page. SilentMap will use ICMP instead of ARP to monitor the device.
+For devices outside your local subnet (e.g. a router at a different IP range), enable **Force Ping** on the device detail page. SilentMap will use ICMP instead of ARP to monitor the device — ARP cannot cross subnet boundaries.
 
 ### Topology map
 
@@ -299,11 +299,11 @@ Jedes erkannte Gerät zeigt: IP, MAC, Hostname, Hersteller (OUI), Kategorie, Lab
 
 ### Prioritäts-Geräte
 
-Gerät als **Priorität** (★) markieren. Prioritäts-Geräte werden aktiv per ICMP gepingt (Standard: alle 5 Min.) und lösen bei Ausfall einen `priority_offline`-Alarm aus.
+Gerät als **Priorität** (★) markieren. SilentMap sendet aktiv ARP-Requests an Prioritäts-Geräte (Standard: alle 5 Min., konfigurierbar via `collectors.ping.interval`) und löst bei Ausfall einen `priority_offline`-Alarm aus. Mit `collectors.ping.targets: "all"` werden alle bekannten Geräte statt nur Prioritäts-Geräte abgefragt.
 
 ### Force Ping (ICMP)
 
-Für Geräte ausserhalb des lokalen Subnetzes (z.B. Router in einem anderen IP-Bereich) **Force Ping** auf der Detailseite aktivieren. SilentMap verwendet dann ICMP statt ARP.
+Für Geräte ausserhalb des lokalen Subnetzes (z.B. Router in einem anderen IP-Bereich) **Force Ping** auf der Detailseite aktivieren. SilentMap verwendet dann ICMP statt ARP — ARP funktioniert nicht über Subnetz-Grenzen.
 
 ### Topologie-Map
 
