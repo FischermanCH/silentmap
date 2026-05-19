@@ -123,7 +123,7 @@ func (c *Collector) pollAll() {
 
 	arpCount, pingCount := 0, 0
 	for _, d := range devices {
-		if d.IP == "" {
+		if d.IP == "" || d.Category == "virtual" {
 			continue
 		}
 		if d.ForcePing {

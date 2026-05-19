@@ -30,7 +30,9 @@
     {{if $d.Priority}}
     <span class="text-xs bg-red-100 text-red-700 px-2 py-1 rounded-full font-medium">{{t "priority.badge"}}</span>
     {{end}}
-    {{if $d.Online}}
+    {{if eq $d.Category "virtual"}}
+    <span class="text-sm px-3 py-1 rounded-full font-medium" style="background-color:var(--sm-badge-info-bg);color:var(--sm-accent)">{{t "status.virtual"}}</span>
+    {{else if $d.Online}}
     <span class="bg-green-100 text-green-800 text-sm px-3 py-1 rounded-full font-medium">{{t "status.online"}}</span>
     {{else}}
     <span class="bg-gray-100 text-gray-500 text-sm px-3 py-1 rounded-full font-medium">{{t "status.offline"}}</span>

@@ -92,6 +92,7 @@
   "back.devices":       "← Devices",
   "status.online":      "● Online",
   "status.offline":     "○ Offline",
+  "status.virtual":     "◆ Virtual",
   "priority.badge":     "★ Priority",
 
   "section.info":         "Device information",
