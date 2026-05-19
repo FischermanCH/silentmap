@@ -215,10 +215,17 @@ async function load() {
     const W2=el2?el2.clientWidth:800, H2=el2?el2.clientHeight:400;
     const deg2=computeDegree(allNodes,allLinks);
     const maxDeg2=Math.max(1,...[...deg2.values()]);
+    // Recompute cluster angles/sizes for any new clusters
+    const cb2=new Map();
+    allNodes.forEach(n=>{const c=clusterOf.get(n.id)||UNGROUPED;if(!cb2.has(c))cb2.set(c,[]);cb2.get(c).push(n);});
+    const cl2=[...cb2.entries()].sort((a,b)=>b[1].length-a[1].length);
+    const ca2=new Map(), cs2=new Map();
+    cl2.forEach(([cid,cn],i)=>{ca2.set(cid,(i/Math.max(cl2.length,1))*Math.PI*2-Math.PI/2);cs2.set(cid,cn.length);});
     sim.nodes(allNodes);
-    sim.force('cluster',      forceCluster(clusterOf,0.9));
-    sim.force('clusterRepel', forceClusterRepulsion(clusterOf,5.0,800));
+    sim.force('cluster',      forceCluster(clusterOf,0.85));
+    sim.force('clusterRepel', forceClusterRepulsion(clusterOf,1.2,350));
     sim.force('radial',       forceHubRadial(deg2,maxDeg2,W2,H2));
+    sim.force('anchor',       forceClusterAnchor(ca2,cs2,clusterOf,W2,H2));
   }
   drawLinks(); drawNodes(); drawHulls();
   if(sim) sim.alpha(0.3).restart();
@@ -246,9 +253,31 @@ function forceHubRadial(deg, maxDeg, W, H) {
       const targetR=maxR*(1-ratio*0.72);
       const dx=n.x-cx, dy=n.y-cy;
       const r=Math.sqrt(dx*dx+dy*dy)||1;
-      const k=0.07*alpha;
+      const k=0.03*alpha;
       n.vx+=(cx+dx*targetR/r-n.x)*k;
       n.vy+=(cy+dy*targetR/r-n.y)*k;
+    });
+  }
+  force.initialize=ns=>{nodes=ns;};
+  return force;
+}
+
+// ── Cluster anchor: pulls each cluster toward its designated position ─────────
+// Smaller clusters get a stronger pull so they never drift to the periphery.
+function forceClusterAnchor(clusterAngles, clusterSizes, clusterOf, W, H) {
+  let nodes;
+  const cx=W/2, cy=H/2, R=Math.min(W,H)*0.30;
+  function force(alpha) {
+    nodes.forEach(n=>{
+      const c=clusterOf.get(n.id)||UNGROUPED;
+      if(!clusterAngles.has(c)) return;
+      const angle=clusterAngles.get(c);
+      const tx=cx+R*Math.cos(angle);
+      const ty=cy+R*Math.sin(angle);
+      const size=clusterSizes.get(c)||1;
+      const k=alpha*(0.05+0.12/Math.sqrt(size));
+      n.vx+=(tx-n.x)*k;
+      n.vy+=(ty-n.y)*k;
     });
   }
   force.initialize=ns=>{nodes=ns;};
@@ -483,24 +512,35 @@ function fullRender() {
   const clusterOf=buildClusters(allNodes);
   clusterMeta=buildClusterMeta(clusterOf);
 
-  // Initial positions: spread clusters evenly around a circle (360°)
+  // Group nodes by cluster, sort largest→smallest for position assignment
   const clusterBuckets=new Map();
   allNodes.forEach(n=>{
     const c=clusterOf.get(n.id)||UNGROUPED;
     if(!clusterBuckets.has(c)) clusterBuckets.set(c,[]);
     clusterBuckets.get(c).push(n);
   });
-  const clsList=[...clusterBuckets.entries()];
-  const R_init=Math.min(W,H)*0.28;
-  clsList.forEach(([,cnodes],i)=>{
-    const angle=(i/Math.max(clsList.length,1))*Math.PI*2-Math.PI/2;
-    const cx=W/2+R_init*Math.cos(angle);
-    const cy=H/2+R_init*Math.sin(angle);
-    const spread=Math.min(70,100/Math.sqrt(cnodes.length+1));
+  const clsList=[...clusterBuckets.entries()].sort((a,b)=>b[1].length-a[1].length);
+  const nCls=Math.max(clsList.length,1);
+
+  // Assign a target angle to each cluster (evenly spaced, top = largest)
+  const clusterAngles=new Map();
+  const clusterSizes=new Map();
+  clsList.forEach(([cid,cnodes],i)=>{
+    clusterAngles.set(cid,(i/nCls)*Math.PI*2-Math.PI/2);
+    clusterSizes.set(cid,cnodes.length);
+  });
+
+  // Spread initial positions around the circle (only for nodes without saved pos)
+  const R_init=Math.min(W,H)*0.30;
+  clsList.forEach(([cid,cnodes],i)=>{
+    const angle=clusterAngles.get(cid);
+    const icx=W/2+R_init*Math.cos(angle);
+    const icy=H/2+R_init*Math.sin(angle);
+    const spread=Math.min(65,90/Math.sqrt(cnodes.length+1));
     cnodes.forEach((n,j)=>{
       const na=(j/Math.max(cnodes.length,1))*Math.PI*2;
-      n.x=n.x??(cx+Math.cos(na)*spread);
-      n.y=n.y??(cy+Math.sin(na)*spread);
+      n.x=n.x??(icx+Math.cos(na)*spread);
+      n.y=n.y??(icy+Math.sin(na)*spread);
     });
   });
 
@@ -511,13 +551,14 @@ function fullRender() {
     .force('link',       d3.forceLink(allLinks).id(d=>d.id)
       .distance(d=>d.type==='logical'?30:100)
       .strength(d=>d.type==='logical'?0.9:0.35))
-    .force('charge',     d3.forceManyBody().strength(-450).distanceMax(800))
+    .force('charge',     d3.forceManyBody().strength(-400).distanceMax(600))
     .force('collide',    d3.forceCollide(44))
-    .force('center',     d3.forceCenter(W/2,H/2).strength(0.03))
+    .force('center',     d3.forceCenter(W/2,H/2).strength(0.04))
+    .force('anchor',     forceClusterAnchor(clusterAngles,clusterSizes,clusterOf,W,H))
     .force('radial',     forceHubRadial(deg,maxDeg,W,H))
-    .force('cluster',    forceCluster(clusterOf,0.9))
-    .force('clusterRepel', forceClusterRepulsion(clusterOf,5.0,800))
-    .alphaDecay(0.03).velocityDecay(0.45);
+    .force('cluster',    forceCluster(clusterOf,0.85))
+    .force('clusterRepel', forceClusterRepulsion(clusterOf,1.2,350))
+    .alphaDecay(0.03).velocityDecay(0.4);
 
   drawLinks(); drawNodes(); drawHulls();
   fitView(W,H,visibleNodes());
