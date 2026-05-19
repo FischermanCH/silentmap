@@ -6,16 +6,37 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [Unreleased]
+
+- Webhook alert channel
+- Email alert channel
+- Basic auth for web UI
+- Multi-platform Docker builds (arm64)
+
+---
+
 ## [1.0.3] — 2026-05-19
 
-> Note: 1.0.1 was skipped — version jumped from 1.0.0 directly to 1.0.2.
+### Added
+- **Category "virtual"** — devices assigned to this category are not monitored (no ARP/ICMP polling, no online/offline tracking, no offline alerts). They appear with a ◆ badge and are excluded from all counters. Intended for logical network nodes like VLANs, network segments, or powerline groups — not for actual VMs (use "server" for those).
+- **Topology map improvements** — 360° cluster distribution, hub-radial force (highly connected nodes pulled toward center), cluster anchor force (prevents small clusters from drifting off-screen)
+
+### Changed
+- **Device detail sidebar** — Priority, ICMP Ping, Scan, and Delete device are now collapsible accordion sections; Delete is always last
+- **Removed parent devices feature** — the "parent device" relationship has been removed entirely; existing data is cleaned up automatically on first start
+
+### Fixed
+- **Virtual nodes on topology map** — no longer show a red offline dot; rendered at full opacity with category color
+- **Virtual devices excluded from counters** — online, offline and total counts no longer include virtual devices
+- **Fischerman theme** — button text was green on green background; fixed via `btn-text` theme variable
+- **Mobile layout** — NEW banner on device detail page now stacks vertically on small screens
 
 ---
 
 ## [1.0.2] — 2026-05-18
 
 ### Added
-- **Status filter on topology map** — filter nodes by Online / Offline / New / Hidden
+- **Status filter on topology map** — filter nodes by Online / Offline / New
 - **Favicon** — browser tab icon
 - **Screenshots** in README and Docker Hub description
 
@@ -29,22 +50,9 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
-## [1.0.3] — 2026-05-19
+## [1.0.1] — 2026-05-18
 
-### Added
-- **Category "virtual"** — devices assigned to this category are not monitored (no ARP/ICMP polling, no online/offline tracking, no offline alerts). They appear with a ◆ badge and are excluded from all counters. Intended for logical network nodes like VLANs, network segments, or powerline groups — not for actual VMs (use "server" for those).
-- **Topology map improvements** — 360° cluster distribution, hub-radial force (highly connected nodes pulled toward center), cluster anchor force (prevents small clusters from drifting off-screen)
-- **Status filter on topology map** — filter nodes by Online / Offline / New
-
-### Changed
-- **Device detail sidebar** — Priority, ICMP Ping, Scan, and Delete device are now collapsible accordion sections; Delete is always last
-- **Removed parent devices feature** — the "parent device" relationship has been removed entirely; existing data is cleaned up automatically on first start
-
-### Fixed
-- **Virtual nodes on topology map** — no longer show a red offline dot; rendered at full opacity with category color
-- **Fischerman theme** — button text was green on green background; fixed via `btn-text` theme variable
-- **Mobile layout** — NEW banner on device detail page now stacks vertically on small screens
-- **Translation** — "Neu" shown as "New" in EN locale on topology map filter
+> Internal version — no functional changes. CI pipeline and Docker Hub automation set up.
 
 ---
 
@@ -70,12 +78,3 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 - **Docker image** — multi-stage build, `fischermanch/silentmap:latest`
 - **API** — `/health`, `/api/stats`, `/api/version`, `/api/topology`, `/api/export`, `/api/import`
 - **Log rotation** — automatic cleanup after configurable retention period
-
----
-
-## [Unreleased]
-
-- Webhook alert channel
-- Email alert channel
-- Basic auth for web UI
-- Multi-platform Docker builds (arm64)
