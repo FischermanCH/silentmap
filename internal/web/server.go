@@ -15,6 +15,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -168,6 +169,7 @@ func (s *Server) Handler() http.Handler {
 	r.Post("/groups", s.createGroup)
 	r.Post("/groups/{id}/update", s.updateGroup)
 	r.Post("/groups/{id}/delete", s.deleteGroup)
+	r.Post("/groups/{id}/move", s.moveGroup)
 	r.Post("/devices/{mac}/groups", s.addDeviceToGroup)
 	r.Post("/devices/{mac}/groups/{groupId}/remove", s.removeDeviceFromGroup)
 	r.Get("/api/topology", s.apiTopology)
@@ -837,6 +839,22 @@ func severityClass(severity string) string {
 	}
 }
 
+func sortDevicesByIP(devs []registry.Device) {
+	sort.Slice(devs, func(i, j int) bool {
+		a := net.ParseIP(devs[i].IP).To4()
+		b := net.ParseIP(devs[j].IP).To4()
+		if a == nil || b == nil {
+			return devs[i].IP < devs[j].IP
+		}
+		for k := 0; k < 4; k++ {
+			if a[k] != b[k] {
+				return a[k] < b[k]
+			}
+		}
+		return false
+	})
+}
+
 func (s *Server) groupList(w http.ResponseWriter, r *http.Request) {
 	groups, _ := s.reg.ListGroups()
 	type groupView struct {
@@ -846,6 +864,7 @@ func (s *Server) groupList(w http.ResponseWriter, r *http.Request) {
 	var views []groupView
 	for _, g := range groups {
 		devs, _ := s.reg.GetGroupDevices(g.ID)
+		sortDevicesByIP(devs)
 		views = append(views, groupView{g, devs})
 	}
 	allDevices, _ := s.reg.List()
@@ -902,6 +921,18 @@ func (s *Server) deleteGroup(w http.ResponseWriter, r *http.Request) {
 	if err := s.reg.DeleteGroup(id); err != nil {
 		slog.Error("delete group failed", "id", id, "err", err)
 	}
+	http.Redirect(w, r, "/groups", http.StatusSeeOther)
+}
+
+func (s *Server) moveGroup(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "id")
+	r.ParseForm()
+	direction := r.FormValue("direction")
+	if direction != "up" && direction != "down" {
+		http.Redirect(w, r, "/groups", http.StatusSeeOther)
+		return
+	}
+	s.reg.MoveGroup(id, direction)
 	http.Redirect(w, r, "/groups", http.StatusSeeOther)
 }
 

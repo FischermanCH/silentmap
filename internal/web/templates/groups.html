@@ -67,6 +67,16 @@
           </button>
         </form>
         <span class="text-xs flex-shrink-0" style="color:var(--sm-text-muted)">{{tf "group.devices_count" (len .Devices)}}</span>
+        <div class="flex flex-col gap-px flex-shrink-0">
+          <form method="POST" action="/groups/{{.ID}}/move">
+            <input type="hidden" name="direction" value="up">
+            <button type="submit" class="block text-xs leading-none px-1 hover:opacity-80" style="color:var(--sm-text-muted)" title="Nach oben">▲</button>
+          </form>
+          <form method="POST" action="/groups/{{.ID}}/move">
+            <input type="hidden" name="direction" value="down">
+            <button type="submit" class="block text-xs leading-none px-1 hover:opacity-80" style="color:var(--sm-text-muted)" title="Nach unten">▼</button>
+          </form>
+        </div>
         <form method="POST" action="/groups/{{.ID}}/delete"
               onsubmit="return confirm('{{tf "confirm.delete_group" .Name}}')">
           <button type="submit" class="text-xs hover:text-red-500 transition-colors" style="color:var(--sm-text-muted)">✕</button>

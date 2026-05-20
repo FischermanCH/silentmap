@@ -958,22 +958,25 @@ func unmarshalServices(s string) []string {
 // --- Groups ---
 
 type Group struct {
-	ID    string
-	Name  string
-	Color string
+	ID        string
+	Name      string
+	Color     string
+	SortOrder int
 }
 
 func (r *Registry) CreateGroup(name, color string) (*Group, error) {
 	id := uuid.NewString()
-	_, err := r.db.Exec(`INSERT INTO device_groups(id,name,color) VALUES(?,?,?)`, id, name, color)
+	var maxOrder int
+	r.db.QueryRow(`SELECT COALESCE(MAX(sort_order),0) FROM device_groups`).Scan(&maxOrder)
+	_, err := r.db.Exec(`INSERT INTO device_groups(id,name,color,sort_order) VALUES(?,?,?,?)`, id, name, color, maxOrder+1)
 	if err != nil {
 		return nil, err
 	}
-	return &Group{ID: id, Name: name, Color: color}, nil
+	return &Group{ID: id, Name: name, Color: color, SortOrder: maxOrder + 1}, nil
 }
 
 func (r *Registry) ListGroups() ([]Group, error) {
-	rows, err := r.db.Query(`SELECT id,name,color FROM device_groups ORDER BY name`)
+	rows, err := r.db.Query(`SELECT id,name,color,sort_order FROM device_groups ORDER BY sort_order, name`)
 	if err != nil {
 		return nil, err
 	}
@@ -981,10 +984,31 @@ func (r *Registry) ListGroups() ([]Group, error) {
 	var out []Group
 	for rows.Next() {
 		var g Group
-		rows.Scan(&g.ID, &g.Name, &g.Color)
+		rows.Scan(&g.ID, &g.Name, &g.Color, &g.SortOrder)
 		out = append(out, g)
 	}
 	return out, nil
+}
+
+func (r *Registry) MoveGroup(id, direction string) error {
+	var curOrder int
+	if err := r.db.QueryRow(`SELECT sort_order FROM device_groups WHERE id=?`, id).Scan(&curOrder); err != nil {
+		return err
+	}
+	var adjID string
+	var adjOrder int
+	var err error
+	if direction == "up" {
+		err = r.db.QueryRow(`SELECT id,sort_order FROM device_groups WHERE sort_order < ? ORDER BY sort_order DESC LIMIT 1`, curOrder).Scan(&adjID, &adjOrder)
+	} else {
+		err = r.db.QueryRow(`SELECT id,sort_order FROM device_groups WHERE sort_order > ? ORDER BY sort_order ASC LIMIT 1`, curOrder).Scan(&adjID, &adjOrder)
+	}
+	if err != nil {
+		return nil // already first or last
+	}
+	r.db.Exec(`UPDATE device_groups SET sort_order=? WHERE id=?`, adjOrder, id)
+	r.db.Exec(`UPDATE device_groups SET sort_order=? WHERE id=?`, curOrder, adjID)
+	return nil
 }
 
 func (r *Registry) UpdateGroup(id, name, color string) error {
