@@ -15,6 +15,14 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [1.0.5] — 2026-05-20
+
+### Changed
+- **Groups page — devices sorted by IP** — devices within each group are now listed in ascending IP order
+- **Groups page — reorder groups** — ▲/▼ buttons in each group header let you change the display order; order is persisted in the database
+
+---
+
 ## [1.0.4] — 2026-05-20
 
 ### Added
