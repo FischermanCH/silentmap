@@ -98,12 +98,14 @@ func NewServer(reg *registry.Registry, alertEng *engine.Engine, db *sql.DB, data
 		buildTime: buildTime,
 		funcMap: template.FuncMap{
 			// t/tf/timeAgo are injected per-request in render() with lang baked in
-			"severityClass": severityClass,
-			"eventIcon":     eventIcon,
-			"slice":         func(args ...string) []string { return args },
-			"catIcon":       catIconSVG,
-			"catColor":      catColorHex,
-			"replace":       strings.ReplaceAll,
+			"severityClass":  severityClass,
+			"eventIcon":      eventIcon,
+			"eventColor":     eventColor,
+			"friendlySource": friendlySource,
+			"slice":          func(args ...string) []string { return args },
+			"catIcon":        catIconSVG,
+			"catColor":       catColorHex,
+			"replace":        strings.ReplaceAll,
 		},
 	}
 	// Apply persisted channel settings over yaml defaults
@@ -819,8 +821,46 @@ func eventIcon(typ string) string {
 		return "🔌"
 	case "nmap":
 		return "🔍"
+	case "ip_change":
+		return "🔀"
 	default:
 		return "•"
+	}
+}
+
+func eventColor(typ string) string {
+	switch typ {
+	case "online":
+		return "#4ade80"
+	case "offline":
+		return "#ef4444"
+	default:
+		return "var(--sm-text-primary)"
+	}
+}
+
+func friendlySource(src string) string {
+	switch src {
+	case "registry":
+		return "Poller"
+	case "web":
+		return "Manual"
+	case "import":
+		return "Import"
+	case "mdns":
+		return "mDNS"
+	case "arp":
+		return "ARP"
+	case "dhcp":
+		return "DHCP"
+	case "manual":
+		return "Manual"
+	case "ping":
+		return "Ping"
+	case "nmap":
+		return "nmap"
+	default:
+		return src
 	}
 }
 

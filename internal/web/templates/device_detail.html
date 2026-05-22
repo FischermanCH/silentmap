@@ -106,17 +106,26 @@
     {{if .Events}}
     <div class="rounded-xl border p-5" style="background-color:var(--sm-card-bg)">
       <h2 class="font-semibold mb-4" style="color:var(--sm-text-primary)">{{t "section.activity"}}</h2>
-      <div class="space-y-1">
+      <div>
         {{range .Events}}
-        <div class="flex items-start gap-3 py-2 border-b last:border-0" style="border-color:var(--sm-card-border)">
+        <div class="flex items-start gap-3 py-2.5 border-b last:border-0" style="border-color:var(--sm-card-border)">
           <span class="text-base flex-shrink-0 mt-0.5">{{eventIcon .Type}}</span>
           <div class="flex-1 min-w-0">
-            <div class="text-sm" style="color:var(--sm-text-secondary)">{{.Note}}</div>
-            {{if .IP}}<div class="text-xs font-mono" style="color:var(--sm-text-muted)">{{.IP}} · {{.Source}}</div>{{end}}
+            <div class="text-sm font-medium" style="color:{{eventColor .Type}}">
+              {{t (printf "event.type.%s" .Type)}}
+            </div>
+            {{if .Note}}
+            <div class="text-xs mt-0.5 truncate" style="color:var(--sm-text-secondary)">{{.Note}}</div>
+            {{end}}
+            {{if or .IP .Source}}
+            <div class="text-xs mt-0.5 font-mono" style="color:var(--sm-text-muted)">
+              {{if .IP}}{{.IP}}{{end}}{{if and .IP .Source}} · {{end}}{{if .Source}}{{friendlySource .Source}}{{end}}
+            </div>
+            {{end}}
           </div>
           <div class="text-xs flex-shrink-0 text-right whitespace-nowrap" style="color:var(--sm-text-muted)">
             <div>{{timeAgo .CreatedAt}}</div>
-            <div>{{.CreatedAt.Format "15:04:05"}}</div>
+            <div class="font-mono">{{.CreatedAt.Format "15:04:05"}}</div>
           </div>
         </div>
         {{end}}

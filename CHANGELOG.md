@@ -15,6 +15,13 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [1.0.6] — 2026-05-22
+
+### Changed
+- **Device activity log** — completely redesigned for readability: event type is now shown as a clear label ("Online", "Offline", "Services", etc.) with colour coding (green/red for online/offline). Source labels are human-friendly ("Poller" instead of "registry", "mDNS" instead of "mdns", "Manual" instead of "web"). Import events no longer log noisy "updated" entries.
+
+---
+
 ## [1.0.5] — 2026-05-20
 
 ### Changed
