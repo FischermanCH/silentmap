@@ -186,7 +186,7 @@
   "alert.title.priority_offline": "Priority device offline",
   "alert.title.device_back":      "Device back online",
 
-  "event.type.seen":             "New",
+  "event.type.seen":             "Discovered",
   "event.type.online":           "Online",
   "event.type.offline":          "Offline",
   "event.type.hostname":         "Hostname",
@@ -194,6 +194,7 @@
   "event.type.label":            "Name set",
   "event.type.hostname_manual":  "Hostname (manual)",
   "event.type.ip_change":        "IP changed",
+  "event.type.nmap":             "nmap scan",
 
   "cat.netzwerk":  "network",
   "cat.server":    "server",

@@ -1213,7 +1213,7 @@ func (r *Registry) Import(payload *ExportPayload) (ImportResult, error) {
 			}
 			r.mu.Lock()
 			if err := r.insert(dev); err == nil {
-				r.logEvent(mac, rec.IP, "import", "import", "created")
+				r.logEvent(mac, rec.IP, "seen", "import", "")
 				res.Created++
 			}
 			r.mu.Unlock()
@@ -1236,7 +1236,7 @@ func (r *Registry) Import(payload *ExportPayload) (ImportResult, error) {
 			}
 			r.mu.Lock()
 			if err := r.update(mac, updates); err == nil {
-				r.logEvent(mac, "", "import", "import", "updated")
+				// no event logged for import updates — would be noise
 				res.Updated++
 			}
 			r.mu.Unlock()
