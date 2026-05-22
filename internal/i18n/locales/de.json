@@ -68,6 +68,7 @@
 
   "devices.title":          "Geräte",
   "devices.subtitle":       "%d bekannte Geräte",
+  "devices.search":         "Suche nach Name, IP oder MAC…",
   "devices.add":            "+ Gerät hinzufügen",
   "modal.title":            "Gerät manuell hinzufügen",
   "modal.ip":               "IP-Adresse",
