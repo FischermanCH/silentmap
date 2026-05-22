@@ -68,6 +68,7 @@
 
   "devices.title":          "Devices",
   "devices.subtitle":       "%d known devices",
+  "devices.search":         "Search by name, IP or MAC…",
   "devices.add":            "+ Add device",
   "modal.title":            "Add device manually",
   "modal.ip":               "IP address",

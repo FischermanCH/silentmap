@@ -15,6 +15,13 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [1.0.7] — 2026-05-22
+
+### Added
+- **Device search** — live search box above the device table filters by name, IP or MAC. Works alongside the existing status filter (`?status=online` etc.). Press `/` to focus the search box from anywhere on the page.
+
+---
+
 ## [1.0.6] — 2026-05-22
 
 ### Changed
