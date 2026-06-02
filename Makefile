@@ -26,13 +26,13 @@ docker:
 	docker build \
 		--build-arg VERSION=$(VERSION) \
 		--build-arg COMMIT=$(COMMIT) \
-		-t fischerman/silentmap:$(VERSION) \
-		-t fischerman/silentmap:latest \
+		-t fischermanch/silentmap:$(VERSION) \
+		-t fischermanch/silentmap:latest \
 		.
 
 docker-push:
-	docker push fischerman/silentmap:$(VERSION)
-	docker push fischerman/silentmap:latest
+	docker push fischermanch/silentmap:$(VERSION)
+	docker push fischermanch/silentmap:latest
 
 docker-up:
 	docker compose up -d

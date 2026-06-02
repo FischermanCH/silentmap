@@ -82,7 +82,6 @@ func NewServer(reg *registry.Registry, alertEng *engine.Engine, db *sql.DB, data
 		slog.Warn("i18n: failed to load translations, using keys as fallback", "err", err)
 		bundle, _ = i18n.New() // still returns usable empty bundle
 	}
-	_ = err
 	s := &Server{
 		reg:       reg,
 		bundle:    bundle,
@@ -138,12 +137,17 @@ func (s *Server) loadAppSettings() AppSettings {
 		return AppSettings{}
 	}
 	var cfg AppSettings
-	json.Unmarshal(data, &cfg)
+	if err := json.Unmarshal(data, &cfg); err != nil {
+		slog.Warn("settings: failed to parse settings.json", "err", err)
+	}
 	return cfg
 }
 
 func (s *Server) saveAppSettings(cfg AppSettings) error {
-	data, _ := json.MarshalIndent(cfg, "", "  ")
+	data, err := json.MarshalIndent(cfg, "", "  ")
+	if err != nil {
+		return err
+	}
 	return os.WriteFile(filepath.Join(s.dataDir, "settings.json"), data, 0644)
 }
 
@@ -308,102 +312,40 @@ func isPrivateHost(rawURL string) bool {
 	return ip.IsLoopback() || ip.IsPrivate() || ip.IsLinkLocalUnicast()
 }
 
+func (s *Server) deviceUpdate(w http.ResponseWriter, r *http.Request, field string, fn func(mac string) error) {
+	mac, ok := requireMAC(w, r)
+	if !ok {
+		return
+	}
+	if err := r.ParseForm(); err != nil {
+		http.Error(w, "bad request", http.StatusBadRequest)
+		return
+	}
+	if err := fn(mac); err != nil {
+		slog.Error("device update failed", "field", field, "mac", mac, "err", err)
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+	http.Redirect(w, r, "/devices/"+mac, http.StatusSeeOther)
+}
+
 func (s *Server) setLabel(w http.ResponseWriter, r *http.Request) {
-	mac, ok := requireMAC(w, r)
-	if !ok {
-		return
-	}
-	if err := r.ParseForm(); err != nil {
-		http.Error(w, "bad request", http.StatusBadRequest)
-		return
-	}
-	if err := s.reg.SetLabel(mac, r.FormValue("label")); err != nil {
-		slog.Error("set label failed", "mac", mac, "err", err)
-		http.Error(w, "internal error", http.StatusInternalServerError)
-		return
-	}
-	http.Redirect(w, r, "/devices/"+mac, http.StatusSeeOther)
+	s.deviceUpdate(w, r, "label", func(mac string) error { return s.reg.SetLabel(mac, r.FormValue("label")) })
 }
-
 func (s *Server) setHostname(w http.ResponseWriter, r *http.Request) {
-	mac, ok := requireMAC(w, r)
-	if !ok {
-		return
-	}
-	if err := r.ParseForm(); err != nil {
-		http.Error(w, "bad request", http.StatusBadRequest)
-		return
-	}
-	if err := s.reg.SetHostname(mac, r.FormValue("hostname")); err != nil {
-		slog.Error("set hostname failed", "mac", mac, "err", err)
-		http.Error(w, "internal error", http.StatusInternalServerError)
-		return
-	}
-	http.Redirect(w, r, "/devices/"+mac, http.StatusSeeOther)
+	s.deviceUpdate(w, r, "hostname", func(mac string) error { return s.reg.SetHostname(mac, r.FormValue("hostname")) })
 }
-
 func (s *Server) setCategory(w http.ResponseWriter, r *http.Request) {
-	mac, ok := requireMAC(w, r)
-	if !ok {
-		return
-	}
-	if err := r.ParseForm(); err != nil {
-		http.Error(w, "bad request", http.StatusBadRequest)
-		return
-	}
-	if err := s.reg.SetCategory(mac, r.FormValue("category")); err != nil {
-		slog.Error("set category failed", "mac", mac, "err", err)
-		http.Error(w, "internal error", http.StatusInternalServerError)
-		return
-	}
-	http.Redirect(w, r, "/devices/"+mac, http.StatusSeeOther)
+	s.deviceUpdate(w, r, "category", func(mac string) error { return s.reg.SetCategory(mac, r.FormValue("category")) })
 }
-
-func (s *Server) approveDevice(w http.ResponseWriter, r *http.Request) {
-	mac, ok := requireMAC(w, r)
-	if !ok {
-		return
-	}
-	if err := s.reg.Approve(mac); err != nil {
-		slog.Error("approve device failed", "mac", mac, "err", err)
-		http.Error(w, "internal error", http.StatusInternalServerError)
-		return
-	}
-	http.Redirect(w, r, "/devices/"+mac, http.StatusSeeOther)
-}
-
 func (s *Server) setForcePing(w http.ResponseWriter, r *http.Request) {
-	mac, ok := requireMAC(w, r)
-	if !ok {
-		return
-	}
-	if err := r.ParseForm(); err != nil {
-		http.Error(w, "bad request", http.StatusBadRequest)
-		return
-	}
-	if err := s.reg.SetForcePing(mac, r.FormValue("force_ping") == "true"); err != nil {
-		slog.Error("set force_ping failed", "mac", mac, "err", err)
-		http.Error(w, "internal error", http.StatusInternalServerError)
-		return
-	}
-	http.Redirect(w, r, "/devices/"+mac, http.StatusSeeOther)
+	s.deviceUpdate(w, r, "force_ping", func(mac string) error { return s.reg.SetForcePing(mac, r.FormValue("force_ping") == "true") })
 }
-
 func (s *Server) setPriority(w http.ResponseWriter, r *http.Request) {
-	mac, ok := requireMAC(w, r)
-	if !ok {
-		return
-	}
-	if err := r.ParseForm(); err != nil {
-		http.Error(w, "bad request", http.StatusBadRequest)
-		return
-	}
-	if err := s.reg.SetPriority(mac, r.FormValue("priority") == "true"); err != nil {
-		slog.Error("set priority failed", "mac", mac, "err", err)
-		http.Error(w, "internal error", http.StatusInternalServerError)
-		return
-	}
-	http.Redirect(w, r, "/devices/"+mac, http.StatusSeeOther)
+	s.deviceUpdate(w, r, "priority", func(mac string) error { return s.reg.SetPriority(mac, r.FormValue("priority") == "true") })
+}
+func (s *Server) approveDevice(w http.ResponseWriter, r *http.Request) {
+	s.deviceUpdate(w, r, "approve", func(mac string) error { return s.reg.Approve(mac) })
 }
 
 func (s *Server) alertList(w http.ResponseWriter, r *http.Request) {

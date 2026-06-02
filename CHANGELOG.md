@@ -15,6 +15,18 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [1.0.8] — 2026-06-02
+
+### Fixed
+- **Discord-Alert "wieder online"** — Prio-Geräte senden jetzt auch beim Zurückkommen eine Discord-Benachrichtigung. Vorher war die Severity `info`, die im Routing nicht an Discord weitergeleitet wurde; jetzt `high` wie `new_device`. Ausserdem prüft der Handler wie `onDeviceLost` auf das Priority-Flag, sodass nur Prio-Geräte diesen Alert auslösen.
+- **Verbindungslinien bei Online-Filter** — Virtuelle Nodes (z. B. WLAN-Verbindungsknoten) werden beim Status-Filter nicht mehr ausgeblendet, sodass ihre Verbindungslinien erhalten bleiben.
+- **Map-Rebuild bei Filter-Toggle** — Online/Offline/Neu-Filter lösen jetzt einen vollständigen Neuaufbau der D3-Simulation aus (nur sichtbare Nodes, neue Cluster-Berechnung). Keine Geisterbereiche mehr von ausgeblendeten Nodes.
+
+### Changed
+- **Code-Optimierung** — 6 identische Device-Update-Handler in `server.go` zu einem `deviceUpdate`-Helper zusammengefasst (~50 Zeilen weniger). JS: `scatterNew`-Helper extrahiert, COLORS-Objekt um `danger`/`warning` erweitert, Status-Dot und Filter-Buttons nutzen COLORS statt Hardcoded-Hex. Ignorierte JSON-Fehler in Settings-Handler behoben. Makefile Image-Name korrigiert (`fischermanch/silentmap`).
+
+---
+
 ## [1.0.7] — 2026-05-22
 
 ### Added

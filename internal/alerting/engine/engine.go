@@ -99,6 +99,10 @@ func (e *Engine) onDeviceBack(ev bus.Event) {
 	if !e.cfg.Rules.DeviceBack.Enabled {
 		return
 	}
+	priority, _ := ev.Meta["priority"].(bool)
+	if !priority {
+		return
+	}
 	e.fire(Alert{
 		Type:     "device_back",
 		Severity: e.cfg.Rules.DeviceBack.Severity,
