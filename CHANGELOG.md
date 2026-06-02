@@ -18,12 +18,12 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 ## [1.0.8] — 2026-06-02
 
 ### Fixed
-- **Discord-Alert "wieder online"** — Prio-Geräte senden jetzt auch beim Zurückkommen eine Discord-Benachrichtigung. Vorher war die Severity `info`, die im Routing nicht an Discord weitergeleitet wurde; jetzt `high` wie `new_device`. Ausserdem prüft der Handler wie `onDeviceLost` auf das Priority-Flag, sodass nur Prio-Geräte diesen Alert auslösen.
-- **Verbindungslinien bei Online-Filter** — Virtuelle Nodes (z. B. WLAN-Verbindungsknoten) werden beim Status-Filter nicht mehr ausgeblendet, sodass ihre Verbindungslinien erhalten bleiben.
-- **Map-Rebuild bei Filter-Toggle** — Online/Offline/Neu-Filter lösen jetzt einen vollständigen Neuaufbau der D3-Simulation aus (nur sichtbare Nodes, neue Cluster-Berechnung). Keine Geisterbereiche mehr von ausgeblendeten Nodes.
+- **Discord alert — device back online** — priority devices now send a Discord notification when they come back online. The `device_back` rule was previously severity `info`, which the routing never forwarded to Discord; raised to `high` (matching `new_device`). The handler now also checks the priority flag — only priority devices trigger this alert, mirroring the existing `priority_offline` behaviour.
+- **Topology map — connection lines lost when online filter is active** — virtual nodes (e.g. a wireless link node) are no longer hidden by the online/offline status filter, so their connections stay visible regardless of the filter state.
+- **Topology map — ghost areas when hiding nodes** — toggling the online, offline, or new-device filter now triggers a full D3 simulation rebuild using only the visible nodes. The layout re-calculates clusters and forces from scratch, eliminating the empty space previously left behind by hidden nodes.
 
 ### Changed
-- **Code-Optimierung** — 6 identische Device-Update-Handler in `server.go` zu einem `deviceUpdate`-Helper zusammengefasst (~50 Zeilen weniger). JS: `scatterNew`-Helper extrahiert, COLORS-Objekt um `danger`/`warning` erweitert, Status-Dot und Filter-Buttons nutzen COLORS statt Hardcoded-Hex. Ignorierte JSON-Fehler in Settings-Handler behoben. Makefile Image-Name korrigiert (`fischermanch/silentmap`).
+- **Internal cleanup** — six near-identical device-update HTTP handlers unified into a single `deviceUpdate` helper; JS node-scatter logic extracted into a `scatterNew` helper; `COLORS` object extended with `danger`/`warning` entries used by status dots and filter buttons instead of hard-coded hex values; ignored `json.Unmarshal`/`MarshalIndent` errors in the settings handler now logged/returned; Makefile Docker image name corrected to `fischermanch/silentmap`.
 
 ---
 
