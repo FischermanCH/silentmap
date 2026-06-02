@@ -202,6 +202,8 @@ const COLORS = {
   accent:  cv('--sm-accent')       || '#38bdf8',
   text:    cv('--sm-text-primary') || '#f1f5f9',
   border:  cv('--sm-card-border')  || '#333',
+  danger:  '#ef4444',
+  warning: '#f59e0b',
 };
 const LINK_OPACITY = parseFloat(cv('--sm-link-opacity')) || 0.6;
 const ICONPATH = {
@@ -309,9 +311,12 @@ let hiddenGroups=new Set([UNGROUPED]); // ohne Gruppe standardmässig ausgeblend
 let statusFilter={online:true, offline:true, neu:false}; // Neu standardmässig aus
 
 // ── Visibility ───────────────────────────────────────────────────────────────
+function scatterNew(nodes,W,H){nodes.forEach(n=>{if(n.x===undefined){n.x=W/2+(Math.random()-.5)*80;n.y=H/2+(Math.random()-.5)*80;}});}
+
 function visibleNodes() {
   return allNodes.filter(n=>{
     if(hiddenGroups.has(groupOf(n)))     return false;
+    if(n.category==='virtual')           return true;
     if(!statusFilter.online  &&  n.online)  return false;
     if(!statusFilter.offline && !n.online)  return false;
     if(statusFilter.neu      &&  n.approved) return false;
@@ -383,30 +388,8 @@ async function load() {
 
   const el=document.getElementById('map');
   const W=el?el.clientWidth:800, H=el?el.clientHeight:400;
-  allNodes.forEach(n=>{
-    if(n.x===undefined){n.x=W/2+(Math.random()-.5)*80;n.y=H/2+(Math.random()-.5)*80;}
-  });
-  const clusterOf=buildClusters(allNodes);
-  clusterMeta=buildClusterMeta(clusterOf);
-  if(sim){
-    const el2=document.getElementById('map');
-    const W2=el2?el2.clientWidth:800, H2=el2?el2.clientHeight:400;
-    const deg2=computeDegree(allNodes,allLinks);
-    const maxDeg2=Math.max(1,...[...deg2.values()]);
-    // Recompute cluster angles/sizes for any new clusters
-    const cb2=new Map();
-    allNodes.forEach(n=>{const c=clusterOf.get(n.id)||UNGROUPED;if(!cb2.has(c))cb2.set(c,[]);cb2.get(c).push(n);});
-    const cl2=[...cb2.entries()].sort((a,b)=>b[1].length-a[1].length);
-    const ca2=new Map(), cs2=new Map();
-    cl2.forEach(([cid,cn],i)=>{ca2.set(cid,(i/Math.max(cl2.length,1))*Math.PI*2-Math.PI/2);cs2.set(cid,cn.length);});
-    sim.nodes(allNodes);
-    sim.force('cluster',      forceCluster(clusterOf,0.85));
-    sim.force('clusterRepel', forceClusterRepulsion(clusterOf,1.2,350));
-    sim.force('radial',       forceHubRadial(deg2,maxDeg2,W2,H2));
-    sim.force('anchor',       forceClusterAnchor(ca2,cs2,clusterOf,W2,H2));
-  }
-  drawLinks(); drawNodes(); drawHulls();
-  if(sim) sim.alpha(0.3).restart();
+  scatterNew(allNodes,W,H);
+  rebuildSim();
 }
 
 // ── Degree computation (number of links per node) ────────────────────────────
@@ -497,9 +480,9 @@ function buildStatusFilter() {
   if(!container) return;
   container.innerHTML='';
   const items=[
-    {key:'online',  label:'● Online',  colorOn:'#4ade80', colorOff:'var(--sm-text-muted)'},
-    {key:'offline', label:'○ Offline', colorOn:'#ef4444', colorOff:'var(--sm-text-muted)'},
-    {key:'neu',     label:'★ {{t "map.filter.new"}}', colorOn:'#f59e0b', colorOff:'var(--sm-text-muted)'},
+    {key:'online',  label:'● Online',  colorOn:COLORS.online,   colorOff:'var(--sm-text-muted)'},
+    {key:'offline', label:'○ Offline', colorOn:COLORS.danger,   colorOff:'var(--sm-text-muted)'},
+    {key:'neu',     label:'★ {{t "map.filter.new"}}', colorOn:COLORS.warning, colorOff:'var(--sm-text-muted)'},
   ];
   items.forEach(item=>{
     const btn=document.createElement('button');
@@ -525,16 +508,7 @@ function buildStatusFilter() {
   });
 }
 
-function applyStatusFilter() {
-  if(nodeSel){
-    nodeSel.attr('opacity',d=>(hiddenGroups.has(groupOf(d))||isHiddenByStatus(d))?0:1)
-           .attr('pointer-events',d=>(hiddenGroups.has(groupOf(d))||isHiddenByStatus(d))?'none':'auto');
-  }
-  drawLinks();
-  updateHulls();
-  const vn=visibleNodes();
-  if(vn.length) fitView(null,null,vn,true);
-}
+function applyStatusFilter() { rebuildSim(); }
 
 function isHiddenByStatus(n){
   if(!statusFilter.online  &&  n.online)   return true;
@@ -543,15 +517,47 @@ function isHiddenByStatus(n){
   return false;
 }
 
-function applyGroupFilter() {
-  if(nodeSel){
-    nodeSel.attr('opacity',d=>(hiddenGroups.has(groupOf(d))||isHiddenByStatus(d))?0:1)
-           .attr('pointer-events',d=>(hiddenGroups.has(groupOf(d))||isHiddenByStatus(d))?'none':'auto');
-  }
+function applyGroupFilter() { rebuildSim(); }
+
+function rebuildSim() {
+  if(!sim) return;
+  const el=document.getElementById('map');
+  const W=el?el.clientWidth:800, H=el?el.clientHeight:400;
+  const vn=visibleNodes();
+  if(!vn.length) return;
+
+  scatterNew(vn,W,H);
+
+  const clusterOf=buildClusters(vn);
+  currentClusterOf=clusterOf;
+  clusterMeta=buildClusterMeta(clusterOf);
+  const deg=computeDegree(vn,visibleLinks());
+  const maxDeg=Math.max(1,...[...deg.values()]);
+
+  const clusterBuckets=new Map();
+  vn.forEach(n=>{const c=clusterOf.get(n.id)||UNGROUPED;if(!clusterBuckets.has(c))clusterBuckets.set(c,[]);clusterBuckets.get(c).push(n);});
+  const clsList=[...clusterBuckets.entries()].sort((a,b)=>b[1].length-a[1].length);
+  const clusterAngles=new Map(), clusterSizes=new Map();
+  clsList.forEach(([cid,cnodes],i)=>{
+    clusterAngles.set(cid,(i/Math.max(clsList.length,1))*Math.PI*2-Math.PI/2);
+    clusterSizes.set(cid,cnodes.length);
+  });
+
+  sim.stop();
+  sim.nodes(vn);
+  sim.force('charge',      d3.forceManyBody().strength(mapParams.charge).distanceMax(600));
+  sim.force('collide',     d3.forceCollide(mapParams.collide));
+  sim.force('center',      d3.forceCenter(W/2,H/2).strength(0.04));
+  sim.force('anchor',      forceClusterAnchor(clusterAngles,clusterSizes,clusterOf,W,H));
+  sim.force('radial',      forceHubRadial(deg,maxDeg,W,H));
+  sim.force('cluster',     forceCluster(clusterOf,mapParams.clusterStr));
+  sim.force('clusterRepel',forceClusterRepulsion(clusterOf,1.2,350));
+
+  drawNodes();
   drawLinks();
   updateHulls();
-  const vn=visibleNodes();
-  if(vn.length) fitView(null,null,vn,true);
+  sim.alpha(0.5).restart();
+  setTimeout(()=>fitView(W,H,vn,true),150);
 }
 
 // ── Cluster forces ────────────────────────────────────────────────────────────
@@ -727,8 +733,8 @@ function fullRender() {
 
   currentClusterOf = clusterOf;
 
-  sim=d3.forceSimulation(allNodes)
-    .force('link',       d3.forceLink(allLinks).id(d=>d.id)
+  sim=d3.forceSimulation(visibleNodes())
+    .force('link',       d3.forceLink([]).id(d=>d.id)
       .distance(d=>d.type==='logical'?30:mapParams.linkDist)
       .strength(d=>d.type==='logical'?0.9:0.35))
     .force('charge',     d3.forceManyBody().strength(mapParams.charge).distanceMax(600))
@@ -780,11 +786,9 @@ function drawLinks() {
 function drawNodes() {
   if(!nodeLayer) return;
   nodeLayer.selectAll('*').remove();
-  nodeSel=nodeLayer.selectAll('g').data(allNodes).join('g')
+  nodeSel=nodeLayer.selectAll('g').data(visibleNodes()).join('g')
     .attr('cursor','pointer')
     .attr('transform',d=>`translate(${d.x||0},${d.y||0})`)
-    .attr('opacity',  d=>(hiddenGroups.has(groupOf(d))||isHiddenByStatus(d))?0:1)
-    .attr('pointer-events',d=>(hiddenGroups.has(groupOf(d))||isHiddenByStatus(d))?'none':'auto')
     .call(d3.drag()
       .on('start',(e,d)=>{sim.alphaTarget(0.1).restart();d.fx=d.x;d.fy=d.y;})
       .on('drag', (e,d)=>{d.fx=e.x;d.fy=e.y;})
@@ -813,7 +817,7 @@ function drawNodes() {
     .attr('class','status-dot')
     .attr('r',3.5)
     .attr('cx',d=>d.priority?13:9).attr('cy',d=>d.priority?-13:-9)
-    .attr('fill',        d=>d.online?'#4ade80':'#ef4444')
+    .attr('fill',        d=>d.online?COLORS.online:COLORS.danger)
     .attr('stroke',      'var(--sm-card-bg)')
     .attr('stroke-width',1.5)
     .attr('display',     d=>d.category==='virtual'?'none':null);
