@@ -294,7 +294,7 @@ function toggleMapSettings() {
 }
 
 function catColor(cat) { return CATCOLOR[cat] || COLORS.border; }
-function linkColor(t)  { return t==='physical'?COLORS.online:t==='logical'?COLORS.accent:COLORS.border; }
+function linkColor(t)  { return t==='physical'?COLORS.online:t==='logical'?COLORS.accent:COLORS.text; }
 function groupOf(n)    { return (n.groups&&n.groups.length>0)?n.groups[0]:UNGROUPED; }
 function idOf(ep)      { return typeof ep==='object'?ep.id:ep; }
 
