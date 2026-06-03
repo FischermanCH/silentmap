@@ -15,6 +15,17 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [1.0.10] — 2026-06-04
+
+### Fixed
+- **Light theme — nav dropdown unreadable** — dropdown links inherited `nav-text` (near-white) from the nav bar override, making them invisible against the white `card-bg` dropdown background. Added an explicit `a.dd-link` rule that resets link colour to `text-primary` and hover to `accent`.
+- **All themes — semantic badge colours not theme-aware** — status badges (`bg-green-100`, `bg-red-100`, `bg-orange-100`, `bg-yellow-100`, `bg-amber-50`) and their text classes used hardcoded Tailwind colours. On dark themes these light-coloured backgrounds were jarring against dark cards. All themes now define `badge-success/danger/orange/warning/amber` colour pairs; the CSS override layer maps the Tailwind classes to these variables.
+- **Light theme — topology map auto-links invisible** — auto-detected link lines used `COLORS.border` (`--sm-card-border` = `#e5e7eb` in light theme) at reduced opacity, making them practically invisible on the white map background. Switched to `COLORS.text` so auto-links render as a subtle semi-transparent dark stroke in all themes.
+- **All themes — `font-mono` colour override too broad** — the global `.font-mono { color: var(--sm-text-primary) !important }` rule overwrote explicit inline colours on nav stat numbers and table IPs. Removed; each element already carries its own explicit colour.
+- **All themes — primary button hover shows wrong colour** — `hover:bg-blue-700` was mapped to `text-secondary` (grey). Changed to use the accent colour with `brightness(0.85)` so the hover darkens the button naturally in all themes.
+
+---
+
 ## [1.0.9] — 2026-06-03
 
 ### Fixed

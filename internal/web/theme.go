@@ -43,11 +43,14 @@ func (t *Theme) CSS() template.CSS {
 .text-gray-300, .text-gray-200     { color: var(--sm-card-border)    !important; }
 .text-blue-600                     { color: var(--sm-accent)          !important; }
 
-/* Nav */
+/* Nav bar */
 nav                                { background-color: var(--sm-nav-bg) !important; }
 nav a, nav span, nav label         { color: var(--sm-nav-text) !important; }
 nav a:hover                        { color: var(--sm-accent) !important; }
 nav .font-bold                     { color: var(--sm-accent) !important; }
+/* Nav dropdown — links live on card-bg, must use page text not nav-text */
+a.dd-link                          { color: var(--sm-text-primary) !important; }
+a.dd-link:hover                    { color: var(--sm-accent)        !important; opacity: 1 !important; }
 
 /* Status dots */
 .bg-green-400, .bg-green-500       { background-color: var(--sm-online)  !important; }
@@ -57,20 +60,38 @@ nav .font-bold                     { color: var(--sm-accent) !important; }
 .hover\:bg-blue-50\/30:hover       { background-color: var(--sm-row-hover) !important; }
 .hover\:bg-gray-50:hover           { background-color: var(--sm-row-hover) !important; }
 
-/* Badges */
+/* Primary action buttons */
+.bg-blue-600                       { background-color: var(--sm-accent) !important; color: var(--sm-page-bg) !important; }
+.hover\:bg-blue-700:hover          { background-color: var(--sm-accent) !important; filter: brightness(0.85); }
+
+/* Info / accent badges */
 .bg-blue-50                        { background-color: var(--sm-badge-info-bg)   !important; }
+.bg-blue-100                       { background-color: var(--sm-badge-info-bg)   !important; }
+.hover\:bg-blue-100:hover          { background-color: var(--sm-badge-info-bg)   !important; filter: brightness(0.92); }
+.border-blue-200                   { border-color:     var(--sm-card-border)      !important; }
 .text-blue-700                     { color:            var(--sm-badge-info-text) !important; }
 .text-blue-600                     { color:            var(--sm-accent)          !important; }
 .text-blue-500                     { color:            var(--sm-accent)          !important; }
-.bg-blue-600                       { background-color: var(--sm-accent)          !important; color: var(--sm-page-bg) !important; }
-.hover\:bg-blue-700:hover          { background-color: var(--sm-text-secondary)  !important; }
+
+/* Semantic status badges — all themes */
+.bg-green-100                      { background-color: var(--sm-badge-success-bg)  !important; }
+.text-green-800                    { color:            var(--sm-badge-success-txt) !important; }
+.bg-red-100                        { background-color: var(--sm-badge-danger-bg)   !important; }
+.bg-red-50                         { background-color: var(--sm-badge-danger-bg)   !important; }
+.hover\:bg-red-100:hover           { background-color: var(--sm-badge-danger-bg)   !important; filter: brightness(0.92); }
+.text-red-700, .text-red-800       { color:            var(--sm-badge-danger-txt)  !important; }
+.text-red-600, .text-red-500       { color:            var(--sm-badge-danger-txt)  !important; }
+.border-red-200                    { border-color:     var(--sm-badge-danger-bdr)  !important; }
+.bg-orange-100                     { background-color: var(--sm-badge-orange-bg)   !important; }
+.text-orange-800                   { color:            var(--sm-badge-orange-txt)  !important; }
+.bg-yellow-100                     { background-color: var(--sm-badge-warning-bg)  !important; }
+.text-yellow-800                   { color:            var(--sm-badge-warning-txt) !important; }
+.bg-amber-50                       { background-color: var(--sm-badge-amber-bg)    !important; }
+.text-amber-800                    { color:            var(--sm-badge-amber-txt)   !important; }
 
 /* Purple → theme accent (mDNS badges, etc.) */
 .bg-purple-50                      { background-color: var(--sm-badge-info-bg)   !important; }
 .text-purple-700                   { color:            var(--sm-accent)          !important; }
-
-/* Monospace (IPs, MACs) */
-.font-mono                         { color: var(--sm-text-primary) !important; }
 
 /* Input / select */
 input, select, textarea            { background-color: var(--sm-card-bg) !important; color: var(--sm-text-primary) !important; border-color: var(--sm-card-border) !important; }
