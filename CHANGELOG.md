@@ -15,6 +15,16 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [1.0.11] — 2026-06-04
+
+### Fixed
+- **Docker — data directory permission error on fresh deploy** — the `silentmap` user (non-root) could not write to `/data` on first start because the directory was created as root during the image build. Added `mkdir -p /data && chown silentmap:silentmap /data` to the Dockerfile so named volumes are initialised with correct ownership automatically.
+
+### Changed
+- **`portainer-stack.yml`** — removed deprecated `version: '3.8'` field; switched from bind mount to a named volume (`silentmap-data`) so Docker handles data-directory permissions automatically on any host.
+
+---
+
 ## [1.0.10] — 2026-06-04
 
 ### Fixed
