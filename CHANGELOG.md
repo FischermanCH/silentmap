@@ -15,6 +15,13 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [1.0.12] — 2026-06-04
+
+### Fixed
+- **nmap scan fails with "could not locate nse_main.lua"** — in Alpine Linux `nmap` and `nmap-scripts` are separate packages; only `nmap` was installed in the Docker image, so the NSE script engine could not initialise. Added `nmap-scripts` to the `apk add` step in the Dockerfile.
+
+---
+
 ## [1.0.11] — 2026-06-04
 
 ### Fixed
