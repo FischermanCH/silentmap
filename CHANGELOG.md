@@ -15,6 +15,13 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [1.0.9] — 2026-06-03
+
+### Fixed
+- **Topology map — delayed centering on load** — the map now centres correctly within the first render instead of drifting for several seconds. Previously the D3 simulation started at full alpha and `fitView` only fired once `alpha` decayed below 0.05 (~75 ticks / 1–2 s), during which nodes flew around off-screen. The simulation is now pre-ticked synchronously before the first paint so nodes are already in their near-final positions when the canvas appears. The same fix applies when filters are toggled (`rebuildSim`), replacing the previous 150 ms `setTimeout` hack with the same pre-tick approach.
+
+---
+
 ## [1.0.8] — 2026-06-02
 
 ### Fixed

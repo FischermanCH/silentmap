@@ -553,11 +553,14 @@ function rebuildSim() {
   sim.force('cluster',     forceCluster(clusterOf,mapParams.clusterStr));
   sim.force('clusterRepel',forceClusterRepulsion(clusterOf,1.2,350));
 
+  // Pre-converge new layout so fitView sees near-final positions
+  for(let i=0;i<80;i++) sim.tick();
+
   drawNodes();
   drawLinks();
   updateHulls();
-  sim.alpha(0.5).restart();
-  setTimeout(()=>fitView(W,H,vn,true),150);
+  fitView(W,H,vn,true);
+  sim.alpha(0.05).restart();
 }
 
 // ── Cluster forces ────────────────────────────────────────────────────────────
@@ -744,19 +747,22 @@ function fullRender() {
     .force('radial',     forceHubRadial(deg,maxDeg,W,H))
     .force('cluster',    forceCluster(clusterOf,mapParams.clusterStr))
     .force('clusterRepel', forceClusterRepulsion(clusterOf,1.2,350))
-    .alphaDecay(0.03).velocityDecay(0.4);
+    .alphaDecay(0.03).velocityDecay(0.4)
+    .stop();
+
+  // Pre-converge layout synchronously so map is centred from the first render
+  for(let i=0;i<120;i++) sim.tick();
 
   drawLinks(); drawNodes(); drawHulls();
   fitView(W,H,visibleNodes());
   initialized=true;
 
-  let fitted=false;
+  sim.alpha(0.04).restart();
   sim.on('tick',()=>{
     if(linkSel) linkSel.attr('x1',d=>d.source.x).attr('y1',d=>d.source.y)
                         .attr('x2',d=>d.target.x).attr('y2',d=>d.target.y);
     if(nodeSel) nodeSel.attr('transform',d=>`translate(${d.x},${d.y})`);
     updateHulls();
-    if(!fitted&&sim.alpha()<0.05){fitted=true;fitView(W,H,visibleNodes());}
   });
 }
 
