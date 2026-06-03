@@ -28,7 +28,8 @@ RUN apk add --no-cache \
     iputils
 
 RUN apk add --no-cache libcap && \
-    addgroup -S silentmap && adduser -S -G silentmap silentmap
+    addgroup -S silentmap && adduser -S -G silentmap silentmap && \
+    mkdir -p /data && chown silentmap:silentmap /data
 
 WORKDIR /app
 
