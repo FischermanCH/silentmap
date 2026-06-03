@@ -25,6 +25,7 @@ RUN apk add --no-cache \
     ca-certificates \
     tzdata \
     nmap \
+    nmap-scripts \
     iputils
 
 RUN apk add --no-cache libcap && \
