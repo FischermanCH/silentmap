@@ -15,6 +15,17 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [1.0.13] — 2026-06-04
+
+### Added
+- **Scan-in-progress indicator** — clicking "nmap starten" no longer redirects the page. The button disables, a "läuft…" badge appears in the accordion header, and the UI polls `/devices/{mac}/nmap/status` every 2 s. When the scan finishes the page reloads automatically to show the new activity-log entry. Opening the device page while a scan is already running detects the state immediately and shows the same indicator. Concurrent scan requests for the same device are rejected with HTTP 409.
+- **nmap / mDNS data in map tooltip** — the hover tooltip on the topology map now shows vendor, OS info (from nmap) and mDNS service names when available.
+
+### Fixed
+- **Topology map — group label wobbles on load** — hull labels were repositioned every simulation tick, causing visible jitter during the brief settling animation. Label position updates now use a 180 ms eased D3 transition so movement is smooth.
+
+---
+
 ## [1.0.12] — 2026-06-04
 
 ### Fixed
