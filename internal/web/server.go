@@ -18,6 +18,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -74,6 +75,8 @@ type Server struct {
 	pingCol   *ping.Collector
 	version   string
 	buildTime string
+	scanMu    sync.RWMutex
+	scanning  map[string]bool // mac → scan in progress
 }
 
 func NewServer(reg *registry.Registry, alertEng *engine.Engine, db *sql.DB, dataDir string, nmapArgs string, discordCh *discord.Channel, ntfyCh *ntfy.Channel, pingCol *ping.Collector, version, buildTime string) *Server {
@@ -94,6 +97,7 @@ func NewServer(reg *registry.Registry, alertEng *engine.Engine, db *sql.DB, data
 		ntfyCh:    ntfyCh,
 		pingCol:   pingCol,
 		version:   version,
+		scanning:  make(map[string]bool),
 		buildTime: buildTime,
 		funcMap: template.FuncMap{
 			// t/tf/timeAgo are injected per-request in render() with lang baked in
@@ -182,6 +186,7 @@ func (s *Server) Handler() http.Handler {
 	r.Get("/api/export", s.exportDevices)
 	r.Post("/api/import", s.importDevices)
 	r.Post("/devices/{mac}/nmap", s.runNmap)
+	r.Get("/devices/{mac}/nmap/status", s.nmapStatus)
 	r.Get("/settings", s.settingsPage)
 	r.Post("/settings/theme", s.setTheme)
 	r.Post("/settings/lang", s.setLang)
@@ -985,9 +990,18 @@ func (s *Server) runNmap(w http.ResponseWriter, r *http.Request) {
 	mac := chi.URLParam(r, "mac")
 	dev, err := s.reg.Get(mac)
 	if err != nil || dev.IP == "" {
-		http.Redirect(w, r, "/devices/"+mac, http.StatusSeeOther)
+		http.Error(w, "device not found", http.StatusNotFound)
 		return
 	}
+
+	s.scanMu.Lock()
+	if s.scanning[mac] {
+		s.scanMu.Unlock()
+		w.WriteHeader(http.StatusConflict)
+		return
+	}
+	s.scanning[mac] = true
+	s.scanMu.Unlock()
 
 	args := s.nmapArgs
 	if args == "" {
@@ -995,6 +1009,12 @@ func (s *Server) runNmap(w http.ResponseWriter, r *http.Request) {
 	}
 
 	go func() {
+		defer func() {
+			s.scanMu.Lock()
+			delete(s.scanning, mac)
+			s.scanMu.Unlock()
+		}()
+
 		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)
 		defer cancel()
 
@@ -1012,7 +1032,20 @@ func (s *Server) runNmap(w http.ResponseWriter, r *http.Request) {
 		slog.Info("nmap scan complete", "mac", mac, "ip", dev.IP, "os", result.OsInfo, "ports", len(result.Ports))
 	}()
 
-	http.Redirect(w, r, "/devices/"+mac, http.StatusSeeOther)
+	w.WriteHeader(http.StatusAccepted)
+}
+
+func (s *Server) nmapStatus(w http.ResponseWriter, r *http.Request) {
+	mac := chi.URLParam(r, "mac")
+	s.scanMu.RLock()
+	running := s.scanning[mac]
+	s.scanMu.RUnlock()
+	w.Header().Set("Content-Type", "application/json")
+	if running {
+		fmt.Fprint(w, `{"scanning":true}`)
+	} else {
+		fmt.Fprint(w, `{"scanning":false}`)
+	}
 }
 
 var mdiPaths = map[string]string{

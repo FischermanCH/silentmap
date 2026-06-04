@@ -652,6 +652,7 @@ function updateHulls() {
     hull.forEach(p=>{const d=Math.hypot(p[0]-cx,p[1]-cy);if(d>bestDist){bestDist=d;bestPt=p;}});
     const dx=bestPt[0]-cx,dy=bestPt[1]-cy,len=Math.hypot(dx,dy)||1;
     d3.select(this).select('text')
+      .transition().duration(180).ease(d3.easeCubicOut)
       .attr('x',bestPt[0]+dx/len*16).attr('y',bestPt[1]+dy/len*16+4)
       .attr('text-anchor',dx>=0?'start':'end');
   });
@@ -874,10 +875,13 @@ function fitView(W,H,nodes,animate) {
 // ── Tooltip ───────────────────────────────────────────────────────────────────
 function showTip(e,d){
   const tip=document.getElementById('tooltip');
-  tip.innerHTML=`<div class="font-bold mb-1">${d.name}</div>`
-    +`<div class="opacity-60 font-mono text-xs">${d.id}</div>`
-    +(d.ip?`<div class="mt-1 font-mono">${d.ip}</div>`:'')
-    +(d.category?`<div class="mt-0.5 opacity-70">${d.category}</div>`:'');
+  const svc=d.services&&d.services.length?d.services.slice(0,4).map(s=>s.replace(/^\./,'')).join(', '):'';
+  tip.innerHTML=`<div class="font-bold mb-1">${esc(d.name)}</div>`
+    +`<div class="opacity-60 font-mono text-xs">${esc(d.id)}</div>`
+    +(d.ip?`<div class="mt-1 font-mono">${esc(d.ip)}</div>`:'')
+    +(d.vendor?`<div class="mt-0.5 opacity-60 text-xs">${esc(d.vendor)}</div>`:'')
+    +(d.os?`<div class="mt-1 text-xs opacity-85">💻 ${esc(d.os)}</div>`:'')
+    +(svc?`<div class="mt-0.5 text-xs opacity-70">⬡ ${esc(svc)}</div>`:'');
   tip.style.left=(e.pageX+12)+'px'; tip.style.top=(e.pageY-10)+'px';
   tip.classList.replace('opacity-0','opacity-100');
 }

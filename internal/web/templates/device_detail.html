@@ -360,22 +360,99 @@
 
     <!-- nmap Scan (aufklappbar) -->
     {{if $d.IP}}
-    <details class="rounded-xl border" style="background-color:var(--sm-card-bg);border-color:var(--sm-card-border)">
+    <details id="nmap-details" class="rounded-xl border" style="background-color:var(--sm-card-bg);border-color:var(--sm-card-border)">
       <summary class="flex items-center justify-between px-5 py-3.5 cursor-pointer select-none">
-        <span class="font-semibold text-sm" style="color:var(--sm-text-primary)">🔍 Scan</span>
+        <span class="font-semibold text-sm flex items-center gap-2" style="color:var(--sm-text-primary)">
+          🔍 Scan
+          <span id="nmap-badge" class="hidden text-xs px-1.5 py-0.5 rounded font-medium" style="background:var(--sm-badge-warning-bg);color:var(--sm-badge-warning-txt)">läuft…</span>
+        </span>
         <span class="chev text-xs" style="color:var(--sm-text-muted)">▸</span>
       </summary>
       <div class="px-5 pb-5 pt-3 border-t" style="border-color:var(--sm-card-border)">
         <p class="text-xs mb-3" style="color:var(--sm-text-muted)">Startet einen nmap-Scan gegen {{$d.IP}}. Ergebnisse erscheinen im Aktivitäts-Log.</p>
-        <form action="/devices/{{$d.MAC}}/nmap" method="POST">
-          <button type="submit"
-            class="w-full border py-2 rounded-lg text-sm transition-colors font-medium flex items-center justify-center gap-2"
-            style="background-color:var(--sm-card-bg);border-color:var(--sm-card-border);color:var(--sm-text-secondary)">
-            nmap starten
-          </button>
-        </form>
+        <button id="nmap-btn" onclick="startNmap()"
+          class="w-full border py-2 rounded-lg text-sm transition-colors font-medium flex items-center justify-center gap-2"
+          style="background-color:var(--sm-card-bg);border-color:var(--sm-card-border);color:var(--sm-text-secondary)">
+          nmap starten
+        </button>
+        <div id="nmap-status" class="hidden mt-3 text-xs text-center" style="color:var(--sm-text-muted)"></div>
       </div>
     </details>
+    <script>
+    (function(){
+      const mac = '{{$d.MAC}}';
+      let pollTimer = null;
+
+      function startNmap() {
+        const btn = document.getElementById('nmap-btn');
+        const badge = document.getElementById('nmap-badge');
+        const status = document.getElementById('nmap-status');
+        const details = document.getElementById('nmap-details');
+
+        btn.disabled = true;
+        btn.style.opacity = '0.5';
+        btn.style.cursor = 'not-allowed';
+        badge.classList.remove('hidden');
+        details.open = true;
+        status.textContent = 'Scan gestartet — Ergebnisse erscheinen nach Abschluss im Log.';
+        status.classList.remove('hidden');
+
+        fetch('/devices/' + mac + '/nmap', {method:'POST'})
+          .then(function(r) {
+            if (r.status === 409) {
+              status.textContent = 'Scan läuft bereits.';
+              return;
+            }
+            pollTimer = setInterval(function() {
+              fetch('/devices/' + mac + '/nmap/status')
+                .then(function(r){ return r.json(); })
+                .then(function(d) {
+                  if (!d.scanning) {
+                    clearInterval(pollTimer);
+                    status.textContent = 'Scan abgeschlossen — Seite wird neu geladen…';
+                    setTimeout(function(){ window.location.reload(); }, 800);
+                  }
+                }).catch(function(){});
+            }, 2000);
+          })
+          .catch(function() {
+            btn.disabled = false;
+            btn.style.opacity = '';
+            btn.style.cursor = '';
+            badge.classList.add('hidden');
+            status.textContent = 'Fehler beim Starten des Scans.';
+          });
+      }
+      window.startNmap = startNmap;
+
+      // On page load: check if a scan is already running (e.g. after page reload)
+      fetch('/devices/' + mac + '/nmap/status')
+        .then(function(r){ return r.json(); })
+        .then(function(d) {
+          if (d.scanning) {
+            const btn = document.getElementById('nmap-btn');
+            const badge = document.getElementById('nmap-badge');
+            const status = document.getElementById('nmap-status');
+            btn.disabled = true;
+            btn.style.opacity = '0.5';
+            btn.style.cursor = 'not-allowed';
+            badge.classList.remove('hidden');
+            status.textContent = 'Scan läuft…';
+            status.classList.remove('hidden');
+            pollTimer = setInterval(function() {
+              fetch('/devices/' + mac + '/nmap/status')
+                .then(function(r){ return r.json(); })
+                .then(function(d) {
+                  if (!d.scanning) {
+                    clearInterval(pollTimer);
+                    window.location.reload();
+                  }
+                }).catch(function(){});
+            }, 2000);
+          }
+        }).catch(function(){});
+    })();
+    </script>
     {{end}}
 
     <!-- Gerät löschen (aufklappbar, immer letzte Kachel) -->
