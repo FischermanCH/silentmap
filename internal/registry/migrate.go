@@ -80,6 +80,7 @@ func migrate(db *sql.DB) error {
 	db.Exec(`DROP TABLE IF EXISTS device_parents`)
 	db.Exec(`ALTER TABLE devices ADD COLUMN os_info TEXT NOT NULL DEFAULT ''`)
 	db.Exec(`ALTER TABLE devices ADD COLUMN force_ping INTEGER NOT NULL DEFAULT 0`)
+	db.Exec(`ALTER TABLE devices ADD COLUMN nmap_ports TEXT NOT NULL DEFAULT '[]'`)
 	db.Exec(`CREATE TABLE IF NOT EXISTS settings (
 		key   TEXT PRIMARY KEY,
 		value TEXT NOT NULL DEFAULT ''

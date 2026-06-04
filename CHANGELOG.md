@@ -15,6 +15,16 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [1.0.14] — 2026-06-04
+
+### Added
+- **nmap port results in device detail** — open ports from the last nmap scan are now stored in the database (`nmap_ports` column) and displayed as a dedicated "Offene Ports" section in the device info card. Ports are also included in the topology map node tooltip.
+
+### Fixed
+- **Topology map — group labels flicker on load** — hull labels are now hidden during the entire settling animation and only appear (without transition) once the simulation alpha drops below 0.015. Previously labels were repositioned every tick, causing visible jitter even with the D3 transition added in v1.0.13.
+
+---
+
 ## [1.0.13] — 2026-06-04
 
 ### Added
