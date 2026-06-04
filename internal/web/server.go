@@ -1028,6 +1028,9 @@ func (s *Server) runNmap(w http.ResponseWriter, r *http.Request) {
 		if result.OsInfo != "" {
 			s.reg.SetOsInfo(mac, result.OsInfo)
 		}
+		if len(result.Ports) > 0 {
+			s.reg.SetNmapPorts(mac, result.Ports)
+		}
 		s.reg.AddEvent(mac, dev.IP, "nmap", "web", result.Summary())
 		slog.Info("nmap scan complete", "mac", mac, "ip", dev.IP, "os", result.OsInfo, "ports", len(result.Ports))
 	}()

@@ -55,7 +55,8 @@ type Device struct {
 	Label        string
 	Category     string
 	Services     []string // mDNS service types, e.g. ["_airplay._tcp","_smb._tcp"]
-	OsInfo       string // from nmap OS detection
+	OsInfo       string   // from nmap OS detection
+	NmapPorts    []string // open ports from last nmap scan, e.g. ["22/tcp open ssh OpenSSH 8.4"]
 	ForcePing    bool   // use ICMP ping instead of ARP (for devices outside local subnet)
 	Priority     bool
 	Approved     bool
@@ -465,7 +466,7 @@ func (r *Registry) SetCategory(mac, category string) error {
 
 func (r *Registry) List() ([]Device, error) {
 	rows, err := r.db.Query(`
-		SELECT mac, ip, hostname, hostname_auto, vendor, label, category, services, priority, approved, online, first_seen, last_seen, os_info, force_ping
+		SELECT mac, ip, hostname, hostname_auto, vendor, label, category, services, priority, approved, online, first_seen, last_seen, os_info, force_ping, nmap_ports
 		FROM devices
 	`)
 	if err != nil {
@@ -590,8 +591,9 @@ type TopoNode struct {
 	Online   bool     `json:"online"`
 	Priority bool     `json:"priority"`
 	Approved bool     `json:"approved"`
-	OsInfo   string   `json:"os,omitempty"`
-	Services []string `json:"services,omitempty"`
+	OsInfo    string   `json:"os,omitempty"`
+	Services  []string `json:"services,omitempty"`
+	NmapPorts []string `json:"ports,omitempty"`
 }
 
 type TopoGroup struct {
@@ -647,17 +649,18 @@ func (r *Registry) Topology() (*Topology, error) {
 			grps = []string{}
 		}
 		topo.Nodes = append(topo.Nodes, TopoNode{
-			ID:       d.MAC,
-			Name:     d.DisplayName(),
-			IP:       d.IP,
-			Vendor:   d.Vendor,
-			Category: d.Category,
-			Groups:   grps,
-			Online:   d.Online,
-			Priority: d.Priority,
-			Approved: d.Approved,
-			OsInfo:   d.OsInfo,
-			Services: d.Services,
+			ID:        d.MAC,
+			Name:      d.DisplayName(),
+			IP:        d.IP,
+			Vendor:    d.Vendor,
+			Category:  d.Category,
+			Groups:    grps,
+			Online:    d.Online,
+			Priority:  d.Priority,
+			Approved:  d.Approved,
+			OsInfo:    d.OsInfo,
+			Services:  d.Services,
+			NmapPorts: d.NmapPorts,
 		})
 	}
 
@@ -856,22 +859,23 @@ func (r *Registry) macByIP(ip string) string {
 
 func (r *Registry) get(mac string) (Device, error) {
 	row := r.db.QueryRow(`
-		SELECT mac, ip, hostname, hostname_auto, vendor, label, category, services, priority, approved, online, first_seen, last_seen, os_info, force_ping
+		SELECT mac, ip, hostname, hostname_auto, vendor, label, category, services, priority, approved, online, first_seen, last_seen, os_info, force_ping, nmap_ports
 		FROM devices WHERE mac = ?`, mac)
 	return r.scanDevice(row)
 }
 
 func (r *Registry) scanDevice(row *sql.Row) (Device, error) {
 	var d Device
-	var firstSeen, lastSeen, servicesJSON string
+	var firstSeen, lastSeen, servicesJSON, nmapPortsJSON string
 	err := row.Scan(&d.MAC, &d.IP, &d.Hostname, &d.HostnameAuto, &d.Vendor, &d.Label,
-		&d.Category, &servicesJSON, &d.Priority, &d.Approved, &d.Online, &firstSeen, &lastSeen, &d.OsInfo, &d.ForcePing)
+		&d.Category, &servicesJSON, &d.Priority, &d.Approved, &d.Online, &firstSeen, &lastSeen, &d.OsInfo, &d.ForcePing, &nmapPortsJSON)
 	if err != nil {
 		return d, err
 	}
 	d.FirstSeen = parseTime(firstSeen)
 	d.LastSeen = parseTime(lastSeen)
 	d.Services = unmarshalServices(servicesJSON)
+	d.NmapPorts = unmarshalServices(nmapPortsJSON)
 	return d, nil
 }
 
@@ -879,15 +883,16 @@ func (r *Registry) scanDevices(rows *sql.Rows) ([]Device, error) {
 	var devices []Device
 	for rows.Next() {
 		var d Device
-		var firstSeen, lastSeen, servicesJSON string
+		var firstSeen, lastSeen, servicesJSON, nmapPortsJSON string
 		err := rows.Scan(&d.MAC, &d.IP, &d.Hostname, &d.HostnameAuto, &d.Vendor, &d.Label,
-			&d.Category, &servicesJSON, &d.Priority, &d.Approved, &d.Online, &firstSeen, &lastSeen, &d.OsInfo, &d.ForcePing)
+			&d.Category, &servicesJSON, &d.Priority, &d.Approved, &d.Online, &firstSeen, &lastSeen, &d.OsInfo, &d.ForcePing, &nmapPortsJSON)
 		if err != nil {
 			continue
 		}
 		d.FirstSeen = parseTime(firstSeen)
 		d.LastSeen = parseTime(lastSeen)
 		d.Services = unmarshalServices(servicesJSON)
+		d.NmapPorts = unmarshalServices(nmapPortsJSON)
 		devices = append(devices, d)
 	}
 	return devices, nil
@@ -1295,7 +1300,7 @@ func (r *Registry) Import(payload *ExportPayload) (ImportResult, error) {
 // PriorityDevices returns all priority devices that have an IP address.
 func (r *Registry) PriorityDevices() []Device {
 	rows, err := r.db.Query(`
-		SELECT mac, ip, hostname, hostname_auto, vendor, label, category, services, priority, approved, online, first_seen, last_seen, os_info, force_ping
+		SELECT mac, ip, hostname, hostname_auto, vendor, label, category, services, priority, approved, online, first_seen, last_seen, os_info, force_ping, nmap_ports
 		FROM devices WHERE priority = 1 AND ip != ''`)
 	if err != nil {
 		return nil
@@ -1314,6 +1319,12 @@ func (r *Registry) SetForcePing(mac string, v bool) error {
 // SetOsInfo stores nmap OS detection results for a device.
 func (r *Registry) SetOsInfo(mac, osInfo string) error {
 	_, err := r.db.Exec(`UPDATE devices SET os_info = ? WHERE mac = ?`, osInfo, normalizeMac(mac))
+	return err
+}
+
+// SetNmapPorts stores the open ports from the last nmap scan for a device.
+func (r *Registry) SetNmapPorts(mac string, ports []string) error {
+	_, err := r.db.Exec(`UPDATE devices SET nmap_ports = ? WHERE mac = ?`, marshalServices(ports), normalizeMac(mac))
 	return err
 }
 

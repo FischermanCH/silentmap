@@ -91,6 +91,17 @@
           </dd>
         </div>
         {{end}}
+        {{if $d.NmapPorts}}
+        <div class="py-2.5">
+          <dt style="color:var(--sm-text-muted)" class="mb-1.5">Offene Ports</dt>
+          <dd class="flex flex-col gap-1 mt-1">
+            {{range $d.NmapPorts}}
+            <span class="text-xs font-mono px-2 py-1 rounded"
+              style="background-color:var(--sm-badge-success-bg);color:var(--sm-badge-success-txt)">{{.}}</span>
+            {{end}}
+          </dd>
+        </div>
+        {{end}}
         <div class="flex justify-between py-2.5">
           <dt style="color:var(--sm-text-muted)">{{t "field.first_seen"}}</dt>
           <dd class="text-xs" style="color:var(--sm-text-secondary)">{{$d.FirstSeen.Format "02.01.2006 15:04:05"}}</dd>

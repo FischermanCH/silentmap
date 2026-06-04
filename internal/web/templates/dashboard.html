@@ -308,6 +308,7 @@ let clusterMeta;
 let showAuto=true, showPhysical=true, showLogical=true;
 let initialized=false;
 let hiddenGroups=new Set([UNGROUPED]); // ohne Gruppe standardmässig ausgeblendet
+let hullLabelsFitted=false; // labels hidden until sim has settled
 let statusFilter={online:true, offline:true, neu:false}; // Neu standardmässig aus
 
 // ── Visibility ───────────────────────────────────────────────────────────────
@@ -558,6 +559,7 @@ function rebuildSim() {
 
   drawNodes();
   drawLinks();
+  hullLabelsFitted=false;
   updateHulls();
   fitView(W,H,vn,true);
   sim.alpha(0.05).restart();
@@ -639,22 +641,22 @@ function updateHulls() {
       d3.select(this).select('text').attr('opacity',0);
       return;
     }
-    d3.select(this).select('text').attr('opacity',0.9);
     const pts=[];
     visN.forEach(n=>{for(let a=0;a<Math.PI*2;a+=Math.PI/3)pts.push([n.x+Math.cos(a)*pad,n.y+Math.sin(a)*pad]);});
     const hull=d3.polygonHull(pts);
     if(!hull||hull.length<3) return;
     d3.select(this).select('path').attr('d','M'+hull.map(p=>p.join(',')).join('L')+'Z');
-    // Label at outermost hull vertex, pushed outward
+    // Only position and show label once simulation has settled
+    if(!hullLabelsFitted) return;
     const cx=visN.reduce((s,n)=>s+n.x,0)/visN.length;
     const cy=visN.reduce((s,n)=>s+n.y,0)/visN.length;
     let bestPt=hull[0],bestDist=0;
     hull.forEach(p=>{const d=Math.hypot(p[0]-cx,p[1]-cy);if(d>bestDist){bestDist=d;bestPt=p;}});
     const dx=bestPt[0]-cx,dy=bestPt[1]-cy,len=Math.hypot(dx,dy)||1;
     d3.select(this).select('text')
-      .transition().duration(180).ease(d3.easeCubicOut)
       .attr('x',bestPt[0]+dx/len*16).attr('y',bestPt[1]+dy/len*16+4)
-      .attr('text-anchor',dx>=0?'start':'end');
+      .attr('text-anchor',dx>=0?'start':'end')
+      .attr('opacity',0.9);
   });
 }
 
@@ -758,12 +760,17 @@ function fullRender() {
   fitView(W,H,visibleNodes());
   initialized=true;
 
+  hullLabelsFitted=false;
   sim.alpha(0.04).restart();
   sim.on('tick',()=>{
     if(linkSel) linkSel.attr('x1',d=>d.source.x).attr('y1',d=>d.source.y)
                         .attr('x2',d=>d.target.x).attr('y2',d=>d.target.y);
     if(nodeSel) nodeSel.attr('transform',d=>`translate(${d.x},${d.y})`);
     updateHulls();
+    if(!hullLabelsFitted && sim.alpha()<0.015){
+      hullLabelsFitted=true;
+      updateHulls();
+    }
   });
 }
 
