@@ -139,6 +139,14 @@ ohne Fehlercheck, was bei "duplicate column name" einfach weiterläuft. Das ist 
 `normalizeMac()` wandelt immer in `AA:BB:CC:DD:EE:FF` (uppercase, Doppelpunkte).
 **Immer** bei User-Input oder externen Quellen aufrufen.
 
+### Update-Checker
+`Server.StartBackground(ctx)` startet eine Goroutine die alle 6h die GitHub Releases API pollt.
+Ergebnis (`latestVersion string`) wird per `sync.RWMutex` gecacht. `updateAvailable()` vergleicht
+mit der eingebetteten `version`-Variable (normalisiert mit `v`-Prefix).
+`dashboard()` übergibt `UpdateAvailable bool` und `LatestVersion string` ans Template.
+Wenn der Request fehlschlägt, bleibt `latestVersion` leer → kein Indikator gezeigt.
+`StartBackground` muss aus `main.go` nach dem `ctx`-Setup aufgerufen werden.
+
 ### Settings-Persistenz
 UI-Einstellungen (Discord-Webhook, ntfy-URL, Ping-Interval, Theme) werden teils in
 der `settings`-Tabelle gespeichert, teils als JSON via `AppSettings`-Struct in einem
