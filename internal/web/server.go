@@ -327,10 +327,18 @@ func (s *Server) encrypt(plain string) string { return crypto.Encrypt(s.encKey, 
 // Legacy cleartext values (no enc: prefix) are returned as-is for transparent migration.
 func (s *Server) decrypt(enc string) string { return crypto.Decrypt(s.encKey, enc) }
 
-// settingsRedirect redirects to /settings?saved=1 and restores the active tab
-// using the hidden _tab field submitted with each settings form.
+// settingsRedirect redirects to /settings?saved=1 and restores the active tab.
 func (s *Server) settingsRedirect(w http.ResponseWriter, r *http.Request) {
 	u := "/settings?saved=1"
+	if tab := r.FormValue("_tab"); tab != "" {
+		u += "&tab=" + tab
+	}
+	http.Redirect(w, r, u, http.StatusSeeOther)
+}
+
+// settingsError redirects back to the settings page with an error toast.
+func (s *Server) settingsError(w http.ResponseWriter, r *http.Request, msg string) {
+	u := "/settings?error=" + url.QueryEscape(msg)
 	if tab := r.FormValue("_tab"); tab != "" {
 		u += "&tab=" + tab
 	}
@@ -493,7 +501,10 @@ func (s *Server) deviceDetail(w http.ResponseWriter, r *http.Request) {
 }
 
 // macRe matches a normalised MAC address (XX:XX:XX:XX:XX:XX, hex, any case).
-var macRe = regexp.MustCompile(`(?i)^([0-9a-f]{2}:){5}[0-9a-f]{2}$`)
+var macRe   = regexp.MustCompile(`(?i)^([0-9a-f]{2}:){5}[0-9a-f]{2}$`)
+var emailRE = regexp.MustCompile(`^[^@\s]+@[^@\s]+\.[^@\s]+$`)
+
+func isValidEmail(s string) bool { return emailRE.MatchString(s) }
 
 // validMAC returns true if mac looks like a well-formed MAC address.
 // All handler inputs from URL params go through this before hitting the DB.
@@ -727,11 +738,11 @@ func (s *Server) setDiscord(w http.ResponseWriter, r *http.Request) {
 	// Only update webhook URL when the user provides a new value.
 	if webhookURL != "" {
 		if err := requireHTTPS(webhookURL); err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
+			s.settingsError(w, r, err.Error())
 			return
 		}
 		if isPrivateHost(webhookURL) {
-			http.Error(w, "Webhook-URL darf nicht auf interne Adressen zeigen", http.StatusBadRequest)
+			s.settingsError(w, r, "Webhook URL must not point to a private/internal host")
 			return
 		}
 		cfg.Discord.WebhookURL = s.encrypt(webhookURL)
@@ -756,11 +767,11 @@ func (s *Server) setNtfy(w http.ResponseWriter, r *http.Request) {
 	ntfyURL := strings.TrimSpace(r.FormValue("url"))
 	if ntfyURL != "" {
 		if err := requireHTTPS(ntfyURL); err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
+			s.settingsError(w, r, err.Error())
 			return
 		}
 		if isPrivateHost(ntfyURL) {
-			http.Error(w, "Ntfy-URL darf nicht auf interne Adressen zeigen", http.StatusBadRequest)
+			s.settingsError(w, r, "ntfy URL must not point to a private/internal host")
 			return
 		}
 		cfg.Ntfy.URL = ntfyURL // ntfy URL is not secret; stored as-is
@@ -786,18 +797,37 @@ func (s *Server) setEmail(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "bad request", http.StatusBadRequest)
 		return
 	}
-	cfg := s.loadAppSettings()
 
-	// Only update password if a new one was entered.
-	pass := strings.TrimSpace(r.FormValue("smtp_pass"))
-	if pass != "" {
-		cfg.Email.SMTPPass = s.encrypt(pass)
-	}
+	enabled := r.FormValue("enabled") == "on"
+	host := strings.TrimSpace(r.FormValue("smtp_host"))
+	from := strings.TrimSpace(r.FormValue("from"))
+	to := strings.TrimSpace(r.FormValue("to"))
 
 	port, _ := strconv.Atoi(r.FormValue("smtp_port"))
 	if port <= 0 {
 		port = 587
 	}
+
+	// Validate required fields when enabling.
+	if enabled {
+		if host == "" {
+			s.settingsError(w, r, "SMTP host is required")
+			return
+		}
+		if port < 1 || port > 65535 {
+			s.settingsError(w, r, "Port must be between 1 and 65535")
+			return
+		}
+		if from == "" || !isValidEmail(from) {
+			s.settingsError(w, r, "Invalid sender address (From)")
+			return
+		}
+		if to == "" || !isValidEmail(to) {
+			s.settingsError(w, r, "Invalid recipient address (To)")
+			return
+		}
+	}
+
 	lang := r.FormValue("lang")
 	if lang != "de" {
 		lang = "en"
@@ -807,12 +837,17 @@ func (s *Server) setEmail(w http.ResponseWriter, r *http.Request) {
 		tlsMode = "starttls"
 	}
 
-	cfg.Email.Enabled = r.FormValue("enabled") == "on"
-	cfg.Email.SMTPHost = strings.TrimSpace(r.FormValue("smtp_host"))
+	cfg := s.loadAppSettings()
+	pass := strings.TrimSpace(r.FormValue("smtp_pass"))
+	if pass != "" {
+		cfg.Email.SMTPPass = s.encrypt(pass)
+	}
+	cfg.Email.Enabled = enabled
+	cfg.Email.SMTPHost = host
 	cfg.Email.SMTPPort = port
 	cfg.Email.SMTPUser = strings.TrimSpace(r.FormValue("smtp_user"))
-	cfg.Email.From = strings.TrimSpace(r.FormValue("from"))
-	cfg.Email.To = strings.TrimSpace(r.FormValue("to"))
+	cfg.Email.From = from
+	cfg.Email.To = to
 	cfg.Email.TLSMode = tlsMode
 	cfg.Email.Lang = lang
 
