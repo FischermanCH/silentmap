@@ -27,6 +27,7 @@ import (
 	"github.com/silentmap/silentmap/internal/alerting/channels/discord"
 	"github.com/silentmap/silentmap/internal/alerting/channels/ntfy"
 	"github.com/silentmap/silentmap/internal/alerting/engine"
+	"github.com/silentmap/silentmap/internal/collectors/httpcheck"
 	"github.com/silentmap/silentmap/internal/collectors/ping"
 	"github.com/silentmap/silentmap/internal/config"
 	"github.com/silentmap/silentmap/internal/i18n"
@@ -50,11 +51,17 @@ type PingSettings struct {
 	Interval int  `json:"interval_min"` // minutes
 }
 
+type HttpCheckSettings struct {
+	Enabled  bool `json:"enabled"`
+	Interval int  `json:"interval_min"` // minutes
+}
+
 type AppSettings struct {
-	Discord   DiscordSettings `json:"discord"`
-	Ntfy      NtfySettings    `json:"ntfy"`
-	Ping      PingSettings    `json:"ping"`
-	Listening bool            `json:"listening"`
+	Discord   DiscordSettings   `json:"discord"`
+	Ntfy      NtfySettings      `json:"ntfy"`
+	Ping      PingSettings      `json:"ping"`
+	HttpCheck HttpCheckSettings `json:"http_check"`
+	Listening bool              `json:"listening"`
 }
 
 //go:embed templates/*
@@ -73,6 +80,7 @@ type Server struct {
 	discordCh *discord.Channel
 	ntfyCh    *ntfy.Channel
 	pingCol   *ping.Collector
+	httpCol   *httpcheck.Collector
 	version   string
 	buildTime string
 	scanMu    sync.RWMutex
@@ -82,7 +90,7 @@ type Server struct {
 	latestVersionMu sync.RWMutex
 }
 
-func NewServer(reg *registry.Registry, alertEng *engine.Engine, db *sql.DB, dataDir string, nmapArgs string, discordCh *discord.Channel, ntfyCh *ntfy.Channel, pingCol *ping.Collector, version, buildTime string) *Server {
+func NewServer(reg *registry.Registry, alertEng *engine.Engine, db *sql.DB, dataDir string, nmapArgs string, discordCh *discord.Channel, ntfyCh *ntfy.Channel, pingCol *ping.Collector, httpCol *httpcheck.Collector, version, buildTime string) *Server {
 	bundle, err := i18n.New()
 	if err != nil {
 		slog.Warn("i18n: failed to load translations, using keys as fallback", "err", err)
@@ -99,6 +107,7 @@ func NewServer(reg *registry.Registry, alertEng *engine.Engine, db *sql.DB, data
 		discordCh: discordCh,
 		ntfyCh:    ntfyCh,
 		pingCol:   pingCol,
+		httpCol:   httpCol,
 		version:   version,
 		scanning:  make(map[string]bool),
 		buildTime: buildTime,
@@ -134,6 +143,9 @@ func NewServer(reg *registry.Registry, alertEng *engine.Engine, db *sql.DB, data
 	// Otherwise keep the constructor default (enabled=true, 5min).
 	if stored.Ping.Interval > 0 {
 		s.pingCol.Update(stored.Ping.Enabled, time.Duration(stored.Ping.Interval)*time.Minute)
+	}
+	if stored.HttpCheck.Interval > 0 {
+		s.httpCol.Update(stored.HttpCheck.Enabled, time.Duration(stored.HttpCheck.Interval)*time.Minute)
 	}
 	return s
 }
@@ -255,6 +267,8 @@ func (s *Server) Handler() http.Handler {
 	r.Post("/settings/ntfy", s.setNtfy)
 	r.Post("/settings/listening", s.toggleListening)
 	r.Post("/settings/ping", s.setPing)
+	r.Post("/settings/httpcheck", s.setHttpCheck)
+	r.Post("/devices/{mac}/http-url", s.setHttpUrl)
 	r.Get("/api/stats", s.apiStats)
 	r.Get("/api/alerts", s.apiAlerts)
 	r.Get("/api/version", s.apiVersion)
@@ -521,12 +535,21 @@ func (s *Server) settingsPage(w http.ResponseWriter, r *http.Request) {
 	if ping.Interval <= 0 {
 		ping.Interval = 5
 	}
+	httpEnabled, httpInterval := s.httpCol.Settings()
+	httpCheck := HttpCheckSettings{
+		Enabled:  httpEnabled,
+		Interval: int(httpInterval.Minutes()),
+	}
+	if httpCheck.Interval <= 0 {
+		httpCheck.Interval = 5
+	}
 	s.render(w, r, "settings.html", map[string]any{
-		"Title":   "Settings",
-		"Discord": settings.Discord,
-		"Ntfy":    settings.Ntfy,
-		"Ping":    ping,
-		"Saved":   r.URL.Query().Get("saved") == "1",
+		"Title":     "Settings",
+		"Discord":   settings.Discord,
+		"Ntfy":      settings.Ntfy,
+		"Ping":      ping,
+		"HttpCheck": httpCheck,
+		"Saved":     r.URL.Query().Get("saved") == "1",
 	})
 }
 
@@ -606,6 +629,37 @@ func (s *Server) setPing(w http.ResponseWriter, r *http.Request) {
 	}
 	s.pingCol.Update(cfg.Ping.Enabled, time.Duration(intervalMin)*time.Minute)
 	http.Redirect(w, r, "/settings?saved=1", http.StatusSeeOther)
+}
+
+func (s *Server) setHttpCheck(w http.ResponseWriter, r *http.Request) {
+	r.ParseForm()
+	intervalMin, _ := strconv.Atoi(r.FormValue("interval_min"))
+	if intervalMin <= 0 {
+		intervalMin = 5
+	}
+	cfg := s.loadAppSettings()
+	cfg.HttpCheck = HttpCheckSettings{
+		Enabled:  r.FormValue("enabled") == "on",
+		Interval: intervalMin,
+	}
+	if err := s.saveAppSettings(cfg); err != nil {
+		slog.Error("save http check settings failed", "err", err)
+	}
+	s.httpCol.Update(cfg.HttpCheck.Enabled, time.Duration(intervalMin)*time.Minute)
+	http.Redirect(w, r, "/settings?saved=1", http.StatusSeeOther)
+}
+
+func (s *Server) setHttpUrl(w http.ResponseWriter, r *http.Request) {
+	s.deviceUpdate(w, r, "http_url", func(mac string) error {
+		rawURL := strings.TrimSpace(r.FormValue("http_url"))
+		if rawURL != "" {
+			u, err := url.Parse(rawURL)
+			if err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" {
+				return fmt.Errorf("URL muss mit http:// oder https:// beginnen")
+			}
+		}
+		return s.reg.SetHttpUrl(mac, rawURL)
+	})
 }
 
 func (s *Server) toggleListening(w http.ResponseWriter, r *http.Request) {
@@ -1124,21 +1178,23 @@ var mdiPaths = map[string]string{
 	"iot":       "M6,4H18V5H21V7H18V9H21V11H18V13H21V15H18V17H21V19H18V20H6V19H3V17H6V15H3V13H6V11H3V9H6V7H3V5H6V4M11,15V18H12V15H11M13,15V18H14V15H13M15,15V18H16V15H15Z",
 	"media":     "M21,17H3V5H21M21,3H3A2,2 0 0,0 1,5V17A2,2 0 0,0 3,19H8V21H16V19H21A2,2 0 0,0 23,17V5A2,2 0 0,0 21,3Z",
 	"drucker":   "M18,3H6V7H18M19,12A1,1 0 0,1 18,11A1,1 0 0,1 19,10A1,1 0 0,1 20,11A1,1 0 0,1 19,12M16,19H8V14H16M19,8H5A3,3 0 0,0 2,11V17H6V21H18V17H22V11A3,3 0 0,0 19,8Z",
-	"virtual":   "M21,16.5C21,16.88 20.79,17.21 20.47,17.38L12.57,21.82C12.41,21.94 12.21,22 12,22C11.79,22 11.59,21.94 11.43,21.82L3.53,17.38C3.21,17.21 3,16.88 3,16.5V7.5C3,7.12 3.21,6.79 3.53,6.62L11.43,2.18C11.59,2.06 11.79,2 12,2C12.21,2 12.41,2.06 12.57,2.18L20.47,6.62C20.79,6.79 21,7.12 21,7.5V16.5M12,4.15L6.04,7.5L12,10.85L17.96,7.5L12,4.15M5,15.91L11,19.29V12.58L5,9.21V15.91M19,15.91V9.21L13,12.58V19.29L19,15.91Z",
-	"unbekannt": "M15.07,11.25L14.17,12.17C13.45,12.89 13,13.5 13,15H11V14.5C11,13.39 11.45,12.39 12.17,11.67L13.41,10.41C13.78,10.05 14,9.55 14,9C14,7.89 13.1,7 12,7A2,2 0 0,0 10,9H8A4,4 0 0,1 12,5A4,4 0 0,1 16,9C16,9.88 15.64,10.67 15.07,11.25M13,19H11V17H13M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12C22,6.47 17.5,2 12,2Z",
+	"virtual":      "M21,16.5C21,16.88 20.79,17.21 20.47,17.38L12.57,21.82C12.41,21.94 12.21,22 12,22C11.79,22 11.59,21.94 11.43,21.82L3.53,17.38C3.21,17.21 3,16.88 3,16.5V7.5C3,7.12 3.21,6.79 3.53,6.62L11.43,2.18C11.59,2.06 11.79,2 12,2C12.21,2 12.41,2.06 12.57,2.18L20.47,6.62C20.79,6.79 21,7.12 21,7.5V16.5M12,4.15L6.04,7.5L12,10.85L17.96,7.5L12,4.15M5,15.91L11,19.29V12.58L5,9.21V15.91M19,15.91V9.21L13,12.58V19.29L19,15.91Z",
+	"http-service": "M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2M11,19.93C7.05,19.44 4,16.08 4,12C4,11.38 4.08,10.78 4.21,10.21L9,15V16A2,2 0 0,0 11,18M17.9,17.39C17.64,16.58 16.9,16 16,16H15V13A1,1 0 0,0 14,12H8V10H10A1,1 0 0,0 11,9V7H13A2,2 0 0,0 15,5V4.59C17.93,5.77 20,8.64 20,12C20,14.08 19.2,15.97 17.9,17.39Z",
+	"unbekannt":    "M15.07,11.25L14.17,12.17C13.45,12.89 13,13.5 13,15H11V14.5C11,13.39 11.45,12.39 12.17,11.67L13.41,10.41C13.78,10.05 14,9.55 14,9C14,7.89 13.1,7 12,7A2,2 0 0,0 10,9H8A4,4 0 0,1 12,5A4,4 0 0,1 16,9C16,9.88 15.64,10.67 15.07,11.25M13,19H11V17H13M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12C22,6.47 17.5,2 12,2Z",
 }
 
 var catColors = map[string]string{
-	"netzwerk":  "#38bdf8",
-	"server":    "#a78bfa",
-	"desktop":   "#818cf8",
-	"mobile":    "#f472b6",
-	"smarthome": "#fb923c",
-	"iot":       "#fbbf24",
-	"media":     "#22d3ee",
-	"drucker":   "#94a3b8",
-	"virtual":   "#c084fc",
-	"unbekannt": "#6b7280",
+	"netzwerk":     "#38bdf8",
+	"server":       "#a78bfa",
+	"desktop":      "#818cf8",
+	"mobile":       "#f472b6",
+	"smarthome":    "#fb923c",
+	"iot":          "#fbbf24",
+	"media":        "#22d3ee",
+	"drucker":      "#94a3b8",
+	"virtual":      "#c084fc",
+	"http-service": "#34d399",
+	"unbekannt":    "#6b7280",
 }
 
 func catColorHex(cat string) string {

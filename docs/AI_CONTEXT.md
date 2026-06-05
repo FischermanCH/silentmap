@@ -44,6 +44,7 @@ internal/
   collectors/mdns/             — Passiver mDNS-Listener
   collectors/dhcp/             — Passiver DHCP-Listener
   collectors/ping/             — Aktiver ICMP-Ping (für Priority-Devices)
+  collectors/httpcheck/        — HTTP/HTTPS-Verfügbarkeitscheck (opt-in, Kategorie http-service)
   scanner/nmap.go              — nmap-Integration (on-demand, pro Device)
   alerting/engine/             — Alert-Engine: Regeln, Dedup, Cooldown
   alerting/channels/discord/   — Discord-Webhook-Channel
@@ -71,6 +72,7 @@ CHANGELOG.md                   — Alle Änderungen chronologisch
 | `services` | TEXT | JSON-Array mDNS-Dienste |
 | `nmap_ports` | TEXT | JSON-Array offener Ports (z.B. `["22/tcp open ssh"]`) |
 | `os_info` | TEXT | nmap OS-Erkennung |
+| `http_url` | TEXT | URL für HTTP-Verfügbarkeitscheck (opt-in, leer = deaktiviert) |
 | `priority` | INTEGER | 0/1 — löst kritische Alerts aus |
 | `approved` | INTEGER | 0/1 — neue Geräte starten mit 0 |
 | `online` | INTEGER | 0/1 — aktuell erreichbar |
@@ -107,18 +109,30 @@ bevor sie einen Alert feuern. Wenn `priority` fehlt, ist der Wert `false` → Al
 stillschweigend verworfen. Beim Publish von `EventDeviceBack` in `registry.go` (handleSeen)
 **muss** `"priority": existing.Priority` in der Meta-Map stehen.
 
-### `scanDevices` muss exakt 16 Spalten bekommen
-`registry.scanDevices()` scannt immer diese 16 Spalten in dieser Reihenfolge:
+### `scanDevices` muss exakt 17 Spalten bekommen
+`registry.scanDevices()` scannt immer diese 17 Spalten in dieser Reihenfolge:
 ```
 mac, ip, hostname, hostname_auto, vendor, label, category,
 services, priority, approved, online, first_seen, last_seen,
-os_info, force_ping, nmap_ports
+os_info, force_ping, nmap_ports, http_url
 ```
-Jede Query, die `scanDevices` aufruft, muss **alle 16** selektieren.
+Jede Query, die `scanDevices` aufruft, muss **alle 17** selektieren.
 Fehlt eine Spalte → `rows.Scan()` schlägt stillschweigend fehl (`continue`) →
 leere Ergebnisliste ohne Fehlermeldung. **Bug-Quelle wenn neue Spalten hinzukommen.**
 
-Betroffene Funktionen: `List()`, `get()`, `GetGroupDevices()`, `PriorityDevices()`
+Betroffene Funktionen: `List()`, `get()`, `GetGroupDevices()`, `PriorityDevices()`, `HttpServiceDevices()`
+
+### HTTP-Service-Monitoring (seit v1.0.19)
+Opt-in auf zwei Ebenen:
+1. **Global**: Settings → HTTP Check aktivieren + Intervall setzen (default: deaktiviert)
+2. **Pro Device**: Kategorie auf "http-service" setzen, dann URL im Feld "HTTP-URL" eintragen
+
+Collector: `internal/collectors/httpcheck/httpcheck.go`
+- Holt alle Devices mit `http_url != ''` via `reg.HttpServiceDevices()`
+- HTTP GET mit 10s Timeout, TLS-Zertifikatsfehler werden ignoriert (heimnetz-üblich)
+- Jede Antwort (auch 4xx/5xx) = `EventDeviceSeen` → Device bleibt online
+- Kein Response = kein Event → Offline-Checker markiert Device nach Timeout offline
+- Startet immer (wie Ping-Collector), Enabled-Status kommt aus `AppSettings.HttpCheck`
 
 ### Schema-Migrationen
 Neue Spalten werden via `ALTER TABLE ... ADD COLUMN` am Ende von `migrate.go` hinzugefügt.

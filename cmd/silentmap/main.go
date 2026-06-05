@@ -20,6 +20,7 @@ import (
 	"github.com/silentmap/silentmap/internal/bus"
 	"github.com/silentmap/silentmap/internal/collectors/arp"
 	"github.com/silentmap/silentmap/internal/collectors/dhcp"
+	"github.com/silentmap/silentmap/internal/collectors/httpcheck"
 	"github.com/silentmap/silentmap/internal/collectors/mdns"
 	"github.com/silentmap/silentmap/internal/collectors/ping"
 	"github.com/silentmap/silentmap/internal/config"
@@ -113,7 +114,8 @@ func main() {
 	alertEngine.Subscribe(b)
 
 	pingCollector := ping.New(reg, cfg.Interface, true, cfg.Collectors.Ping.Interval)
-	webServer := web.NewServer(reg, alertEngine, db, *flagData, cfg.Collectors.Nmap.Args, discordCh, ntfyCh, pingCollector, version, commit)
+	httpCollector := httpcheck.New(reg, false, 5*time.Minute) // disabled by default — opt-in via Settings
+	webServer := web.NewServer(reg, alertEngine, db, *flagData, cfg.Collectors.Nmap.Args, discordCh, ntfyCh, pingCollector, httpCollector, version, commit)
 
 	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer cancel()
@@ -168,6 +170,11 @@ func main() {
 	// Start Ping collector (always; enabled state controlled via UI)
 	if err := pingCollector.Start(ctx, b); err != nil {
 		slog.Warn("ping collector could not start", "err", err)
+	}
+
+	// Start HTTP check collector (always; enabled state controlled via UI — off by default)
+	if err := httpCollector.Start(ctx, b); err != nil {
+		slog.Warn("http check collector could not start", "err", err)
 	}
 
 	// Start DHCP collector (non-fatal)

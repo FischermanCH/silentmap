@@ -57,7 +57,8 @@ type Device struct {
 	Services     []string // mDNS service types, e.g. ["_airplay._tcp","_smb._tcp"]
 	OsInfo       string   // from nmap OS detection
 	NmapPorts    []string // open ports from last nmap scan, e.g. ["22/tcp open ssh OpenSSH 8.4"]
-	ForcePing    bool   // use ICMP ping instead of ARP (for devices outside local subnet)
+	HttpURL      string   // URL for HTTP availability check (opt-in, only used when set)
+	ForcePing    bool     // use ICMP ping instead of ARP (for devices outside local subnet)
 	Priority     bool
 	Approved     bool
 	Online       bool
@@ -467,7 +468,7 @@ func (r *Registry) SetCategory(mac, category string) error {
 
 func (r *Registry) List() ([]Device, error) {
 	rows, err := r.db.Query(`
-		SELECT mac, ip, hostname, hostname_auto, vendor, label, category, services, priority, approved, online, first_seen, last_seen, os_info, force_ping, nmap_ports
+		SELECT mac, ip, hostname, hostname_auto, vendor, label, category, services, priority, approved, online, first_seen, last_seen, os_info, force_ping, nmap_ports, http_url
 		FROM devices
 	`)
 	if err != nil {
@@ -860,7 +861,7 @@ func (r *Registry) macByIP(ip string) string {
 
 func (r *Registry) get(mac string) (Device, error) {
 	row := r.db.QueryRow(`
-		SELECT mac, ip, hostname, hostname_auto, vendor, label, category, services, priority, approved, online, first_seen, last_seen, os_info, force_ping, nmap_ports
+		SELECT mac, ip, hostname, hostname_auto, vendor, label, category, services, priority, approved, online, first_seen, last_seen, os_info, force_ping, nmap_ports, http_url
 		FROM devices WHERE mac = ?`, mac)
 	return r.scanDevice(row)
 }
@@ -869,7 +870,7 @@ func (r *Registry) scanDevice(row *sql.Row) (Device, error) {
 	var d Device
 	var firstSeen, lastSeen, servicesJSON, nmapPortsJSON string
 	err := row.Scan(&d.MAC, &d.IP, &d.Hostname, &d.HostnameAuto, &d.Vendor, &d.Label,
-		&d.Category, &servicesJSON, &d.Priority, &d.Approved, &d.Online, &firstSeen, &lastSeen, &d.OsInfo, &d.ForcePing, &nmapPortsJSON)
+		&d.Category, &servicesJSON, &d.Priority, &d.Approved, &d.Online, &firstSeen, &lastSeen, &d.OsInfo, &d.ForcePing, &nmapPortsJSON, &d.HttpURL)
 	if err != nil {
 		return d, err
 	}
@@ -886,7 +887,7 @@ func (r *Registry) scanDevices(rows *sql.Rows) ([]Device, error) {
 		var d Device
 		var firstSeen, lastSeen, servicesJSON, nmapPortsJSON string
 		err := rows.Scan(&d.MAC, &d.IP, &d.Hostname, &d.HostnameAuto, &d.Vendor, &d.Label,
-			&d.Category, &servicesJSON, &d.Priority, &d.Approved, &d.Online, &firstSeen, &lastSeen, &d.OsInfo, &d.ForcePing, &nmapPortsJSON)
+			&d.Category, &servicesJSON, &d.Priority, &d.Approved, &d.Online, &firstSeen, &lastSeen, &d.OsInfo, &d.ForcePing, &nmapPortsJSON, &d.HttpURL)
 		if err != nil {
 			continue
 		}
@@ -1063,7 +1064,7 @@ func (r *Registry) GetDeviceGroups(mac string) ([]Group, error) {
 func (r *Registry) GetGroupDevices(groupID string) ([]Device, error) {
 	rows, err := r.db.Query(`
 		SELECT d.mac,d.ip,d.hostname,d.hostname_auto,d.vendor,d.label,d.category,
-		       d.services,d.priority,d.approved,d.online,d.first_seen,d.last_seen,d.os_info,d.force_ping,d.nmap_ports
+		       d.services,d.priority,d.approved,d.online,d.first_seen,d.last_seen,d.os_info,d.force_ping,d.nmap_ports,d.http_url
 		FROM devices d JOIN device_group_members m ON m.mac=d.mac
 		WHERE m.group_id=? ORDER BY d.ip`, groupID)
 	if err != nil {
@@ -1301,7 +1302,7 @@ func (r *Registry) Import(payload *ExportPayload) (ImportResult, error) {
 // PriorityDevices returns all priority devices that have an IP address.
 func (r *Registry) PriorityDevices() []Device {
 	rows, err := r.db.Query(`
-		SELECT mac, ip, hostname, hostname_auto, vendor, label, category, services, priority, approved, online, first_seen, last_seen, os_info, force_ping, nmap_ports
+		SELECT mac, ip, hostname, hostname_auto, vendor, label, category, services, priority, approved, online, first_seen, last_seen, os_info, force_ping, nmap_ports, http_url
 		FROM devices WHERE priority = 1 AND ip != ''`)
 	if err != nil {
 		return nil
@@ -1327,6 +1328,25 @@ func (r *Registry) SetOsInfo(mac, osInfo string) error {
 func (r *Registry) SetNmapPorts(mac string, ports []string) error {
 	_, err := r.db.Exec(`UPDATE devices SET nmap_ports = ? WHERE mac = ?`, marshalServices(ports), normalizeMac(mac))
 	return err
+}
+
+// SetHttpUrl sets or clears the HTTP check URL for a device.
+func (r *Registry) SetHttpUrl(mac, url string) error {
+	_, err := r.db.Exec(`UPDATE devices SET http_url = ? WHERE mac = ?`, url, normalizeMac(mac))
+	return err
+}
+
+// HttpServiceDevices returns all devices that have an http_url set.
+func (r *Registry) HttpServiceDevices() []Device {
+	rows, err := r.db.Query(`
+		SELECT mac, ip, hostname, hostname_auto, vendor, label, category, services, priority, approved, online, first_seen, last_seen, os_info, force_ping, nmap_ports, http_url
+		FROM devices WHERE http_url != ''`)
+	if err != nil {
+		return nil
+	}
+	defer rows.Close()
+	devices, _ := r.scanDevices(rows)
+	return devices
 }
 
 // AddEvent logs a device event (public wrapper for internal logEvent).
