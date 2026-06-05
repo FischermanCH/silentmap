@@ -358,17 +358,22 @@ func parseTimestamp(s string) string {
 // If mac is empty a synthetic one is generated from the IP.
 func (r *Registry) AddManual(mac, ip, label, category string) (*Device, error) {
 	if mac == "" && ip != "" {
-		mac = "00:00:00:00:00:00" // placeholder, will be keyed by synthetic value
-		// use IP bytes as synthetic MAC so it's unique
+		// Derive synthetic MAC from IP so same IP always yields the same device.
 		parts := strings.SplitN(ip, ".", 4)
 		if len(parts) == 4 {
 			mac = fmt.Sprintf("02:00:%02x:%02x:%02x:%02x",
 				atoi(parts[0]), atoi(parts[1]), atoi(parts[2]), atoi(parts[3]))
 		}
 	}
+	if mac == "" {
+		// No IP and no MAC (e.g. URL-only http-service): generate a random
+		// locally-administered unicast MAC so each entry stays independent.
+		id := uuid.New()
+		mac = fmt.Sprintf("02:%02x:%02x:%02x:%02x:%02x", id[1], id[2], id[3], id[4], id[5])
+	}
 	mac = normalizeMac(mac)
 	if mac == "" {
-		return nil, fmt.Errorf("MAC oder IP erforderlich")
+		return nil, fmt.Errorf("MAC, IP oder URL erforderlich")
 	}
 
 	// Check if already exists
