@@ -233,8 +233,10 @@ func (s *Server) scheduleNmapScan(ctx context.Context, mac, ip string) {
 func (s *Server) checkLatestVersion() {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
+	// Use the tags API — works immediately after `git push --tags`,
+	// without requiring an explicit GitHub Release to be published.
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet,
-		"https://api.github.com/repos/FischermanCH/silentmap/releases/latest", nil)
+		"https://api.github.com/repos/FischermanCH/silentmap/tags", nil)
 	if err != nil {
 		return
 	}
@@ -247,14 +249,14 @@ func (s *Server) checkLatestVersion() {
 	if resp.StatusCode != http.StatusOK {
 		return
 	}
-	var result struct {
-		TagName string `json:"tag_name"`
+	var tags []struct {
+		Name string `json:"name"`
 	}
-	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil || result.TagName == "" {
+	if err := json.NewDecoder(resp.Body).Decode(&tags); err != nil || len(tags) == 0 {
 		return
 	}
 	s.latestVersionMu.Lock()
-	s.latestVersion = result.TagName
+	s.latestVersion = tags[0].Name // GitHub returns tags newest-first
 	s.latestVersionMu.Unlock()
 }
 
@@ -546,10 +548,18 @@ func (s *Server) createDevice(w http.ResponseWriter, r *http.Request) {
 	ip := strings.TrimSpace(r.FormValue("ip"))
 	label := r.FormValue("label")
 	category := r.FormValue("category")
+	httpURL := strings.TrimSpace(r.FormValue("http_url"))
 
 	if ip != "" && net.ParseIP(ip) == nil {
 		http.Redirect(w, r, "/devices?error="+url.QueryEscape("Ungültige IP-Adresse: "+ip), http.StatusSeeOther)
 		return
+	}
+	if httpURL != "" {
+		u, err := url.Parse(httpURL)
+		if err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" {
+			http.Redirect(w, r, "/devices?error="+url.QueryEscape("URL muss mit http:// oder https:// beginnen"), http.StatusSeeOther)
+			return
+		}
 	}
 
 	dev, err := s.reg.AddManual(mac, ip, label, category)
@@ -557,6 +567,11 @@ func (s *Server) createDevice(w http.ResponseWriter, r *http.Request) {
 		slog.Error("manual device create failed", "err", err)
 		http.Redirect(w, r, "/devices?error="+url.QueryEscape(err.Error()), http.StatusSeeOther)
 		return
+	}
+	if httpURL != "" {
+		if err := s.reg.SetHttpUrl(dev.MAC, httpURL); err != nil {
+			slog.Warn("create device: set http_url failed", "mac", dev.MAC, "err", err)
+		}
 	}
 	http.Redirect(w, r, "/devices/"+dev.MAC, http.StatusSeeOther)
 }

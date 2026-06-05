@@ -77,7 +77,25 @@
     </div>
     <form action="/devices/new" method="POST" class="space-y-3">
       <div>
-        <label class="text-xs font-medium text-gray-500 uppercase tracking-wide block mb-1">{{t "modal.ip"}}</label>
+        <label class="text-xs font-medium text-gray-500 uppercase tracking-wide block mb-1">{{t "modal.category"}}</label>
+        <select name="category" id="modal-category" onchange="onModalCatChange(this.value)"
+          class="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+          <option value="">{{t "modal.category.select"}}</option>
+          {{range slice "netzwerk" "server" "desktop" "mobile" "smarthome" "iot" "media" "drucker" "virtual" "http-service" "unbekannt"}}
+          <option value="{{.}}">{{t (printf "cat.%s" .)}}</option>
+          {{end}}
+        </select>
+      </div>
+      <div id="modal-url-row" style="display:none">
+        <label class="text-xs font-medium text-gray-500 uppercase tracking-wide block mb-1">{{t "section.httpurl"}}</label>
+        <input type="url" name="http_url" id="modal-http-url" placeholder="https://nas.local"
+          class="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+        <p class="text-xs mt-1" style="color:var(--sm-accent)">{{t "modal.httpservice.hint"}}</p>
+      </div>
+      <div id="modal-ip-row">
+        <label class="text-xs font-medium text-gray-500 uppercase tracking-wide block mb-1">
+          {{t "modal.ip"}} <span id="modal-ip-optional" class="text-gray-300">{{t "modal.mac.optional"}}</span>
+        </label>
         <input type="text" name="ip" placeholder="192.168.1.1"
           class="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
       </div>
@@ -91,16 +109,6 @@
         <label class="text-xs font-medium text-gray-500 uppercase tracking-wide block mb-1">{{t "modal.name"}}</label>
         <input type="text" name="label" placeholder="z.B. Core-Switch"
           class="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-      </div>
-      <div>
-        <label class="text-xs font-medium text-gray-500 uppercase tracking-wide block mb-1">{{t "modal.category"}}</label>
-        <select name="category"
-          class="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-          <option value="">{{t "modal.category.select"}}</option>
-          {{range slice "netzwerk" "server" "desktop" "mobile" "smarthome" "iot" "media" "drucker" "virtual" "unbekannt"}}
-          <option value="{{.}}">{{t (printf "cat.%s" .)}}</option>
-          {{end}}
-        </select>
       </div>
       <div class="flex gap-2 pt-2">
         <button type="button" onclick="document.getElementById('modal-new').classList.add('hidden')"
@@ -316,6 +324,12 @@ sortBy('ip');
   // Clean URL without reload
   history.replaceState(null, '', window.location.pathname);
 })();
+
+function onModalCatChange(v) {
+  const isHttp = v === 'http-service';
+  document.getElementById('modal-url-row').style.display = isHttp ? '' : 'none';
+  document.getElementById('modal-ip-optional').style.display = isHttp ? '' : 'none';
+}
 
 // '/' shortcut focuses search
 document.addEventListener('keydown', e => {

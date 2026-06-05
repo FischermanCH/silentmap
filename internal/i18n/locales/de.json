@@ -104,6 +104,7 @@
   "modal.category.select":  "— wählen —",
   "modal.cancel":           "Abbrechen",
   "modal.add":              "Hinzufügen",
+  "modal.httpservice.hint": "IP ist optional — jede URL auf demselben Host kann als eigenes Gerät erfasst werden.",
 
   "col.ip":             "IP",
   "col.category":       "Kat",
