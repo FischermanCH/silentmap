@@ -40,6 +40,20 @@
   "settings.ping.interval":      "Intervall",
   "settings.ping.interval.unit": "Minuten",
   "settings.ping.save":                "Speichern",
+
+  "settings.autonmap.title":   "Auto nmap bei neuen Geräten",
+  "settings.autonmap.hint":    "Startet automatisch einen nmap-Scan wenn ein neues Gerät erkannt wird. Opt-in, standardmässig deaktiviert.",
+  "settings.autonmap.enabled": "Auto nmap aktiviert",
+  "settings.autonmap.save":    "Speichern",
+
+  "settings.maintenance.title":    "Alarmpause (Maintenance Mode)",
+  "settings.maintenance.hint":     "Unterdrückt alle Alerts für die gewählte Dauer. Nützlich bei geplanten Wartungsarbeiten.",
+  "settings.maintenance.active":   "● Aktiv — läuft bis",
+  "settings.maintenance.until":    "Aktiv bis:",
+  "settings.maintenance.disable":  "Jetzt deaktivieren",
+  "settings.maintenance.activate": "Aktivieren",
+  "settings.maintenance.extend":   "Verlängern",
+  "settings.maintenance.cancel":   "Abbrechen",
   "settings.httpcheck.title":          "HTTP Check",
   "settings.httpcheck.hint":           "Periodischer HTTP/HTTPS-Verfügbarkeitscheck für Geräte der Kategorie 'HTTP Service'. Standardmässig deaktiviert — muss pro Gerät eine URL gesetzt sein.",
   "settings.httpcheck.enabled":        "HTTP Check aktiviert",
@@ -78,6 +92,8 @@
   "devices.subtitle":       "%d bekannte Geräte",
   "devices.search":         "Suche nach Name, IP oder MAC…",
   "devices.add":            "+ Gerät hinzufügen",
+  "devices.approve_all":    "Alle %d neuen Geräte bestätigen",
+  "confirm.approve_all":    "%d neue Geräte wirklich alle bestätigen?",
   "modal.title":            "Gerät manuell hinzufügen",
   "modal.ip":               "IP-Adresse",
   "modal.mac":              "MAC-Adresse",
@@ -120,6 +136,9 @@
   "field.first_seen":     "Erstmals gesehen",
   "field.last_seen":      "Zuletzt gesehen",
   "section.activity":     "Aktivität",
+
+  "section.notes":             "Notizen",
+  "notes.placeholder":         "Freie Notizen zu diesem Gerät…",
 
   "section.name":              "Name",
   "label.displayname":         "Anzeigename",
@@ -194,6 +213,8 @@
   "alert.title.new_device":       "Neues Gerät erkannt",
   "alert.title.priority_offline": "Prioritäts-Gerät offline",
   "alert.title.device_back":      "Gerät wieder online",
+  "alert.title.service_down":     "HTTP-Service nicht erreichbar",
+  "alert.title.service_back":     "HTTP-Service wieder erreichbar",
 
   "event.type.seen":             "Erkannt",
   "event.type.online":           "Online",

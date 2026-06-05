@@ -99,6 +99,8 @@ type AlertRules struct {
 	NewDevice       RuleCfg `yaml:"new_device"`
 	PriorityOffline RuleCfg `yaml:"priority_offline"`
 	DeviceBack      RuleCfg `yaml:"device_back"`
+	ServiceDown     RuleCfg `yaml:"service_down"`
+	ServiceBack     RuleCfg `yaml:"service_back"`
 	Anomaly         RuleCfg `yaml:"anomaly"`
 }
 
@@ -178,6 +180,8 @@ func Defaults() *Config {
 				NewDevice:       RuleCfg{Enabled: true, Severity: "high"},
 				PriorityOffline: RuleCfg{Enabled: true, Severity: "critical", Threshold: 10 * time.Minute, Cooldown: 30 * time.Minute},
 				DeviceBack:      RuleCfg{Enabled: true, Severity: "high", Cooldown: 5 * time.Minute},
+				ServiceDown:     RuleCfg{Enabled: true, Severity: "high", Cooldown: 15 * time.Minute},
+				ServiceBack:     RuleCfg{Enabled: true, Severity: "high", Cooldown: 5 * time.Minute},
 				Anomaly:         RuleCfg{Enabled: true, Severity: "medium", MinScore: 0.7, Cooldown: 60 * time.Minute},
 			},
 			Routing: RoutingCfg{

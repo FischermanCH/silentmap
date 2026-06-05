@@ -15,6 +15,21 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [1.0.20] — 2026-06-05
+
+### Added
+- **Device notes** — free-text notes field on every device detail page. Stored in the database, shown only on the detail page (not in the device list or map tooltips).
+- **Approve all new devices** — a button appears in the device list header whenever there are unapproved (NEW) devices. One click approves all of them at once with a confirmation dialog.
+- **Alert suppression / maintenance mode** — a timer-based global pause for all alerts. Configurable in Settings → Alert Channels. Duration options: 30 min, 1 h, 2 h, 8 h. The active state survives server restarts (persisted in settings.json). While active, all alerts (priority offline, device back, service down/back, new device) are silently dropped.
+- **HTTP service alerts** — new alert types `service_down` and `service_back` for devices in the "HTTP Service" category. Fired by the HTTP checker via the event bus, same cooldown logic as priority alerts. Both enabled by default, configurable in config.yaml.
+- **Auto nmap on new device** — opt-in toggle in Settings → Network. When enabled, silentmap automatically schedules an nmap scan whenever a new device is discovered. Respects the existing scan mutex to avoid concurrent scans.
+- **Topology map group filter: Shift+click isolate** — shift-clicking a group chip in the map hides all other groups and shows only the selected one. A "✕ ALL" reset button appears whenever any groups are hidden, restoring the full view.
+
+### Changed
+- `Device` struct: `Notes` field added, populated only by single-device `get()` (18-column scan). Bulk queries (`List`, `PriorityDevices`, etc.) remain at 17 columns — notes are empty in those contexts.
+
+---
+
 ## [1.0.19] — 2026-06-05
 
 ### Added

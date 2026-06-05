@@ -122,6 +122,7 @@ func main() {
 
 	// Start background tasks (update checker, ...)
 	webServer.StartBackground(ctx)
+	webServer.WireEvents(ctx, b)
 
 	// Backfill vendor and reverse DNS for existing devices
 	reg.BackfillVendors()

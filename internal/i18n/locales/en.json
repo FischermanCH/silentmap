@@ -40,6 +40,20 @@
   "settings.ping.interval":      "Interval",
   "settings.ping.interval.unit": "minutes",
   "settings.ping.save":                "Save",
+
+  "settings.autonmap.title":   "Auto nmap on new devices",
+  "settings.autonmap.hint":    "Automatically starts an nmap scan when a new device is discovered. Opt-in, disabled by default.",
+  "settings.autonmap.enabled": "Enable auto nmap",
+  "settings.autonmap.save":    "Save",
+
+  "settings.maintenance.title":    "Alert suppression (maintenance mode)",
+  "settings.maintenance.hint":     "Suppresses all alerts for the selected duration. Useful during planned maintenance.",
+  "settings.maintenance.active":   "● Active — running until",
+  "settings.maintenance.until":    "Active until:",
+  "settings.maintenance.disable":  "Disable now",
+  "settings.maintenance.activate": "Activate",
+  "settings.maintenance.extend":   "Extend",
+  "settings.maintenance.cancel":   "Cancel",
   "settings.httpcheck.title":          "HTTP Check",
   "settings.httpcheck.hint":           "Periodic HTTP/HTTPS availability check for devices with category 'HTTP Service'. Disabled by default — each device must also have a URL configured.",
   "settings.httpcheck.enabled":        "Enable HTTP Check",
@@ -78,6 +92,8 @@
   "devices.subtitle":       "%d known devices",
   "devices.search":         "Search by name, IP or MAC…",
   "devices.add":            "+ Add device",
+  "devices.approve_all":    "Approve all %d new devices",
+  "confirm.approve_all":    "Really approve all %d new devices?",
   "modal.title":            "Add device manually",
   "modal.ip":               "IP address",
   "modal.mac":              "MAC address",
@@ -120,6 +136,9 @@
   "field.first_seen":     "First seen",
   "field.last_seen":      "Last seen",
   "section.activity":     "Activity",
+
+  "section.notes":             "Notes",
+  "notes.placeholder":         "Free-text notes for this device…",
 
   "section.name":              "Name",
   "label.displayname":         "Display name",
@@ -194,6 +213,8 @@
   "alert.title.new_device":       "New device detected",
   "alert.title.priority_offline": "Priority device offline",
   "alert.title.device_back":      "Device back online",
+  "alert.title.service_down":     "HTTP service unreachable",
+  "alert.title.service_back":     "HTTP service back online",
 
   "event.type.seen":             "Discovered",
   "event.type.online":           "Online",

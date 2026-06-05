@@ -73,6 +73,7 @@ CHANGELOG.md                   — Alle Änderungen chronologisch
 | `nmap_ports` | TEXT | JSON-Array offener Ports (z.B. `["22/tcp open ssh"]`) |
 | `os_info` | TEXT | nmap OS-Erkennung |
 | `http_url` | TEXT | URL für HTTP-Verfügbarkeitscheck (opt-in, leer = deaktiviert) |
+| `notes` | TEXT | Freitext-Notizen (nur auf Device-Detailseite sichtbar) |
 | `priority` | INTEGER | 0/1 — löst kritische Alerts aus |
 | `approved` | INTEGER | 0/1 — neue Geräte starten mit 0 |
 | `online` | INTEGER | 0/1 — aktuell erreichbar |
@@ -109,18 +110,69 @@ bevor sie einen Alert feuern. Wenn `priority` fehlt, ist der Wert `false` → Al
 stillschweigend verworfen. Beim Publish von `EventDeviceBack` in `registry.go` (handleSeen)
 **muss** `"priority": existing.Priority` in der Meta-Map stehen.
 
-### `scanDevices` muss exakt 17 Spalten bekommen
-`registry.scanDevices()` scannt immer diese 17 Spalten in dieser Reihenfolge:
+### `scanDevices` vs. `scanDevice` — Spaltenanzahl
+Zwei unterschiedliche Scanner für zwei unterschiedliche Abfragen:
+
+**`scanDevices()` — 17 Spalten (Bulk-Abfragen):**
 ```
 mac, ip, hostname, hostname_auto, vendor, label, category,
 services, priority, approved, online, first_seen, last_seen,
 os_info, force_ping, nmap_ports, http_url
 ```
-Jede Query, die `scanDevices` aufruft, muss **alle 17** selektieren.
+Betroffene Funktionen: `List()`, `GetGroupDevices()`, `PriorityDevices()`, `HttpServiceDevices()`
+
+**`scanDevice()` — 18 Spalten (Single-Row-Abfragen):**
+Wie oben + `notes` am Ende. Nur verwendet von `get()` (→ Device-Detailseite).
+
 Fehlt eine Spalte → `rows.Scan()` schlägt stillschweigend fehl (`continue`) →
 leere Ergebnisliste ohne Fehlermeldung. **Bug-Quelle wenn neue Spalten hinzukommen.**
+`notes` ist bewusst **nicht** in den Bulk-Queries — so bleibt der bestehende Code unberührt.
 
-Betroffene Funktionen: `List()`, `get()`, `GetGroupDevices()`, `PriorityDevices()`, `HttpServiceDevices()`
+### Device Notes (seit v1.0.20)
+Freitext-Notizfeld pro Gerät. Gespeichert in `devices.notes`. Nur auf der Device-Detailseite
+angezeigt und editierbar — **nicht** in der Geräteliste, den Map-Tooltips oder Bulk-Queries.
+`SetNotes(mac, notes string) error` in `registry.go`.
+
+### Approve All (seit v1.0.20)
+`ApproveAll() (int, error)` setzt `approved=1` für alle Geräte mit `approved=0`.
+In `devices.html` erscheint ein "Alle bestätigen"-Button wenn `NewCount > 0` (berechnet
+in `deviceList` Handler). Route: `POST /devices/approve-all`.
+
+### Maintenance Mode / Alarmpause (seit v1.0.20)
+Globale Alertunterdrückung via `sync/atomic` int64 im Alert-Engine-Struct:
+```go
+type Engine struct {
+    maintenanceUntil int64  // atomic, Unix timestamp; 0 = inaktiv
+    ...
+}
+```
+`SetMaintenance(until time.Time)` — setzt oder löscht (Zero-Time → 0).
+`MaintenanceUntil() time.Time` — liest zurück.
+`fire()` prüft vor jedem Alert: wenn `time.Now().Unix() < maintenanceUntil` → Alarm verworfen.
+Zustand wird in `AppSettings.MaintenanceUntil int64` (Unix-Timestamp) persistiert.
+Beim Server-Start wird der gespeicherte Wert wiederhergestellt: `alertEng.SetMaintenance(time.Unix(...))`.
+Route: `POST /settings/maintenance` mit Form-Field `duration` (z.B. "30m", "1h", "2h", "8h", "off").
+
+### HTTP-Service-Alerts (seit v1.0.20)
+Neue Alert-Typen `service_down` und `service_back` für Devices mit `category == "http-service"`.
+`onDeviceLost` feuert **beide** `priority_offline` (wenn priority=true) **und** `service_down` (wenn category=http-service).
+Konfigurierbar in `config.yaml` unter `alerting.rules.service_down` / `service_back`.
+Defaults: enabled=true, severity="high", ServiceDown cooldown=15min, ServiceBack cooldown=5min.
+
+### Auto nmap bei neuen Geräten (seit v1.0.20)
+Opt-in Toggle in Settings → Netzwerk → "Auto nmap bei neuen Geräten".
+Gespeichert in `AppSettings.AutoNmapNewDevice bool`.
+`WireEvents(ctx, bus)` in `server.go` abonniert `EventDeviceNew` und ruft `scheduleNmapScan(ctx, mac, ip)`.
+`scheduleNmapScan` ist ein extrahierter Helper der den bestehenden `scanMu`-Mutex nutzt
+(verhindert gleichzeitige Scans). Muss aus `main.go` nach Bus-Erstellung aufgerufen werden.
+Route: `POST /settings/auto-nmap` mit Form-Field `enabled` ("1" / "").
+
+### Topologie-Map Gruppen-Filter: Shift+click Isolierung (seit v1.0.20)
+`buildGroupFilter()` in `dashboard.html`:
+- Normaler Click: Toggle (wie bisher)
+- Shift+Click: Isolierung — zeigt nur diese Gruppe, versteckt alle anderen
+- Reset-Button "✕ ALL" erscheint wenn irgendwelche Gruppen versteckt sind
+`_allGroupIds` Array wird bei `buildGroupFilter()` befüllt und vom Reset-Button genutzt.
 
 ### HTTP-Service-Monitoring (seit v1.0.19)
 Opt-in auf zwei Ebenen:
