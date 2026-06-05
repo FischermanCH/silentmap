@@ -102,6 +102,12 @@ CHANGELOG.md                   — Alle Änderungen chronologisch
 
 ## Wichtige Patterns & Fallen
 
+### `EventDeviceBack` / `EventDeviceLost` müssen `priority` in Meta haben
+`onDeviceBack` und `onDeviceLost` in der Alert-Engine prüfen `ev.Meta["priority"].(bool)`
+bevor sie einen Alert feuern. Wenn `priority` fehlt, ist der Wert `false` → Alert wird
+stillschweigend verworfen. Beim Publish von `EventDeviceBack` in `registry.go` (handleSeen)
+**muss** `"priority": existing.Priority` in der Meta-Map stehen.
+
 ### `scanDevices` muss exakt 16 Spalten bekommen
 `registry.scanDevices()` scannt immer diese 16 Spalten in dieser Reihenfolge:
 ```
