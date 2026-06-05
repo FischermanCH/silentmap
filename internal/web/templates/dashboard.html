@@ -240,13 +240,14 @@ const ICONPATH = {
   iot:       "M6,4H18V5H21V7H18V9H21V11H18V13H21V15H18V17H21V19H18V20H6V19H3V17H6V15H3V13H6V11H3V9H6V7H3V5H6V4M11,15V18H12V15H11M13,15V18H14V15H13M15,15V18H16V15H15Z",
   media:     "M21,17H3V5H21M21,3H3A2,2 0 0,0 1,5V17A2,2 0 0,0 3,19H8V21H16V19H21A2,2 0 0,0 23,17V5A2,2 0 0,0 21,3Z",
   drucker:   "M18,3H6V7H18M19,12A1,1 0 0,1 18,11A1,1 0 0,1 19,10A1,1 0 0,1 20,11A1,1 0 0,1 19,12M16,19H8V14H16M19,8H5A3,3 0 0,0 2,11V17H6V21H18V17H22V11A3,3 0 0,0 19,8Z",
-  virtual:   "M21,16.5C21,16.88 20.79,17.21 20.47,17.38L12.57,21.82C12.41,21.94 12.21,22 12,22C11.79,22 11.59,21.94 11.43,21.82L3.53,17.38C3.21,17.21 3,16.88 3,16.5V7.5C3,7.12 3.21,6.79 3.53,6.62L11.43,2.18C11.59,2.06 11.79,2 12,2C12.21,2 12.41,2.06 12.57,2.18L20.47,6.62C20.79,6.79 21,7.12 21,7.5V16.5M12,4.15L6.04,7.5L12,10.85L17.96,7.5L12,4.15M5,15.91L11,19.29V12.58L5,9.21V15.91M19,15.91V9.21L13,12.58V19.29L19,15.91Z",
-  unbekannt: "M15.07,11.25L14.17,12.17C13.45,12.89 13,13.5 13,15H11V14.5C11,13.39 11.45,12.39 12.17,11.67L13.41,10.41C13.78,10.05 14,9.55 14,9C14,7.89 13.1,7 12,7A2,2 0 0,0 10,9H8A4,4 0 0,1 12,5A4,4 0 0,1 16,9C16,9.88 15.64,10.67 15.07,11.25M13,19H11V17H13M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12C22,6.47 17.5,2 12,2Z",
+  virtual:      "M21,16.5C21,16.88 20.79,17.21 20.47,17.38L12.57,21.82C12.41,21.94 12.21,22 12,22C11.79,22 11.59,21.94 11.43,21.82L3.53,17.38C3.21,17.21 3,16.88 3,16.5V7.5C3,7.12 3.21,6.79 3.53,6.62L11.43,2.18C11.59,2.06 11.79,2 12,2C12.21,2 12.41,2.06 12.57,2.18L20.47,6.62C20.79,6.79 21,7.12 21,7.5V16.5M12,4.15L6.04,7.5L12,10.85L17.96,7.5L12,4.15M5,15.91L11,19.29V12.58L5,9.21V15.91M19,15.91V9.21L13,12.58V19.29L19,15.91Z",
+  'http-service': "M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2M11,19.93C7.05,19.44 4,16.08 4,12C4,11.38 4.08,10.78 4.21,10.21L9,15V16A2,2 0 0,0 11,18M17.9,17.39C17.64,16.58 16.9,16 16,16H15V13A1,1 0 0,0 14,12H8V10H10A1,1 0 0,0 11,9V7H13A2,2 0 0,0 15,5V4.59C17.93,5.77 20,8.64 20,12C20,14.08 19.2,15.97 17.9,17.39Z",
+  unbekannt:    "M15.07,11.25L14.17,12.17C13.45,12.89 13,13.5 13,15H11V14.5C11,13.39 11.45,12.39 12.17,11.67L13.41,10.41C13.78,10.05 14,9.55 14,9C14,7.89 13.1,7 12,7A2,2 0 0,0 10,9H8A4,4 0 0,1 12,5A4,4 0 0,1 16,9C16,9.88 15.64,10.67 15.07,11.25M13,19H11V17H13M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12C22,6.47 17.5,2 12,2Z",
 };
 const CATCOLOR = {
   netzwerk:'#38bdf8', server:'#a78bfa', desktop:'#818cf8', mobile:'#f472b6',
   smarthome:'#fb923c', iot:'#fbbf24', media:'#22d3ee', drucker:'#94a3b8',
-  virtual:'#c084fc', unbekannt:'#6b7280',
+  virtual:'#c084fc', 'http-service':'#34d399', unbekannt:'#6b7280',
 };
 const UNGROUPED      = '__ungrouped__';
 const UNGROUPED_LABEL = '{{t "groups.ungrouped"}}';
@@ -472,12 +473,21 @@ function forceClusterAnchor(clusterAngles, clusterSizes, clusterOf, W, H) {
 }
 
 // ── Group filter chips ───────────────────────────────────────────────────────
+// Click = toggle this group. Shift+click = show ONLY this group (isolate).
+let _allGroupIds = []; // kept in sync by buildGroupFilter for the reset button
 function buildGroupFilter() {
   const container=document.getElementById('group-filter');
   if(!container) return;
   container.innerHTML='';
   const groups=[...allGroups];
   if(allNodes.some(n=>!n.groups||!n.groups.length)) groups.push({id:UNGROUPED,name:UNGROUPED_LABEL,color:COLORS.border});
+  // UNGROUPED is hidden by default; exclude it so the reset button only appears
+  // after the user has explicitly hidden a named group.
+  _allGroupIds = groups.filter(g=>g.id!==UNGROUPED).map(g=>g.id);
+
+  const btnMap=new Map();
+  const refreshAll=()=>{ btnMap.forEach((fn)=>fn()); updateResetBtn(); };
+
   groups.forEach(grp=>{
     const btn=document.createElement('button');
     btn.type='button'; btn.dataset.gid=grp.id;
@@ -492,13 +502,38 @@ function buildGroupFilter() {
       });
       btn.textContent=grp.name.toUpperCase();
     };
+    btnMap.set(grp.id, refresh);
     refresh();
-    btn.addEventListener('click',()=>{
-      if(hiddenGroups.has(grp.id)) hiddenGroups.delete(grp.id); else hiddenGroups.add(grp.id);
-      refresh(); applyGroupFilter();
+    btn.addEventListener('click',e=>{
+      if(e.shiftKey) {
+        // Shift+click: isolate — show only this group, hide all others
+        _allGroupIds.forEach(id=>{ if(id!==grp.id) hiddenGroups.add(id); else hiddenGroups.delete(id); });
+      } else {
+        if(hiddenGroups.has(grp.id)) hiddenGroups.delete(grp.id); else hiddenGroups.add(grp.id);
+      }
+      refreshAll(); applyGroupFilter();
     });
     container.appendChild(btn);
   });
+
+  // Reset button — shown only when any group is hidden
+  const resetBtn=document.createElement('button');
+  resetBtn.type='button'; resetBtn.id='group-filter-reset';
+  Object.assign(resetBtn.style,{
+    border:'1.5px solid var(--sm-text-muted)',borderRadius:'4px',padding:'1px 6px',
+    fontSize:'9px',cursor:'pointer',background:'transparent',
+    color:'var(--sm-text-muted)',fontWeight:'600',letterSpacing:'0.04em',display:'none',
+  });
+  resetBtn.textContent='✕ ALL';
+  resetBtn.title='Alle Gruppen anzeigen';
+  resetBtn.addEventListener('click',()=>{ _allGroupIds.forEach(id=>hiddenGroups.delete(id)); refreshAll(); applyGroupFilter(); });
+  container.appendChild(resetBtn);
+
+  function updateResetBtn() {
+    const anyHidden=_allGroupIds.some(id=>hiddenGroups.has(id));
+    resetBtn.style.display=anyHidden?'inline-block':'none';
+  }
+  updateResetBtn();
 }
 
 function buildStatusFilter() {

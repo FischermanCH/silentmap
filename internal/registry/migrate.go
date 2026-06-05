@@ -89,5 +89,6 @@ func migrate(db *sql.DB) error {
 	// Assign initial sort_order to existing groups so they keep their current order.
 	db.Exec(`UPDATE device_groups SET sort_order = rowid WHERE sort_order = 0`)
 	db.Exec(`ALTER TABLE devices ADD COLUMN http_url TEXT NOT NULL DEFAULT ''`)
+	db.Exec(`ALTER TABLE devices ADD COLUMN notes TEXT NOT NULL DEFAULT ''`)
 	return createOUITable(db)
 }

@@ -24,6 +24,16 @@
       class="text-xs px-3 py-2 rounded-lg font-medium border hover:bg-gray-50 transition-colors"
       style="border-color:var(--sm-card-border);color:var(--sm-text-secondary)"
       title="{{t "import.hint"}}">↑ {{t "action.import"}}</button>
+    {{if gt .NewCount 0}}
+    <form method="POST" action="/devices/approve-all"
+          onsubmit="return confirm('{{tf "confirm.approve_all" .NewCount}}')">
+      <button type="submit"
+        class="text-xs px-3 py-2 rounded-lg font-medium border transition-colors"
+        style="border-color:#f59e0b;color:#b45309;background:#fef3c7">
+        ✓ {{tf "devices.approve_all" .NewCount}}
+      </button>
+    </form>
+    {{end}}
     <button onclick="document.getElementById('modal-new').classList.remove('hidden')"
       class="text-sm px-4 py-2 rounded-lg font-medium border border-gray-300 hover:bg-gray-50 transition-colors">
       {{t "devices.add"}}

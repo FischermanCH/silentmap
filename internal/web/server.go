@@ -27,6 +27,7 @@ import (
 	"github.com/silentmap/silentmap/internal/alerting/channels/discord"
 	"github.com/silentmap/silentmap/internal/alerting/channels/ntfy"
 	"github.com/silentmap/silentmap/internal/alerting/engine"
+	"github.com/silentmap/silentmap/internal/bus"
 	"github.com/silentmap/silentmap/internal/collectors/httpcheck"
 	"github.com/silentmap/silentmap/internal/collectors/ping"
 	"github.com/silentmap/silentmap/internal/config"
@@ -57,11 +58,13 @@ type HttpCheckSettings struct {
 }
 
 type AppSettings struct {
-	Discord   DiscordSettings   `json:"discord"`
-	Ntfy      NtfySettings      `json:"ntfy"`
-	Ping      PingSettings      `json:"ping"`
-	HttpCheck HttpCheckSettings `json:"http_check"`
-	Listening bool              `json:"listening"`
+	Discord          DiscordSettings   `json:"discord"`
+	Ntfy             NtfySettings      `json:"ntfy"`
+	Ping             PingSettings      `json:"ping"`
+	HttpCheck        HttpCheckSettings `json:"http_check"`
+	Listening        bool              `json:"listening"`
+	AutoNmapNewDevice bool             `json:"auto_nmap_new_device"`
+	MaintenanceUntil int64             `json:"maintenance_until"` // Unix timestamp; 0 = disabled
 }
 
 //go:embed templates/*
@@ -147,6 +150,9 @@ func NewServer(reg *registry.Registry, alertEng *engine.Engine, db *sql.DB, data
 	if stored.HttpCheck.Interval > 0 {
 		s.httpCol.Update(stored.HttpCheck.Enabled, time.Duration(stored.HttpCheck.Interval)*time.Minute)
 	}
+	if stored.MaintenanceUntil > 0 {
+		s.alertEng.SetMaintenance(time.Unix(stored.MaintenanceUntil, 0))
+	}
 	return s
 }
 
@@ -163,6 +169,64 @@ func (s *Server) StartBackground(ctx context.Context) {
 				s.checkLatestVersion()
 			}
 		}
+	}()
+}
+
+// WireEvents subscribes to bus events that the web server needs to react to.
+// Must be called from main after both server and bus are created.
+func (s *Server) WireEvents(ctx context.Context, b *bus.Bus) {
+	b.Subscribe(bus.EventDeviceNew, func(ev bus.Event) {
+		if ev.IP == "" {
+			return
+		}
+		cfg := s.loadAppSettings()
+		if !cfg.AutoNmapNewDevice {
+			return
+		}
+		s.scheduleNmapScan(ctx, ev.MAC, ev.IP)
+	})
+}
+
+// scheduleNmapScan starts an nmap scan for a device in the background.
+// Safe to call concurrently — duplicate scans for the same MAC are dropped.
+func (s *Server) scheduleNmapScan(ctx context.Context, mac, ip string) {
+	s.scanMu.Lock()
+	if s.scanning[mac] {
+		s.scanMu.Unlock()
+		return
+	}
+	s.scanning[mac] = true
+	s.scanMu.Unlock()
+
+	args := s.nmapArgs
+	if args == "" {
+		args = "-sV --top-ports 20 -T3"
+	}
+
+	go func() {
+		defer func() {
+			s.scanMu.Lock()
+			delete(s.scanning, mac)
+			s.scanMu.Unlock()
+		}()
+
+		scanCtx, cancel := context.WithTimeout(ctx, 3*time.Minute)
+		defer cancel()
+
+		result, err := scanner.RunNmap(scanCtx, ip, args)
+		if err != nil {
+			slog.Warn("auto nmap scan failed", "mac", mac, "ip", ip, "err", err)
+			s.reg.AddEvent(mac, ip, "nmap", "auto", "Scan fehlgeschlagen: "+err.Error())
+			return
+		}
+		if result.OsInfo != "" {
+			s.reg.SetOsInfo(mac, result.OsInfo)
+		}
+		if len(result.Ports) > 0 {
+			s.reg.SetNmapPorts(mac, result.Ports)
+		}
+		s.reg.AddEvent(mac, ip, "nmap", "auto", result.Summary())
+		slog.Info("auto nmap scan complete", "mac", mac, "ip", ip, "os", result.OsInfo, "ports", len(result.Ports))
 	}()
 }
 
@@ -268,7 +332,11 @@ func (s *Server) Handler() http.Handler {
 	r.Post("/settings/listening", s.toggleListening)
 	r.Post("/settings/ping", s.setPing)
 	r.Post("/settings/httpcheck", s.setHttpCheck)
+	r.Post("/settings/maintenance", s.setMaintenance)
+	r.Post("/settings/auto-nmap", s.setAutoNmap)
+	r.Post("/devices/{mac}/notes", s.setNotes)
 	r.Post("/devices/{mac}/http-url", s.setHttpUrl)
+	r.Post("/devices/approve-all", s.approveAll)
 	r.Get("/api/stats", s.apiStats)
 	r.Get("/api/alerts", s.apiAlerts)
 	r.Get("/api/version", s.apiVersion)
@@ -317,9 +385,16 @@ func (s *Server) deviceList(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "internal error", http.StatusInternalServerError)
 		return
 	}
+	newCount := 0
+	for _, d := range devices {
+		if !d.Approved {
+			newCount++
+		}
+	}
 	s.render(w, r, "devices.html", map[string]any{
-		"Title":   "Geräte",
-		"Devices": devices,
+		"Title":    "Geräte",
+		"Devices":  devices,
+		"NewCount": newCount,
 	})
 }
 
@@ -543,13 +618,18 @@ func (s *Server) settingsPage(w http.ResponseWriter, r *http.Request) {
 	if httpCheck.Interval <= 0 {
 		httpCheck.Interval = 5
 	}
+	maintenanceUntil := s.alertEng.MaintenanceUntil()
+	maintenanceActive := !maintenanceUntil.IsZero() && time.Now().Before(maintenanceUntil)
 	s.render(w, r, "settings.html", map[string]any{
-		"Title":     "Settings",
-		"Discord":   settings.Discord,
-		"Ntfy":      settings.Ntfy,
-		"Ping":      ping,
-		"HttpCheck": httpCheck,
-		"Saved":     r.URL.Query().Get("saved") == "1",
+		"Title":             "Settings",
+		"Discord":           settings.Discord,
+		"Ntfy":              settings.Ntfy,
+		"Ping":              ping,
+		"HttpCheck":         httpCheck,
+		"MaintenanceActive": maintenanceActive,
+		"MaintenanceUntil":  maintenanceUntil,
+		"AutoNmapNewDevice": settings.AutoNmapNewDevice,
+		"Saved":             r.URL.Query().Get("saved") == "1",
 	})
 }
 
@@ -628,6 +708,47 @@ func (s *Server) setPing(w http.ResponseWriter, r *http.Request) {
 		slog.Error("save settings failed", "err", err)
 	}
 	s.pingCol.Update(cfg.Ping.Enabled, time.Duration(intervalMin)*time.Minute)
+	http.Redirect(w, r, "/settings?saved=1", http.StatusSeeOther)
+}
+
+func (s *Server) setNotes(w http.ResponseWriter, r *http.Request) {
+	s.deviceUpdate(w, r, "notes", func(mac string) error {
+		return s.reg.SetNotes(mac, r.FormValue("notes"))
+	})
+}
+
+func (s *Server) approveAll(w http.ResponseWriter, r *http.Request) {
+	if _, err := s.reg.ApproveAll(); err != nil {
+		slog.Error("approve all failed", "err", err)
+	}
+	http.Redirect(w, r, "/devices", http.StatusSeeOther)
+}
+
+func (s *Server) setMaintenance(w http.ResponseWriter, r *http.Request) {
+	r.ParseForm()
+	minutes, _ := strconv.Atoi(r.FormValue("duration_min"))
+	cfg := s.loadAppSettings()
+	var until time.Time
+	if minutes > 0 {
+		until = time.Now().Add(time.Duration(minutes) * time.Minute)
+		cfg.MaintenanceUntil = until.Unix()
+	} else {
+		cfg.MaintenanceUntil = 0
+	}
+	if err := s.saveAppSettings(cfg); err != nil {
+		slog.Error("save maintenance settings failed", "err", err)
+	}
+	s.alertEng.SetMaintenance(until)
+	http.Redirect(w, r, "/settings?saved=1", http.StatusSeeOther)
+}
+
+func (s *Server) setAutoNmap(w http.ResponseWriter, r *http.Request) {
+	r.ParseForm()
+	cfg := s.loadAppSettings()
+	cfg.AutoNmapNewDevice = r.FormValue("enabled") == "on"
+	if err := s.saveAppSettings(cfg); err != nil {
+		slog.Error("save auto-nmap settings failed", "err", err)
+	}
 	http.Redirect(w, r, "/settings?saved=1", http.StatusSeeOther)
 }
 
@@ -924,6 +1045,8 @@ func friendlySource(src string) string {
 		return "Ping"
 	case "nmap":
 		return "nmap"
+	case "http-check":
+		return "HTTP"
 	default:
 		return src
 	}

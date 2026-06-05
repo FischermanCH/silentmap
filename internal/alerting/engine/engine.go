@@ -9,6 +9,7 @@ import (
 	"log/slog"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/google/uuid"
@@ -21,11 +22,31 @@ import (
 type Alert = channels.Alert
 
 type Engine struct {
-	cfg      config.AlertsCfg
-	db       *sql.DB
-	channels []channels.Channel
-	cooldown map[string]time.Time
-	mu       sync.Mutex
+	cfg              config.AlertsCfg
+	db               *sql.DB
+	channels         []channels.Channel
+	cooldown         map[string]time.Time
+	mu               sync.Mutex
+	maintenanceUntil int64 // Unix timestamp; 0 = disabled; accessed via sync/atomic
+}
+
+// SetMaintenance puts the alert engine into maintenance mode until `until`.
+// Pass the zero Time to cancel maintenance mode immediately.
+func (e *Engine) SetMaintenance(until time.Time) {
+	if until.IsZero() {
+		atomic.StoreInt64(&e.maintenanceUntil, 0)
+	} else {
+		atomic.StoreInt64(&e.maintenanceUntil, until.Unix())
+	}
+}
+
+// MaintenanceUntil returns the current maintenance-mode expiry (zero = inactive).
+func (e *Engine) MaintenanceUntil() time.Time {
+	v := atomic.LoadInt64(&e.maintenanceUntil)
+	if v == 0 {
+		return time.Time{}
+	}
+	return time.Unix(v, 0)
 }
 
 func New(cfg config.AlertsCfg, db *sql.DB) *Engine {
@@ -77,41 +98,61 @@ func (e *Engine) onDeviceNew(ev bus.Event) {
 }
 
 func (e *Engine) onDeviceLost(ev bus.Event) {
-	if !e.cfg.Rules.PriorityOffline.Enabled {
-		return
-	}
 	priority, _ := ev.Meta["priority"].(bool)
-	if !priority {
-		return
+	category, _ := ev.Meta["category"].(string)
+
+	if e.cfg.Rules.PriorityOffline.Enabled && priority {
+		e.fire(Alert{
+			Type:     "priority_offline",
+			Severity: e.cfg.Rules.PriorityOffline.Severity,
+			Title:    "alert.title.priority_offline",
+			Summary:  alertSummary(ev),
+			MAC:      ev.MAC,
+			IP:       ev.IP,
+			Meta:     ev.Meta,
+		}, e.cfg.Rules.PriorityOffline.Cooldown)
 	}
-	e.fire(Alert{
-		Type:     "priority_offline",
-		Severity: e.cfg.Rules.PriorityOffline.Severity,
-		Title:    "alert.title.priority_offline",
-		Summary:  alertSummary(ev),
-		MAC:      ev.MAC,
-		IP:       ev.IP,
-		Meta:     ev.Meta,
-	}, e.cfg.Rules.PriorityOffline.Cooldown)
+
+	if e.cfg.Rules.ServiceDown.Enabled && category == "http-service" {
+		e.fire(Alert{
+			Type:     "service_down",
+			Severity: e.cfg.Rules.ServiceDown.Severity,
+			Title:    "alert.title.service_down",
+			Summary:  alertSummary(ev),
+			MAC:      ev.MAC,
+			IP:       ev.IP,
+			Meta:     ev.Meta,
+		}, e.cfg.Rules.ServiceDown.Cooldown)
+	}
 }
 
 func (e *Engine) onDeviceBack(ev bus.Event) {
-	if !e.cfg.Rules.DeviceBack.Enabled {
-		return
-	}
 	priority, _ := ev.Meta["priority"].(bool)
-	if !priority {
-		return
+	category, _ := ev.Meta["category"].(string)
+
+	if e.cfg.Rules.DeviceBack.Enabled && priority {
+		e.fire(Alert{
+			Type:     "device_back",
+			Severity: e.cfg.Rules.DeviceBack.Severity,
+			Title:    "alert.title.device_back",
+			Summary:  alertSummary(ev),
+			MAC:      ev.MAC,
+			IP:       ev.IP,
+			Meta:     ev.Meta,
+		}, e.cfg.Rules.DeviceBack.Cooldown)
 	}
-	e.fire(Alert{
-		Type:     "device_back",
-		Severity: e.cfg.Rules.DeviceBack.Severity,
-		Title:    "alert.title.device_back",
-		Summary:  alertSummary(ev),
-		MAC:      ev.MAC,
-		IP:       ev.IP,
-		Meta:     ev.Meta,
-	}, e.cfg.Rules.DeviceBack.Cooldown)
+
+	if e.cfg.Rules.ServiceBack.Enabled && category == "http-service" {
+		e.fire(Alert{
+			Type:     "service_back",
+			Severity: e.cfg.Rules.ServiceBack.Severity,
+			Title:    "alert.title.service_back",
+			Summary:  alertSummary(ev),
+			MAC:      ev.MAC,
+			IP:       ev.IP,
+			Meta:     ev.Meta,
+		}, e.cfg.Rules.ServiceBack.Cooldown)
+	}
 }
 
 // bestName returns the most human-readable name available in the event metadata:
@@ -137,6 +178,11 @@ func alertSummary(ev bus.Event) string {
 }
 
 func (e *Engine) fire(a Alert, cooldownDur time.Duration) {
+	if v := atomic.LoadInt64(&e.maintenanceUntil); v > 0 && time.Now().Unix() < v {
+		slog.Debug("alert suppressed (maintenance mode)", "type", a.Type, "mac", a.MAC)
+		return
+	}
+
 	e.mu.Lock()
 	key := a.Type + ":" + a.MAC
 	if cooldownDur > 0 {

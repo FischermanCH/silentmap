@@ -149,6 +149,21 @@
   <!-- Right: Einstellungen -->
   <div class="space-y-4">
 
+    <!-- Notizen -->
+    <div class="rounded-xl border p-5" style="background-color:var(--sm-card-bg)">
+      <h2 class="font-semibold mb-3" style="color:var(--sm-text-primary)">{{t "section.notes"}}</h2>
+      <form action="/devices/{{$d.MAC}}/notes" method="POST">
+        <textarea name="notes" rows="3" placeholder="{{t "notes.placeholder"}}"
+          class="w-full border rounded-lg px-3 py-2 text-sm resize-y focus:outline-none focus:ring-2 focus:ring-blue-500 mb-2"
+          style="background-color:var(--sm-card-bg);color:var(--sm-text-primary);min-height:64px">{{$d.Notes}}</textarea>
+        <button type="submit"
+          class="w-full py-2 rounded-lg text-sm transition-colors font-medium"
+          style="background-color:var(--sm-card-border);color:var(--sm-btn-text)">
+          {{t "action.save"}}
+        </button>
+      </form>
+    </div>
+
     <!-- Name / Label -->
     <div class="rounded-xl border p-5" style="background-color:var(--sm-card-bg)">
       <h2 class="font-semibold mb-4" style="color:var(--sm-text-primary)">{{t "section.name"}}</h2>

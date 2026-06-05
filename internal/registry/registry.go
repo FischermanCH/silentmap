@@ -58,6 +58,7 @@ type Device struct {
 	OsInfo       string   // from nmap OS detection
 	NmapPorts    []string // open ports from last nmap scan, e.g. ["22/tcp open ssh OpenSSH 8.4"]
 	HttpURL      string   // URL for HTTP availability check (opt-in, only used when set)
+	Notes        string   // free-text notes visible only on device detail page
 	ForcePing    bool     // use ICMP ping instead of ARP (for devices outside local subnet)
 	Priority     bool
 	Approved     bool
@@ -861,7 +862,7 @@ func (r *Registry) macByIP(ip string) string {
 
 func (r *Registry) get(mac string) (Device, error) {
 	row := r.db.QueryRow(`
-		SELECT mac, ip, hostname, hostname_auto, vendor, label, category, services, priority, approved, online, first_seen, last_seen, os_info, force_ping, nmap_ports, http_url
+		SELECT mac, ip, hostname, hostname_auto, vendor, label, category, services, priority, approved, online, first_seen, last_seen, os_info, force_ping, nmap_ports, http_url, notes
 		FROM devices WHERE mac = ?`, mac)
 	return r.scanDevice(row)
 }
@@ -870,7 +871,7 @@ func (r *Registry) scanDevice(row *sql.Row) (Device, error) {
 	var d Device
 	var firstSeen, lastSeen, servicesJSON, nmapPortsJSON string
 	err := row.Scan(&d.MAC, &d.IP, &d.Hostname, &d.HostnameAuto, &d.Vendor, &d.Label,
-		&d.Category, &servicesJSON, &d.Priority, &d.Approved, &d.Online, &firstSeen, &lastSeen, &d.OsInfo, &d.ForcePing, &nmapPortsJSON, &d.HttpURL)
+		&d.Category, &servicesJSON, &d.Priority, &d.Approved, &d.Online, &firstSeen, &lastSeen, &d.OsInfo, &d.ForcePing, &nmapPortsJSON, &d.HttpURL, &d.Notes)
 	if err != nil {
 		return d, err
 	}
@@ -1328,6 +1329,22 @@ func (r *Registry) SetOsInfo(mac, osInfo string) error {
 func (r *Registry) SetNmapPorts(mac string, ports []string) error {
 	_, err := r.db.Exec(`UPDATE devices SET nmap_ports = ? WHERE mac = ?`, marshalServices(ports), normalizeMac(mac))
 	return err
+}
+
+// SetNotes stores free-text notes for a device.
+func (r *Registry) SetNotes(mac, notes string) error {
+	_, err := r.db.Exec(`UPDATE devices SET notes = ? WHERE mac = ?`, notes, normalizeMac(mac))
+	return err
+}
+
+// ApproveAll marks all currently-unapproved devices as known.
+func (r *Registry) ApproveAll() (int, error) {
+	res, err := r.db.Exec(`UPDATE devices SET approved = 1 WHERE approved = 0`)
+	if err != nil {
+		return 0, err
+	}
+	n, _ := res.RowsAffected()
+	return int(n), nil
 }
 
 // SetHttpUrl sets or clears the HTTP check URL for a device.
