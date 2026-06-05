@@ -15,6 +15,13 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [1.0.16] — 2026-06-05
+
+### Fixed
+- **Discord — no alert when priority device comes back online** — `EventDeviceBack` was published without the `priority` field in its metadata. The alert engine checks `priority` before firing `device_back` alerts, so they were silently dropped every time. `priority_offline` was unaffected (its event always included the field).
+
+---
+
 ## [1.0.15] — 2026-06-05
 
 ### Fixed
