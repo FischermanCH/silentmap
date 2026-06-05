@@ -327,6 +327,16 @@ func (s *Server) encrypt(plain string) string { return crypto.Encrypt(s.encKey, 
 // Legacy cleartext values (no enc: prefix) are returned as-is for transparent migration.
 func (s *Server) decrypt(enc string) string { return crypto.Decrypt(s.encKey, enc) }
 
+// settingsRedirect redirects to /settings?saved=1 and restores the active tab
+// using the hidden _tab field submitted with each settings form.
+func (s *Server) settingsRedirect(w http.ResponseWriter, r *http.Request) {
+	u := "/settings?saved=1"
+	if tab := r.FormValue("_tab"); tab != "" {
+		u += "&tab=" + tab
+	}
+	http.Redirect(w, r, u, http.StatusSeeOther)
+}
+
 func (s *Server) loadAppSettings() AppSettings {
 	data, err := os.ReadFile(filepath.Join(s.dataDir, "settings.json"))
 	if err != nil {
@@ -734,7 +744,7 @@ func (s *Server) setDiscord(w http.ResponseWriter, r *http.Request) {
 		Enabled:    cfg.Discord.Enabled,
 		WebhookURL: s.decrypt(cfg.Discord.WebhookURL),
 	})
-	http.Redirect(w, r, "/settings?saved=1", http.StatusSeeOther)
+	s.settingsRedirect(w, r)
 }
 
 func (s *Server) setNtfy(w http.ResponseWriter, r *http.Request) {
@@ -768,7 +778,7 @@ func (s *Server) setNtfy(w http.ResponseWriter, r *http.Request) {
 		URL:     cfg.Ntfy.URL,
 		Token:   s.decrypt(cfg.Ntfy.Token),
 	})
-	http.Redirect(w, r, "/settings?saved=1", http.StatusSeeOther)
+	s.settingsRedirect(w, r)
 }
 
 func (s *Server) setEmail(w http.ResponseWriter, r *http.Request) {
@@ -820,7 +830,7 @@ func (s *Server) setEmail(w http.ResponseWriter, r *http.Request) {
 		TLSMode:  cfg.Email.TLSMode,
 		Lang:     cfg.Email.Lang,
 	})
-	http.Redirect(w, r, "/settings?saved=1", http.StatusSeeOther)
+	s.settingsRedirect(w, r)
 }
 
 func (s *Server) setPing(w http.ResponseWriter, r *http.Request) {
@@ -838,7 +848,7 @@ func (s *Server) setPing(w http.ResponseWriter, r *http.Request) {
 		slog.Error("save settings failed", "err", err)
 	}
 	s.pingCol.Update(cfg.Ping.Enabled, time.Duration(intervalMin)*time.Minute)
-	http.Redirect(w, r, "/settings?saved=1", http.StatusSeeOther)
+	s.settingsRedirect(w, r)
 }
 
 func (s *Server) setNotes(w http.ResponseWriter, r *http.Request) {
@@ -869,7 +879,7 @@ func (s *Server) setMaintenance(w http.ResponseWriter, r *http.Request) {
 		slog.Error("save maintenance settings failed", "err", err)
 	}
 	s.alertEng.SetMaintenance(until)
-	http.Redirect(w, r, "/settings?saved=1", http.StatusSeeOther)
+	s.settingsRedirect(w, r)
 }
 
 func (s *Server) setAutoNmap(w http.ResponseWriter, r *http.Request) {
@@ -879,7 +889,7 @@ func (s *Server) setAutoNmap(w http.ResponseWriter, r *http.Request) {
 	if err := s.saveAppSettings(cfg); err != nil {
 		slog.Error("save auto-nmap settings failed", "err", err)
 	}
-	http.Redirect(w, r, "/settings?saved=1", http.StatusSeeOther)
+	s.settingsRedirect(w, r)
 }
 
 func (s *Server) setHttpCheck(w http.ResponseWriter, r *http.Request) {
@@ -897,7 +907,7 @@ func (s *Server) setHttpCheck(w http.ResponseWriter, r *http.Request) {
 		slog.Error("save http check settings failed", "err", err)
 	}
 	s.httpCol.Update(cfg.HttpCheck.Enabled, time.Duration(intervalMin)*time.Minute)
-	http.Redirect(w, r, "/settings?saved=1", http.StatusSeeOther)
+	s.settingsRedirect(w, r)
 }
 
 func (s *Server) setHttpUrl(w http.ResponseWriter, r *http.Request) {
