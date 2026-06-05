@@ -227,15 +227,18 @@
         <select name="category"
           class="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 mb-2"
           style="background-color:var(--sm-card-bg);color:var(--sm-text-primary)"
-          onchange="document.getElementById('virtual-hint').style.display=this.value==='virtual'?'block':'none'">
+          onchange="onCategoryChange(this.value)">
           <option value="">{{t "category.auto"}}</option>
           {{$cat := $d.Category}}
-          {{range slice "netzwerk" "server" "desktop" "mobile" "smarthome" "iot" "media" "drucker" "virtual" "unbekannt"}}
+          {{range slice "netzwerk" "server" "desktop" "mobile" "smarthome" "iot" "media" "drucker" "virtual" "http-service" "unbekannt"}}
           <option value="{{.}}" {{if eq . $cat}}selected{{end}}>{{t (printf "cat.%s" .)}}</option>
           {{end}}
         </select>
         <p id="virtual-hint" class="text-xs mb-2 px-2 py-1.5 rounded" style="display:{{if eq $d.Category "virtual"}}block{{else}}none{{end}};background-color:var(--sm-badge-info-bg);color:var(--sm-accent)">
           {{t "category.virtual.hint"}}
+        </p>
+        <p id="http-hint" class="text-xs mb-2 px-2 py-1.5 rounded" style="display:{{if eq $d.Category "http-service"}}block{{else}}none{{end}};background-color:var(--sm-badge-info-bg);color:var(--sm-accent)">
+          {{t "category.http-service.hint"}}
         </p>
         <button type="submit"
           class="w-full py-2 rounded-lg text-sm transition-colors font-medium"
@@ -243,6 +246,12 @@
           {{t "action.set_category"}}
         </button>
       </form>
+      <script>
+      function onCategoryChange(v) {
+        document.getElementById('virtual-hint').style.display = v === 'virtual' ? 'block' : 'none';
+        document.getElementById('http-hint').style.display = v === 'http-service' ? 'block' : 'none';
+      }
+      </script>
     </div>
 
     <!-- Verbindungen -->
@@ -368,6 +377,36 @@
         {{end}}
       </div>
     </details>
+
+    <!-- HTTP URL (nur für http-service Kategorie) -->
+    {{if eq $d.Category "http-service"}}
+    <div class="rounded-xl border p-5" style="background-color:var(--sm-card-bg)">
+      <h2 class="font-semibold mb-3 flex items-center gap-2" style="color:var(--sm-text-primary)">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" style="color:var(--sm-accent)">
+          <path d="M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2M11,19.93C7.05,19.44 4,16.08 4,12C4,11.38 4.08,10.78 4.21,10.21L9,15V16A2,2 0 0,0 11,18M17.9,17.39C17.64,16.58 16.9,16 16,16H15V13A1,1 0 0,0 14,12H8V10H10A1,1 0 0,0 11,9V7H13A2,2 0 0,0 15,5V4.59C17.93,5.77 20,8.64 20,12C20,14.08 19.2,15.97 17.9,17.39Z"/>
+        </svg>
+        {{t "section.httpurl"}}
+      </h2>
+      <form action="/devices/{{$d.MAC}}/http-url" method="POST" class="space-y-2">
+        <input type="url" name="http_url" value="{{$d.HttpURL}}"
+          placeholder="http://192.168.1.x:8080"
+          class="w-full border rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500"
+          style="background-color:var(--sm-card-bg);color:var(--sm-text-primary)">
+        <p class="text-xs" style="color:var(--sm-text-muted)">{{t "httpurl.hint"}}</p>
+        <button type="submit"
+          class="w-full py-2 rounded-lg text-sm transition-colors font-medium"
+          style="background-color:var(--sm-card-border);color:var(--sm-btn-text)">
+          {{t "action.save"}}
+        </button>
+      </form>
+      {{if $d.HttpURL}}
+      <div class="mt-3 pt-3 border-t text-xs" style="border-color:var(--sm-card-border);color:var(--sm-text-muted)">
+        <a href="{{$d.HttpURL}}" target="_blank" rel="noopener"
+           class="font-mono hover:underline" style="color:var(--sm-accent)">{{$d.HttpURL}} ↗</a>
+      </div>
+      {{end}}
+    </div>
+    {{end}}
 
     <!-- nmap Scan (aufklappbar) -->
     {{if $d.IP}}

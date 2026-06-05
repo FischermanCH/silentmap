@@ -15,6 +15,18 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [1.0.19] — 2026-06-05
+
+### Added
+- **HTTP/HTTPS service monitoring** — new category "HTTP Service" for monitoring web-based services (routers, NAS, home-assistant, reverse proxies, etc.). Per device, enter a URL (http:// or https://) in the new "HTTP-URL" field on the device detail page. A global HTTP checker polls all devices with a URL set at a configurable interval and publishes an online/offline event. Any HTTP response (including 4xx/5xx) counts as online — only timeouts and connection failures trigger offline. Self-signed TLS certificates are accepted without error (common on home networks).
+- **HTTP Check is opt-in at two levels**: (1) global toggle + interval in Settings → Network, disabled by default; (2) per device, a URL must be explicitly entered — nothing is auto-activated.
+
+### Changed
+- Category "HTTP Service" appears in the category dropdown on device detail pages. A hint is shown explaining the two-step opt-in.
+- Settings page has a new "HTTP Check" section under Network, mirroring the ARP Poller section.
+
+---
+
 ## [1.0.18] — 2026-06-05
 
 ### Fixed
