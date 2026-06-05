@@ -15,6 +15,13 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [1.0.18] — 2026-06-05
+
+### Fixed
+- **Add device — naked error page on invalid input** — entering an IP with leading/trailing whitespace (e.g. ` 192.168.1.1`) or any other invalid address no longer shows a raw HTTP error page. Whitespace is now trimmed silently on the server; if the address is genuinely invalid, the user is redirected back to `/devices` and a red toast popup appears at the bottom of the screen with the error message. Auto-dismisses after 6 seconds.
+
+---
+
 ## [1.0.17] — 2026-06-05
 
 ### Added
