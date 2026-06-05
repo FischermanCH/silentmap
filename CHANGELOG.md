@@ -14,6 +14,13 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [1.0.23] — 2026-06-06
+
+### Changed
+- **Settings page tabs** — General, Network, and Alert Channels are now separate tabs instead of one long scrolling page. Active tab persists in `localStorage` and is restored after save.
+
+---
+
 ## [1.0.22] — 2026-06-06
 
 ### Added
