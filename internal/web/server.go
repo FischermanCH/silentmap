@@ -77,6 +77,9 @@ type Server struct {
 	buildTime string
 	scanMu    sync.RWMutex
 	scanning  map[string]bool // mac → scan in progress
+
+	latestVersion   string
+	latestVersionMu sync.RWMutex
 }
 
 func NewServer(reg *registry.Registry, alertEng *engine.Engine, db *sql.DB, dataDir string, nmapArgs string, discordCh *discord.Channel, ntfyCh *ntfy.Channel, pingCol *ping.Collector, version, buildTime string) *Server {
@@ -133,6 +136,64 @@ func NewServer(reg *registry.Registry, alertEng *engine.Engine, db *sql.DB, data
 		s.pingCol.Update(stored.Ping.Enabled, time.Duration(stored.Ping.Interval)*time.Minute)
 	}
 	return s
+}
+
+func (s *Server) StartBackground(ctx context.Context) {
+	go func() {
+		s.checkLatestVersion()
+		ticker := time.NewTicker(6 * time.Hour)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-ticker.C:
+				s.checkLatestVersion()
+			}
+		}
+	}()
+}
+
+func (s *Server) checkLatestVersion() {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet,
+		"https://api.github.com/repos/FischermanCH/silentmap/releases/latest", nil)
+	if err != nil {
+		return
+	}
+	req.Header.Set("User-Agent", "silentmap/"+s.version)
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return
+	}
+	var result struct {
+		TagName string `json:"tag_name"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil || result.TagName == "" {
+		return
+	}
+	s.latestVersionMu.Lock()
+	s.latestVersion = result.TagName
+	s.latestVersionMu.Unlock()
+}
+
+func (s *Server) updateAvailable() (bool, string) {
+	s.latestVersionMu.RLock()
+	latest := s.latestVersion
+	s.latestVersionMu.RUnlock()
+	if latest == "" {
+		return false, ""
+	}
+	current := s.version
+	if !strings.HasPrefix(current, "v") {
+		current = "v" + current
+	}
+	return latest != current, latest
 }
 
 func (s *Server) loadAppSettings() AppSettings {
@@ -224,12 +285,15 @@ func (s *Server) dashboard(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	alerts, _ := s.alertEng.RecentAlerts(10)
+	updateAvail, latestVer := s.updateAvailable()
 	s.render(w, r, "dashboard.html", map[string]any{
-		"Title":   "Dashboard",
-		"Devices": devices,
-		"Online":  online,
-		"Offline": offline,
-		"Alerts":  alerts,
+		"Title":           "Dashboard",
+		"Devices":         devices,
+		"Online":          online,
+		"Offline":         offline,
+		"Alerts":          alerts,
+		"UpdateAvailable": updateAvail,
+		"LatestVersion":   latestVer,
 	})
 }
 

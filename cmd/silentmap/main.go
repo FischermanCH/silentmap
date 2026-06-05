@@ -118,6 +118,9 @@ func main() {
 	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer cancel()
 
+	// Start background tasks (update checker, ...)
+	webServer.StartBackground(ctx)
+
 	// Backfill vendor and reverse DNS for existing devices
 	reg.BackfillVendors()
 	go reg.BackfillReverseDNS()

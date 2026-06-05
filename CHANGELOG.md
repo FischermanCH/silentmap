@@ -15,6 +15,17 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [1.0.17] — 2026-06-05
+
+### Added
+- **Update indicator** — a small pulsing amber dot appears in the map toolbar when a newer release is available on GitHub. Clicking it opens the releases page. The server checks the GitHub API once at startup and every 6 hours; no indicator shown if the check fails or the version is current.
+- **Map resize handle** — a drag handle at the bottom edge of the topology map lets you resize it vertically. The preferred height is saved in `localStorage` and restored on next visit. The map also responds to window resize via `ResizeObserver` and re-fits the view automatically.
+
+### Changed
+- **Map default height** — desktop map height changed from `78vh` to `calc(100vh - 56px - 2rem)`, filling the available viewport consistently across all screen sizes.
+
+---
+
 ## [1.0.16] — 2026-06-05
 
 ### Fixed

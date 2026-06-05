@@ -2,16 +2,34 @@
 
 <style>
 #map-container {
-  height: calc(100vh - 48px - 1.5rem);
-  height: calc(100svh - 48px - 1.5rem);
+  position: relative;
+  height: calc(100vh - 56px - 2rem);
+  height: calc(100svh - 56px - 2rem);
   border-radius: 0.75rem;
-}
-@media (min-width: 768px) {
-  #map-container { height: 78vh; }
-}
-#map-container {
   box-shadow: 0 0 0 1px var(--sm-card-border), 0 0 24px -4px var(--sm-accent);
+  min-height: 220px;
 }
+#map-resize-handle {
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  height: 8px;
+  cursor: ns-resize;
+  z-index: 10;
+  border-radius: 0 0 0.75rem 0.75rem;
+}
+#map-resize-handle::after {
+  content: '';
+  display: block;
+  margin: 3px auto 0;
+  width: 32px; height: 3px;
+  border-radius: 2px;
+  background: var(--sm-card-border);
+  opacity: 0.5;
+  transition: opacity 0.15s;
+}
+#map-resize-handle:hover::after { opacity: 1; }
+@keyframes sm-pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.5;transform:scale(1.5)} }
+#update-dot { animation: sm-pulse 2s ease-in-out infinite; }
 .collapsible-body { transition: none; }
 
 /* ── Map settings panel ──────────────────────────────────────────────────── */
@@ -72,6 +90,12 @@
 <div id="map-container" class="border overflow-hidden mb-3 md:mb-4" style="background-color:var(--sm-card-bg)">
   <div id="map-toolbar" class="flex items-center gap-2 md:gap-3 px-3 md:px-4 py-2 border-b flex-wrap" style="border-color:var(--sm-card-border)">
     <span class="text-xs font-medium uppercase tracking-wide flex-shrink-0" style="color:var(--sm-text-muted)">{{t "map.title"}}</span>
+    {{if .UpdateAvailable}}
+    <a id="update-dot" href="https://github.com/FischermanCH/silentmap/releases/latest" target="_blank" rel="noopener"
+       title="Update verfügbar: {{.LatestVersion}}"
+       class="flex-shrink-0 w-2.5 h-2.5 rounded-full"
+       style="background:#f59e0b;box-shadow:0 0 6px #f59e0b88;text-decoration:none"></a>
+    {{end}}
     <div class="flex items-center gap-2 text-xs flex-shrink-0" style="color:var(--sm-text-muted)">
       <label class="flex items-center gap-1 cursor-pointer"><input type="checkbox" id="toggle-auto" checked> {{t "map.filter.auto"}}</label>
       <label class="flex items-center gap-1 cursor-pointer"><input type="checkbox" id="toggle-physical" checked> {{t "map.filter.phys"}}</label>
@@ -99,6 +123,7 @@
     <div class="flex items-center gap-1 flex-shrink-0" id="status-filter"></div>
   </div>
   <svg id="map" width="100%" height="100%"></svg>
+  <div id="map-resize-handle"></div>
 </div>
 
 <!-- Map settings panel (fixed overlay) -->
@@ -953,6 +978,61 @@ document.addEventListener('visibilitychange', function() {
 window.addEventListener('pageshow', function(e) {
   if(e.persisted){ initialized=false; load(); loadAlerts(); }
 });
+
+// ── Map resize handle ─────────────────────────────────────────────────────────
+(function(){
+  const handle = document.getElementById('map-resize-handle');
+  const container = document.getElementById('map-container');
+  if(!handle || !container) return;
+
+  // Restore saved height
+  const saved = localStorage.getItem('sm_map_h');
+  if(saved) container.style.height = saved + 'px';
+
+  let startY, startH;
+  handle.addEventListener('mousedown', function(e){
+    e.preventDefault();
+    startY = e.clientY;
+    startH = container.offsetHeight;
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+  });
+  handle.addEventListener('touchstart', function(e){
+    startY = e.touches[0].clientY;
+    startH = container.offsetHeight;
+    document.addEventListener('touchmove', onTouchMove, {passive:false});
+    document.addEventListener('touchend', onUp);
+  }, {passive:true});
+
+  function onMove(e){
+    const h = Math.max(220, startH + (e.clientY - startY));
+    container.style.height = h + 'px';
+  }
+  function onTouchMove(e){
+    e.preventDefault();
+    const h = Math.max(220, startH + (e.touches[0].clientY - startY));
+    container.style.height = h + 'px';
+  }
+  function onUp(){
+    localStorage.setItem('sm_map_h', container.offsetHeight);
+    document.removeEventListener('mousemove', onMove);
+    document.removeEventListener('mouseup', onUp);
+    document.removeEventListener('touchmove', onTouchMove);
+    document.removeEventListener('touchend', onUp);
+    // Re-fit map to new size
+    const el = document.getElementById('map');
+    if(el && typeof fitView === 'function') fitView(el.clientWidth, el.clientHeight, null, true);
+  }
+
+  // Refit when container size changes (e.g. window resize)
+  if(typeof ResizeObserver !== 'undefined'){
+    new ResizeObserver(function(){
+      const el = document.getElementById('map');
+      if(el && typeof fitView === 'function' && initialized)
+        fitView(el.clientWidth, el.clientHeight, null, false);
+    }).observe(container);
+  }
+})();
 
 // Collapsible sections
 function toggleSection(id) {
