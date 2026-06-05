@@ -32,34 +32,31 @@ collectors:
     enabled: true
 
   ping:
-    enabled: false        # Aktiv — explizit opt-in
-    targets: "priority"  # "priority" | "all" | spezifische MACs
-    interval: 60s
+    enabled: true         # Aktiv-Ping für Priority-Devices
+    targets: "priority"   # "priority" (nur Prio-Geräte) | "all"
+    interval: 5m
     timeout: 3s
 
   nmap:
     enabled: false        # Aktiv — explizit opt-in
-    trigger: "new_device" # "new_device" | "manual" | "scheduled"
-    schedule: ""          # cron-Ausdruck wenn trigger = scheduled
-    args: "-sV --top-ports 20"
+    trigger: "new_device" # "new_device" | "manual"
+    args: "-sV --top-ports 20 -T3"
 
-# KI-Engine
+# KI-Engine (Konfigurationsstruktur vorhanden, Logik noch nicht implementiert)
 ai:
   fingerprint:
-    enabled: true         # ONNX Classifier, lokal, kein Ollama nötig
-    model: ""             # Leer = eingebettetes Default-Modell
+    enabled: true
 
   correlation:
-    enabled: true         # Alert-Korrelation via Ollama
+    enabled: false
     ollama_url: "http://localhost:11434"
     model: "phi3:mini"
-    window: 90s           # Zeitfenster für Korrelation
-    fallback: "passthrough" # Ohne Ollama: Alerts einzeln weiterleiten
+    window: 90s
 
   anomaly:
-    enabled: true         # Statistisches Modell, kein LLM
-    baseline_days: 14     # Wie viele Tage für Baseline
-    min_observations: 50  # Mindest-Events bevor Erkennung aktiv
+    enabled: true
+    baseline_days: 14
+    min_observations: 50
 
 # Alerting
 alerts:
@@ -77,7 +74,7 @@ alerts:
 
     device_back:
       enabled: true
-      severity: "info"
+      severity: "high"   # nur für Priority-Geräte
       cooldown: 5m
 
     anomaly:
@@ -90,55 +87,29 @@ alerts:
     ntfy:
       enabled: false
       url: "https://ntfy.sh/mein-topic"  # oder self-hosted
-      token: ""           # Optional bei self-hosted mit Auth
+      token: ""           # optional bei self-hosted mit Auth
 
-    telegram:
+    discord:
       enabled: false
-      token: ""
-      chat_id: ""
+      webhook_url: ""     # Discord Webhook URL
 
-    webhook:
-      enabled: false
-      url: ""
-      method: "POST"
-      headers: {}
-
-    email:
-      enabled: false
-      smtp_host: ""
-      smtp_port: 587
-      smtp_user: ""
-      smtp_pass: ""
-      from: ""
-      to: []
+    # webhook und email: noch nicht implementiert
 
 # Severity → Kanal Mapping
-# Welche Severity geht an welche Kanäle
   routing:
-    critical: ["ntfy", "telegram", "email"]
-    high:     ["ntfy", "telegram"]
-    medium:   ["webhook"]
-    info:     []           # Nur im UI/Log
+    critical: ["ntfy", "discord"]
+    high:     ["ntfy", "discord"]
+    medium:   []
+    info:     []
     low:      []
-```
-
-## Umgebungsvariablen
-
-Alle Config-Werte können als Env-Var überschrieben werden.  
-Schema: `SILENTMAP_` + Pfad in Großbuchstaben, Punkte als `_`.
-
-```bash
-SILENTMAP_INTERFACE=eth0
-SILENTMAP_WEB_LISTEN=0.0.0.0:9090
-SILENTMAP_ALERTS_CHANNELS_NTFY_URL=https://ntfy.sh/mein-topic
-SILENTMAP_AI_CORRELATION_OLLAMA_URL=http://ollama:11434
 ```
 
 ## Prioritäts-Reihenfolge
 
-1. Umgebungsvariablen
-2. `silentmap.yaml` (aus `/data/` oder `--config` Pfad)
-3. Eingebaute Defaults
+1. `silentmap.yaml` (aus `/data/` oder `--config` Pfad)
+2. Eingebaute Defaults
+
+Env-Var-Override ist nicht implementiert.
 
 ## Kommandozeilen-Flags
 

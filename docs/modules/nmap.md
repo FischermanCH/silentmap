@@ -1,6 +1,6 @@
 # Modul: Nmap-Collector
 
-**Typ:** Aktiv · **Status:** Geplant (Milestone 0.4) · **Pflicht:** Nein
+**Typ:** Aktiv · **Status:** Implementiert · **Pflicht:** Nein
 
 ## Zweck
 
@@ -13,8 +13,7 @@ Ergänzt bekannte Geräte mit Port-Informationen und OS-Fingerprint für genauer
 | Modus | Wann |
 |---|---|
 | `new_device` | Automatisch bei jedem neuen Gerät (empfohlen) |
-| `manual` | Nur über Web UI oder API auslösbar |
-| `scheduled` | Cron-Ausdruck, z.B. wöchentlicher Scan |
+| `manual` | Nur über Web UI (Button auf Geräte-Detailseite) |
 
 ## Konfiguration
 
@@ -23,9 +22,7 @@ collectors:
   nmap:
     enabled: false
     trigger: "new_device"
-    schedule: ""
     args: "-sV --top-ports 20 -T3"
-    timeout: 30s
 ```
 
 ## Was erkannt wird
@@ -34,24 +31,13 @@ collectors:
 - Service-Versionen (wenn `-sV` aktiv)
 - OS-Fingerprint (wenn `-O` aktiv, braucht root)
 
-## Events
+## Ergebnis-Speicherung
 
-```json
-{
-  "type": "device.seen",
-  "mac": "aa:bb:cc:dd:ee:ff",
-  "ip": "192.168.1.10",
-  "source": "nmap",
-  "meta": {
-    "ports": [
-      {"port": 22, "service": "ssh", "version": "OpenSSH 8.9"},
-      {"port": 80, "service": "http", "version": "nginx 1.24"}
-    ],
-    "os_guess": "Linux 5.x",
-    "os_confidence": 85
-  }
-}
-```
+Scan-Ergebnisse werden direkt in der Datenbank gespeichert:
+- `devices.nmap_ports` — JSON-Array, z.B. `["22/tcp open ssh OpenSSH 8.9", "80/tcp open http nginx 1.24"]`
+- `devices.os_info` — Freitext OS-Erkennung
+
+Beide Felder sind in der Geräte-Detailseite und im Topologie-Map-Tooltip sichtbar.
 
 ## Voraussetzungen
 
