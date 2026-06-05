@@ -244,6 +244,7 @@ func (r *Registry) handleSeen(e bus.Event) {
 			"category":     existing.Category,
 			"groups":       r.deviceGroupNames(mac),
 			"lastSeen":     existing.LastSeen.Format("02.01.2006 15:04"),
+			"priority":     existing.Priority,
 		}))
 	}
 }
