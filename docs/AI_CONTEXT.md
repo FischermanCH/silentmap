@@ -11,9 +11,8 @@ Ein selbst-gehostetes Netzwerk-Monitoring-Tool, das Geräte im lokalen Netzwerk 
 erkennt (ARP, mDNS, DHCP) und aktiv überwacht (Ping, nmap). Single binary, läuft als
 Docker-Container auf einem Heimserver (Proxmox/Portainer). Web UI auf Port 8080.
 
-**Betreiber:** fischerman (fischerman.ch@gmail.com)
 **Docker Hub:** `fischermanch/silentmap`
-**GitHub:** `fischerman/silentmap` (Repository-Name = Projekt-Name)
+**GitHub:** `FischermanCH/silentmap`
 
 ---
 
@@ -181,7 +180,7 @@ einzelnen Schlüssel. Beim Ändern von `AppSettings` muss `loadAppSettings()` un
 - Stack-Datei: `portainer-stack.yml` im Projektroot
 - Daten werden in einem Named Volume (`silentmap-data`) persistiert → `/data` im Container
 - Braucht `--net=host` + `--cap-add=NET_RAW` für ARP/mDNS/DHCP
-- Web UI: `http://172.31.3.160:8080` (lokale Server-IP)
+- Web UI: `http://<server-ip>:8080`
 
 ---
 
