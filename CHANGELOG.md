@@ -9,9 +9,17 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 - Webhook alert channel
-- Email alert channel
 - Basic auth for web UI
 - Multi-platform Docker builds (arm64)
+
+---
+
+## [1.0.22] — 2026-06-06
+
+### Added
+- **Email alerts** — new alert channel sending bilingual HTML emails via SMTP. Supports STARTTLS (port 587), direct TLS (port 465), and plain SMTP. Logo embedded inline (base64 data URI), alert-type colour-coded header, device info table, footer with GitHub link. Email language (DE/EN) is configurable independently of the UI language.
+- **Secrets encrypted at rest** — Discord webhook URL, ntfy token, and SMTP password are now stored AES-256-GCM encrypted in `settings.json`. A random 32-byte key is generated on first start and stored in `secret.key` (inside the data directory, never committed). Legacy cleartext values are transparently decrypted on read and re-encrypted on next save.
+- **Masked secrets in Settings UI** — sensitive fields (Discord webhook, ntfy token, SMTP password) show a "configured" badge and an empty password input instead of the stored value. Leaving the field blank on save preserves the existing secret; entering a new value replaces it.
 
 ---
 

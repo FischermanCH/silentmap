@@ -181,7 +181,7 @@
       {{end}}
     </form>
   </div>
-  <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
 
     <!-- Discord -->
     <div class="rounded-lg p-5" style="background:var(--sm-card-bg);border:1px solid var(--sm-card-border)">
@@ -194,14 +194,18 @@
       <p class="text-xs mb-4" style="color:var(--sm-text-muted)">{{t "settings.discord.hint"}}</p>
       <form method="POST" action="/settings/discord" class="space-y-3">
         <label class="flex items-center gap-2 cursor-pointer select-none">
-          <input type="checkbox" name="enabled" {{if .Discord.Enabled}}checked{{end}}
+          <input type="checkbox" name="enabled" {{if .DiscordEnabled}}checked{{end}}
                  class="w-4 h-4 rounded cursor-pointer" style="accent-color:var(--sm-accent)">
           <span class="text-sm">{{t "settings.discord.enabled"}}</span>
         </label>
         <div>
-          <label class="block text-xs mb-1" style="color:var(--sm-text-muted)">{{t "settings.discord.webhook"}}</label>
-          <input type="url" name="webhook_url" value="{{.Discord.WebhookURL}}"
-                 placeholder="{{t "settings.discord.webhook.ph"}}"
+          <label class="block text-xs mb-1" style="color:var(--sm-text-muted)">
+            {{t "settings.discord.webhook"}}
+            {{if .DiscordConfigured}}<span class="ml-1 text-xs px-1.5 py-0.5 rounded font-mono" style="background:var(--sm-badge-success-bg);color:var(--sm-badge-success-text)">{{t "settings.secret.configured"}}</span>{{end}}
+          </label>
+          <input type="password" name="webhook_url" value=""
+                 placeholder="{{if .DiscordConfigured}}{{t "settings.secret.change_hint"}}{{else}}{{t "settings.discord.webhook.ph"}}{{end}}"
+                 autocomplete="new-password"
                  class="w-full rounded px-3 py-1.5 text-sm font-mono"
                  style="background:var(--sm-page-bg);color:var(--sm-text-primary);border:1px solid var(--sm-card-border);outline:none">
         </div>
@@ -224,21 +228,25 @@
       <p class="text-xs mb-4" style="color:var(--sm-text-muted)">{{t "settings.ntfy.hint"}}</p>
       <form method="POST" action="/settings/ntfy" class="space-y-3">
         <label class="flex items-center gap-2 cursor-pointer select-none">
-          <input type="checkbox" name="enabled" {{if .Ntfy.Enabled}}checked{{end}}
+          <input type="checkbox" name="enabled" {{if .NtfyEnabled}}checked{{end}}
                  class="w-4 h-4 rounded cursor-pointer" style="accent-color:var(--sm-accent)">
           <span class="text-sm">{{t "settings.ntfy.enabled"}}</span>
         </label>
         <div>
           <label class="block text-xs mb-1" style="color:var(--sm-text-muted)">{{t "settings.ntfy.url"}}</label>
-          <input type="url" name="url" value="{{.Ntfy.URL}}"
+          <input type="url" name="url" value="{{.NtfyURL}}"
                  placeholder="{{t "settings.ntfy.url.ph"}}"
                  class="w-full rounded px-3 py-1.5 text-sm font-mono"
                  style="background:var(--sm-page-bg);color:var(--sm-text-primary);border:1px solid var(--sm-card-border);outline:none">
         </div>
         <div>
-          <label class="block text-xs mb-1" style="color:var(--sm-text-muted)">{{t "settings.ntfy.token"}}</label>
-          <input type="password" name="token" value="{{.Ntfy.Token}}"
-                 placeholder="{{t "settings.ntfy.token.ph"}}"
+          <label class="block text-xs mb-1" style="color:var(--sm-text-muted)">
+            {{t "settings.ntfy.token"}}
+            {{if .NtfyTokenConfigured}}<span class="ml-1 text-xs px-1.5 py-0.5 rounded font-mono" style="background:var(--sm-badge-success-bg);color:var(--sm-badge-success-text)">{{t "settings.secret.configured"}}</span>{{end}}
+          </label>
+          <input type="password" name="token" value=""
+                 placeholder="{{if .NtfyTokenConfigured}}{{t "settings.secret.change_hint"}}{{else}}{{t "settings.ntfy.token.ph"}}{{end}}"
+                 autocomplete="new-password"
                  class="w-full rounded px-3 py-1.5 text-sm font-mono"
                  style="background:var(--sm-page-bg);color:var(--sm-text-primary);border:1px solid var(--sm-card-border);outline:none">
         </div>
@@ -250,5 +258,105 @@
     </div>
 
   </div>
+
+  <!-- Email -->
+  <div class="rounded-lg p-5 mb-6" style="background:var(--sm-card-bg);border:1px solid var(--sm-card-border)">
+    <div class="flex items-center gap-2 mb-1">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:var(--sm-accent);flex-shrink:0">
+        <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+        <polyline points="22,6 12,13 2,6"/>
+      </svg>
+      <h3 class="font-medium text-sm">{{t "settings.email.title"}}</h3>
+    </div>
+    <p class="text-xs mb-4" style="color:var(--sm-text-muted)">{{t "settings.email.hint"}}</p>
+    <form method="POST" action="/settings/email" class="space-y-3">
+      <label class="flex items-center gap-2 cursor-pointer select-none">
+        <input type="checkbox" name="enabled" {{if .Email.Enabled}}checked{{end}}
+               class="w-4 h-4 rounded cursor-pointer" style="accent-color:var(--sm-accent)">
+        <span class="text-sm">{{t "settings.email.enabled"}}</span>
+      </label>
+
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+        <div class="md:col-span-2">
+          <label class="block text-xs mb-1" style="color:var(--sm-text-muted)">{{t "settings.email.smtp_host"}}</label>
+          <input type="text" name="smtp_host" value="{{.Email.SMTPHost}}"
+                 placeholder="smtp.gmail.com"
+                 class="w-full rounded px-3 py-1.5 text-sm font-mono"
+                 style="background:var(--sm-page-bg);color:var(--sm-text-primary);border:1px solid var(--sm-card-border);outline:none">
+        </div>
+        <div>
+          <label class="block text-xs mb-1" style="color:var(--sm-text-muted)">{{t "settings.email.smtp_port"}}</label>
+          <input type="number" name="smtp_port" value="{{if .Email.SMTPPort}}{{.Email.SMTPPort}}{{else}}587{{end}}"
+                 min="1" max="65535"
+                 class="w-full rounded px-3 py-1.5 text-sm font-mono"
+                 style="background:var(--sm-page-bg);color:var(--sm-text-primary);border:1px solid var(--sm-card-border);outline:none">
+        </div>
+      </div>
+
+      <div>
+        <label class="block text-xs mb-1" style="color:var(--sm-text-muted)">{{t "settings.email.tls_mode"}}</label>
+        <select name="tls_mode" class="rounded px-3 py-1.5 text-sm"
+                style="background:var(--sm-page-bg);color:var(--sm-text-primary);border:1px solid var(--sm-card-border);outline:none">
+          <option value="starttls" {{if eq .Email.TLSMode "starttls"}}selected{{end}}>STARTTLS (port 587)</option>
+          <option value="tls"      {{if eq .Email.TLSMode "tls"}}selected{{end}}>TLS (port 465)</option>
+          <option value="none"     {{if eq .Email.TLSMode "none"}}selected{{end}}>None (not recommended)</option>
+        </select>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+        <div>
+          <label class="block text-xs mb-1" style="color:var(--sm-text-muted)">{{t "settings.email.smtp_user"}}</label>
+          <input type="text" name="smtp_user" value="{{.Email.SMTPUser}}"
+                 placeholder="user@example.com"
+                 autocomplete="username"
+                 class="w-full rounded px-3 py-1.5 text-sm font-mono"
+                 style="background:var(--sm-page-bg);color:var(--sm-text-primary);border:1px solid var(--sm-card-border);outline:none">
+        </div>
+        <div>
+          <label class="block text-xs mb-1" style="color:var(--sm-text-muted)">
+            {{t "settings.email.smtp_pass"}}
+            {{if .EmailPassConfigured}}<span class="ml-1 text-xs px-1.5 py-0.5 rounded font-mono" style="background:var(--sm-badge-success-bg);color:var(--sm-badge-success-text)">{{t "settings.secret.configured"}}</span>{{end}}
+          </label>
+          <input type="password" name="smtp_pass" value=""
+                 placeholder="{{if .EmailPassConfigured}}{{t "settings.secret.change_hint"}}{{else}}••••••••{{end}}"
+                 autocomplete="new-password"
+                 class="w-full rounded px-3 py-1.5 text-sm font-mono"
+                 style="background:var(--sm-page-bg);color:var(--sm-text-primary);border:1px solid var(--sm-card-border);outline:none">
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+        <div>
+          <label class="block text-xs mb-1" style="color:var(--sm-text-muted)">{{t "settings.email.from"}}</label>
+          <input type="email" name="from" value="{{.Email.From}}"
+                 placeholder="silentmap@example.com"
+                 class="w-full rounded px-3 py-1.5 text-sm font-mono"
+                 style="background:var(--sm-page-bg);color:var(--sm-text-primary);border:1px solid var(--sm-card-border);outline:none">
+        </div>
+        <div>
+          <label class="block text-xs mb-1" style="color:var(--sm-text-muted)">{{t "settings.email.to"}}</label>
+          <input type="email" name="to" value="{{.Email.To}}"
+                 placeholder="admin@example.com"
+                 class="w-full rounded px-3 py-1.5 text-sm font-mono"
+                 style="background:var(--sm-page-bg);color:var(--sm-text-primary);border:1px solid var(--sm-card-border);outline:none">
+        </div>
+      </div>
+
+      <div>
+        <label class="block text-xs mb-1" style="color:var(--sm-text-muted)">{{t "settings.email.lang"}}</label>
+        <select name="lang" class="rounded px-3 py-1.5 text-sm"
+                style="background:var(--sm-page-bg);color:var(--sm-text-primary);border:1px solid var(--sm-card-border);outline:none">
+          <option value="en" {{if eq .Email.Lang "en"}}selected{{end}}>🇬🇧 English</option>
+          <option value="de" {{if eq .Email.Lang "de"}}selected{{end}}>🇩🇪 Deutsch</option>
+        </select>
+      </div>
+
+      <button type="submit" class="px-4 py-1.5 rounded text-sm font-medium cursor-pointer"
+              style="background:var(--sm-accent);color:var(--sm-page-bg)">
+        {{t "settings.email.save"}}
+      </button>
+    </form>
+  </div>
+
 </div>
 {{end}}

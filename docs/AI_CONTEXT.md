@@ -49,6 +49,8 @@ internal/
   alerting/engine/             — Alert-Engine: Regeln, Dedup, Cooldown
   alerting/channels/discord/   — Discord-Webhook-Channel
   alerting/channels/ntfy/      — ntfy-Push-Channel
+  alerting/channels/email/     — E-Mail-Channel (SMTP, bilingual HTML)
+  crypto/secrets.go            — AES-256-GCM Verschlüsselung für Secrets at rest
   config/config.go             — YAML-Config + Defaults
   i18n/i18n.go                 — DE/EN Übersetzungen
 VERSION                        — Aktuelle Version (z.B. "1.0.15"), wird in Build eingebettet
@@ -213,11 +215,45 @@ mit der eingebetteten `version`-Variable (normalisiert mit `v`-Prefix).
 Wenn der Request fehlschlägt, bleibt `latestVersion` leer → kein Indikator gezeigt.
 `StartBackground` muss aus `main.go` nach dem `ctx`-Setup aufgerufen werden.
 
-### Settings-Persistenz
-UI-Einstellungen (Discord-Webhook, ntfy-URL, Ping-Interval, Theme) werden teils in
-der `settings`-Tabelle gespeichert, teils als JSON via `AppSettings`-Struct in einem
-einzelnen Schlüssel. Beim Ändern von `AppSettings` muss `loadAppSettings()` und
-`saveAppSettings()` in `server.go` entsprechend angepasst werden.
+### Settings-Persistenz & Verschlüsselung (seit v1.0.22)
+UI-Einstellungen werden als JSON in `$DATA_DIR/settings.json` gespeichert (via `AppSettings`-Struct).
+
+**Secrets werden verschlüsselt gespeichert** (`enc:<base64(nonce+ciphertext)>`):
+- Discord Webhook-URL → `AppSettings.Discord.WebhookURL`
+- ntfy Token → `AppSettings.Ntfy.Token`
+- SMTP-Passwort → `AppSettings.Email.SMTPPass`
+
+Schlüssel: `$DATA_DIR/secret.key` (32 Byte, wird beim ersten Start automatisch generiert).
+Algo: AES-256-GCM. Package: `internal/crypto/secrets.go`.
+
+**Migration** (bestehende Klartextwerte): `crypto.Decrypt()` gibt Werte ohne `enc:`-Prefix
+unverändert zurück → nahtlose Abwärtskompatibilität. Beim nächsten Speichern der Settings-Seite
+werden Werte automatisch verschlüsselt.
+
+**Template-Daten für Masking** (Settings-Seite):
+- `DiscordConfigured bool` — true wenn Webhook konfiguriert (nie den Webhook-Wert im Template!)
+- `NtfyTokenConfigured bool` — true wenn Token gesetzt
+- `EmailPassConfigured bool` — true wenn SMTP-Passwort gesetzt
+- Sensitive Felder zeigen leere Inputs mit `placeholder="Leave blank to keep..."`
+- `setDiscord`/`setNtfy`/`setEmail` behalten bestehenden verschlüsselten Wert wenn Input leer
+
+### E-Mail-Channel (seit v1.0.22)
+`internal/alerting/channels/email/email.go`
+- Config: `SMTPHost`, `SMTPPort`, `SMTPUser`, `SMTPPass` (Klartext, wird entschlüsselt übergeben),
+  `From`, `To`, `TLSMode` ("starttls"|"tls"|"none"), `Lang` ("de"|"en")
+- TLS-Modi: Port 465 → direktes TLS (`tls.Dial`), Port 587 → STARTTLS, sonst plain
+- HTML-Template inline als const-String, `html/template` (auto-escaping für Device-Metadaten)
+- Logo: `web.LogoBytes()` gibt `static/favicon-180.png` aus dem embedded FS zurück,
+  wird im Email-Kanal als base64 Data-URI eingebettet (`src="data:image/png;base64,..."`)
+- Bilingual via interne `i18n`-Map (kein Bundle, autark im Package)
+- Alert-Typen: `new_device`, `priority_offline`, `device_back`, `service_down`, `service_back`
+
+### Deployment (Produktion, seit v1.0.21 Update)
+- Bind Mount: `/opt/silentmap:/data` (statt Named Volume — Portainer-Validator akzeptiert
+  kein top-level `volumes:` in Stack-Dateien)
+- SQLite darf **nicht** auf einem SMB/NFS-Share liegen (Locking-Probleme, 10s-Busy-Timeout)
+- Backup-Script: `/home/fischerman/scripts/backup-silentmap.sh` (kopiert DB auf NAS)
+- Cron (root): täglich 03:00, Log: `/var/log/silentmap-backup.log`
 
 ---
 
@@ -252,7 +288,7 @@ einzelnen Schlüssel. Beim Ändern von `AppSettings` muss `loadAppSettings()` un
 
 - Läuft auf einem Heimserver unter Portainer
 - Stack-Datei: `portainer-stack.yml` im Projektroot
-- Daten werden in einem Named Volume (`silentmap-data`) persistiert → `/data` im Container
+- Daten werden in einem Bind Mount (`/opt/silentmap:/data`) persistiert → `/data` im Container
 - Braucht `--net=host` + `--cap-add=NET_RAW` für ARP/mDNS/DHCP
 - Web UI: `http://<server-ip>:8080`
 
@@ -262,17 +298,16 @@ einzelnen Schlüssel. Beim Ändern von `AppSettings` muss `loadAppSettings()` un
 
 | Kanal | Status | Config via |
 |---|---|---|
-| Discord | Implementiert | Settings-UI + `settings`-Tabelle |
-| ntfy | Implementiert | Settings-UI + `settings`-Tabelle |
+| Discord | Implementiert | Settings-UI, Webhook verschlüsselt in settings.json |
+| ntfy | Implementiert | Settings-UI, Token verschlüsselt in settings.json |
+| Email | Implementiert | Settings-UI, Passwort verschlüsselt in settings.json |
 | Webhook | Geplant | — |
-| Email | Geplant | — |
 
 ---
 
 ## Roadmap / Offene TODOs (aus CHANGELOG [Unreleased])
 
 - Webhook Alert-Channel
-- Email Alert-Channel
 - Basic Auth für Web UI
 - Multi-platform Docker builds (arm64)
 

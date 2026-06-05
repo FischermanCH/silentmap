@@ -24,6 +24,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 
+	emailchan "github.com/silentmap/silentmap/internal/alerting/channels/email"
 	"github.com/silentmap/silentmap/internal/alerting/channels/discord"
 	"github.com/silentmap/silentmap/internal/alerting/channels/ntfy"
 	"github.com/silentmap/silentmap/internal/alerting/engine"
@@ -31,6 +32,7 @@ import (
 	"github.com/silentmap/silentmap/internal/collectors/httpcheck"
 	"github.com/silentmap/silentmap/internal/collectors/ping"
 	"github.com/silentmap/silentmap/internal/config"
+	"github.com/silentmap/silentmap/internal/crypto"
 	"github.com/silentmap/silentmap/internal/i18n"
 	"github.com/silentmap/silentmap/internal/registry"
 	"github.com/silentmap/silentmap/internal/scanner"
@@ -38,13 +40,25 @@ import (
 
 type DiscordSettings struct {
 	Enabled    bool   `json:"enabled"`
-	WebhookURL string `json:"webhook_url"`
+	WebhookURL string `json:"webhook_url"` // stored encrypted: "enc:..."
 }
 
 type NtfySettings struct {
 	Enabled bool   `json:"enabled"`
 	URL     string `json:"url"`
-	Token   string `json:"token"`
+	Token   string `json:"token"` // stored encrypted: "enc:..."
+}
+
+type EmailSettings struct {
+	Enabled  bool   `json:"enabled"`
+	SMTPHost string `json:"smtp_host"`
+	SMTPPort int    `json:"smtp_port"`
+	SMTPUser string `json:"smtp_user"`
+	SMTPPass string `json:"smtp_pass"` // stored encrypted: "enc:..."
+	From     string `json:"from"`
+	To       string `json:"to"`
+	TLSMode  string `json:"tls_mode"` // "starttls" | "tls" | "none"
+	Lang     string `json:"lang"`     // "de" | "en"
 }
 
 type PingSettings struct {
@@ -58,13 +72,14 @@ type HttpCheckSettings struct {
 }
 
 type AppSettings struct {
-	Discord          DiscordSettings   `json:"discord"`
-	Ntfy             NtfySettings      `json:"ntfy"`
-	Ping             PingSettings      `json:"ping"`
-	HttpCheck        HttpCheckSettings `json:"http_check"`
-	Listening        bool              `json:"listening"`
-	AutoNmapNewDevice bool             `json:"auto_nmap_new_device"`
-	MaintenanceUntil int64             `json:"maintenance_until"` // Unix timestamp; 0 = disabled
+	Discord           DiscordSettings   `json:"discord"`
+	Ntfy              NtfySettings      `json:"ntfy"`
+	Email             EmailSettings     `json:"email"`
+	Ping              PingSettings      `json:"ping"`
+	HttpCheck         HttpCheckSettings `json:"http_check"`
+	Listening         bool              `json:"listening"`
+	AutoNmapNewDevice bool              `json:"auto_nmap_new_device"`
+	MaintenanceUntil  int64             `json:"maintenance_until"` // Unix timestamp; 0 = disabled
 }
 
 //go:embed templates/*
@@ -82,8 +97,10 @@ type Server struct {
 	dataDir   string
 	discordCh *discord.Channel
 	ntfyCh    *ntfy.Channel
+	emailCh   *emailchan.Channel
 	pingCol   *ping.Collector
 	httpCol   *httpcheck.Collector
+	encKey    []byte
 	version   string
 	buildTime string
 	scanMu    sync.RWMutex
@@ -93,12 +110,25 @@ type Server struct {
 	latestVersionMu sync.RWMutex
 }
 
-func NewServer(reg *registry.Registry, alertEng *engine.Engine, db *sql.DB, dataDir string, nmapArgs string, discordCh *discord.Channel, ntfyCh *ntfy.Channel, pingCol *ping.Collector, httpCol *httpcheck.Collector, version, buildTime string) *Server {
+// LogoBytes returns the silentmap logo PNG embedded in the binary (used by email channel).
+func LogoBytes() []byte {
+	data, _ := templateFS.ReadFile("static/favicon-180.png")
+	return data
+}
+
+func NewServer(reg *registry.Registry, alertEng *engine.Engine, db *sql.DB, dataDir string, nmapArgs string, discordCh *discord.Channel, ntfyCh *ntfy.Channel, emailCh *emailchan.Channel, pingCol *ping.Collector, httpCol *httpcheck.Collector, version, buildTime string) *Server {
 	bundle, err := i18n.New()
 	if err != nil {
 		slog.Warn("i18n: failed to load translations, using keys as fallback", "err", err)
 		bundle, _ = i18n.New() // still returns usable empty bundle
 	}
+	// Load or create the encryption key for secrets at rest.
+	encKey, err := crypto.LoadOrCreateKey(filepath.Join(dataDir, "secret.key"))
+	if err != nil {
+		slog.Error("cannot load/create encryption key — secrets will not be encrypted", "err", err)
+		encKey = make([]byte, 32) // fallback zero-key; decrypt still works (returns cleartext)
+	}
+
 	s := &Server{
 		reg:       reg,
 		bundle:    bundle,
@@ -109,8 +139,10 @@ func NewServer(reg *registry.Registry, alertEng *engine.Engine, db *sql.DB, data
 		dataDir:   dataDir,
 		discordCh: discordCh,
 		ntfyCh:    ntfyCh,
+		emailCh:   emailCh,
 		pingCol:   pingCol,
 		httpCol:   httpCol,
+		encKey:    encKey,
 		version:   version,
 		scanning:  make(map[string]bool),
 		buildTime: buildTime,
@@ -126,19 +158,33 @@ func NewServer(reg *registry.Registry, alertEng *engine.Engine, db *sql.DB, data
 			"replace":        strings.ReplaceAll,
 		},
 	}
-	// Apply persisted channel settings over yaml defaults
+	// Apply persisted channel settings over yaml defaults.
+	// Decrypt sensitive fields before passing to channels — stored values may be enc:... encrypted.
 	stored := s.loadAppSettings()
 	if stored.Discord.WebhookURL != "" || stored.Discord.Enabled {
 		s.discordCh.Update(config.DiscordCfg{
 			Enabled:    stored.Discord.Enabled,
-			WebhookURL: stored.Discord.WebhookURL,
+			WebhookURL: s.decrypt(stored.Discord.WebhookURL),
 		})
 	}
 	if stored.Ntfy.URL != "" || stored.Ntfy.Enabled {
 		s.ntfyCh.Update(config.NtfyCfg{
 			Enabled: stored.Ntfy.Enabled,
-			URL:     stored.Ntfy.URL,
-			Token:   stored.Ntfy.Token,
+			URL:     s.decrypt(stored.Ntfy.URL),
+			Token:   s.decrypt(stored.Ntfy.Token),
+		})
+	}
+	if stored.Email.SMTPHost != "" || stored.Email.Enabled {
+		s.emailCh.Update(emailchan.Config{
+			Enabled:  stored.Email.Enabled,
+			SMTPHost: stored.Email.SMTPHost,
+			SMTPPort: stored.Email.SMTPPort,
+			SMTPUser: stored.Email.SMTPUser,
+			SMTPPass: s.decrypt(stored.Email.SMTPPass),
+			From:     stored.Email.From,
+			To:       stored.Email.To,
+			TLSMode:  stored.Email.TLSMode,
+			Lang:     stored.Email.Lang,
 		})
 	}
 	s.reg.SetListening(stored.Listening)
@@ -274,6 +320,13 @@ func (s *Server) updateAvailable() (bool, string) {
 	return latest != current, latest
 }
 
+// encrypt wraps crypto.Encrypt with the server's key.
+func (s *Server) encrypt(plain string) string { return crypto.Encrypt(s.encKey, plain) }
+
+// decrypt wraps crypto.Decrypt with the server's key.
+// Legacy cleartext values (no enc: prefix) are returned as-is for transparent migration.
+func (s *Server) decrypt(enc string) string { return crypto.Decrypt(s.encKey, enc) }
+
 func (s *Server) loadAppSettings() AppSettings {
 	data, err := os.ReadFile(filepath.Join(s.dataDir, "settings.json"))
 	if err != nil {
@@ -331,6 +384,7 @@ func (s *Server) Handler() http.Handler {
 	r.Post("/settings/lang", s.setLang)
 	r.Post("/settings/discord", s.setDiscord)
 	r.Post("/settings/ntfy", s.setNtfy)
+	r.Post("/settings/email", s.setEmail)
 	r.Post("/settings/listening", s.toggleListening)
 	r.Post("/settings/ping", s.setPing)
 	r.Post("/settings/httpcheck", s.setHttpCheck)
@@ -636,15 +690,20 @@ func (s *Server) settingsPage(w http.ResponseWriter, r *http.Request) {
 	maintenanceUntil := s.alertEng.MaintenanceUntil()
 	maintenanceActive := !maintenanceUntil.IsZero() && time.Now().Before(maintenanceUntil)
 	s.render(w, r, "settings.html", map[string]any{
-		"Title":             "Settings",
-		"Discord":           settings.Discord,
-		"Ntfy":              settings.Ntfy,
-		"Ping":              ping,
-		"HttpCheck":         httpCheck,
-		"MaintenanceActive": maintenanceActive,
-		"MaintenanceUntil":  maintenanceUntil,
-		"AutoNmapNewDevice": settings.AutoNmapNewDevice,
-		"Saved":             r.URL.Query().Get("saved") == "1",
+		"Title":                "Settings",
+		"DiscordEnabled":       settings.Discord.Enabled,
+		"DiscordConfigured":    s.decrypt(settings.Discord.WebhookURL) != "",
+		"NtfyEnabled":          settings.Ntfy.Enabled,
+		"NtfyURL":              s.decrypt(settings.Ntfy.URL),
+		"NtfyTokenConfigured":  s.decrypt(settings.Ntfy.Token) != "",
+		"Email":                settings.Email,
+		"EmailPassConfigured":  s.decrypt(settings.Email.SMTPPass) != "",
+		"Ping":                 ping,
+		"HttpCheck":            httpCheck,
+		"MaintenanceActive":    maintenanceActive,
+		"MaintenanceUntil":     maintenanceUntil,
+		"AutoNmapNewDevice":    settings.AutoNmapNewDevice,
+		"Saved":                r.URL.Query().Get("saved") == "1",
 	})
 }
 
@@ -654,25 +713,26 @@ func (s *Server) setDiscord(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	webhookURL := strings.TrimSpace(r.FormValue("webhook_url"))
-	if err := requireHTTPS(webhookURL); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-	if isPrivateHost(webhookURL) {
-		http.Error(w, "Webhook-URL darf nicht auf interne Adressen zeigen", http.StatusBadRequest)
-		return
-	}
 	cfg := s.loadAppSettings()
-	cfg.Discord = DiscordSettings{
-		Enabled:    r.FormValue("enabled") == "on",
-		WebhookURL: webhookURL,
+	// Only update webhook URL when the user provides a new value.
+	if webhookURL != "" {
+		if err := requireHTTPS(webhookURL); err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		if isPrivateHost(webhookURL) {
+			http.Error(w, "Webhook-URL darf nicht auf interne Adressen zeigen", http.StatusBadRequest)
+			return
+		}
+		cfg.Discord.WebhookURL = s.encrypt(webhookURL)
 	}
+	cfg.Discord.Enabled = r.FormValue("enabled") == "on"
 	if err := s.saveAppSettings(cfg); err != nil {
 		slog.Error("save discord settings failed", "err", err)
 	}
 	s.discordCh.Update(config.DiscordCfg{
 		Enabled:    cfg.Discord.Enabled,
-		WebhookURL: cfg.Discord.WebhookURL,
+		WebhookURL: s.decrypt(cfg.Discord.WebhookURL),
 	})
 	http.Redirect(w, r, "/settings?saved=1", http.StatusSeeOther)
 }
@@ -682,28 +742,83 @@ func (s *Server) setNtfy(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "bad request", http.StatusBadRequest)
 		return
 	}
-	ntfyURL := strings.TrimSpace(r.FormValue("url"))
-	if err := requireHTTPS(ntfyURL); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-	if isPrivateHost(ntfyURL) {
-		http.Error(w, "Ntfy-URL darf nicht auf interne Adressen zeigen", http.StatusBadRequest)
-		return
-	}
 	cfg := s.loadAppSettings()
-	cfg.Ntfy = NtfySettings{
-		Enabled: r.FormValue("enabled") == "on",
-		URL:     ntfyURL,
-		Token:   strings.TrimSpace(r.FormValue("token")),
+	ntfyURL := strings.TrimSpace(r.FormValue("url"))
+	if ntfyURL != "" {
+		if err := requireHTTPS(ntfyURL); err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		if isPrivateHost(ntfyURL) {
+			http.Error(w, "Ntfy-URL darf nicht auf interne Adressen zeigen", http.StatusBadRequest)
+			return
+		}
+		cfg.Ntfy.URL = ntfyURL // ntfy URL is not secret; stored as-is
 	}
+	token := strings.TrimSpace(r.FormValue("token"))
+	if token != "" {
+		cfg.Ntfy.Token = s.encrypt(token)
+	}
+	cfg.Ntfy.Enabled = r.FormValue("enabled") == "on"
 	if err := s.saveAppSettings(cfg); err != nil {
 		slog.Error("save ntfy settings failed", "err", err)
 	}
 	s.ntfyCh.Update(config.NtfyCfg{
 		Enabled: cfg.Ntfy.Enabled,
 		URL:     cfg.Ntfy.URL,
-		Token:   cfg.Ntfy.Token,
+		Token:   s.decrypt(cfg.Ntfy.Token),
+	})
+	http.Redirect(w, r, "/settings?saved=1", http.StatusSeeOther)
+}
+
+func (s *Server) setEmail(w http.ResponseWriter, r *http.Request) {
+	if err := r.ParseForm(); err != nil {
+		http.Error(w, "bad request", http.StatusBadRequest)
+		return
+	}
+	cfg := s.loadAppSettings()
+
+	// Only update password if a new one was entered.
+	pass := strings.TrimSpace(r.FormValue("smtp_pass"))
+	if pass != "" {
+		cfg.Email.SMTPPass = s.encrypt(pass)
+	}
+
+	port, _ := strconv.Atoi(r.FormValue("smtp_port"))
+	if port <= 0 {
+		port = 587
+	}
+	lang := r.FormValue("lang")
+	if lang != "de" {
+		lang = "en"
+	}
+	tlsMode := r.FormValue("tls_mode")
+	if tlsMode != "tls" && tlsMode != "none" {
+		tlsMode = "starttls"
+	}
+
+	cfg.Email.Enabled = r.FormValue("enabled") == "on"
+	cfg.Email.SMTPHost = strings.TrimSpace(r.FormValue("smtp_host"))
+	cfg.Email.SMTPPort = port
+	cfg.Email.SMTPUser = strings.TrimSpace(r.FormValue("smtp_user"))
+	cfg.Email.From = strings.TrimSpace(r.FormValue("from"))
+	cfg.Email.To = strings.TrimSpace(r.FormValue("to"))
+	cfg.Email.TLSMode = tlsMode
+	cfg.Email.Lang = lang
+
+	if err := s.saveAppSettings(cfg); err != nil {
+		slog.Error("save email settings failed", "err", err)
+	}
+	s.emailCh.Update(emailchan.Config{
+		Enabled:  cfg.Email.Enabled,
+		SMTPHost: cfg.Email.SMTPHost,
+		SMTPPort: cfg.Email.SMTPPort,
+		SMTPUser: cfg.Email.SMTPUser,
+		SMTPPass: s.decrypt(cfg.Email.SMTPPass),
+		From:     cfg.Email.From,
+		To:       cfg.Email.To,
+		TLSMode:  cfg.Email.TLSMode,
+		Lang:     cfg.Email.Lang,
 	})
 	http.Redirect(w, r, "/settings?saved=1", http.StatusSeeOther)
 }
