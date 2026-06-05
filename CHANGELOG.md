@@ -18,10 +18,10 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 ## [1.0.21] — 2026-06-05
 
 ### Added
-- **HTTP Service ohne IP erfassbar** — beim Hinzufügen eines Geräts mit Kategorie "HTTP Service" ist die IP optional. Ohne IP/MAC wird eine UUID-basierte synthetische MAC generiert (lokal-administriert, kein Konflikt mit echter Hardware). Dadurch können mehrere Services auf derselben IP als unabhängige Devices erfasst werden. URL-Feld erscheint direkt im Modal wenn Kategorie = HTTP Service gewählt wird.
+- **HTTP Service without IP** — when adding a device with category "HTTP Service", the IP field is optional. If neither IP nor MAC is provided, a UUID-based synthetic MAC is generated (locally administered, no conflict with real hardware). This allows multiple services on the same IP to be tracked as independent devices. The URL field appears directly in the modal when the HTTP Service category is selected.
 
 ### Fixed
-- **Update-Indikator** — prüft jetzt den Tags-API-Endpunkt statt den Releases-Endpunkt. Der Releases-Endpunkt setzt eine explizit erstellte GitHub-Release voraus; der Tags-Endpunkt reagiert sofort nach `git push --tags`.
+- **Update indicator** — now checks the tags API endpoint instead of the releases endpoint. The releases endpoint requires an explicitly published GitHub Release; the tags endpoint responds immediately after `git push --tags`.
 
 ---
 
@@ -87,7 +87,7 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 ## [1.0.14] — 2026-06-04
 
 ### Added
-- **nmap port results in device detail** — open ports from the last nmap scan are now stored in the database (`nmap_ports` column) and displayed as a dedicated "Offene Ports" section in the device info card. Ports are also included in the topology map node tooltip.
+- **nmap port results in device detail** — open ports from the last nmap scan are now stored in the database (`nmap_ports` column) and displayed as a dedicated "Open Ports" section in the device info card. Ports are also included in the topology map node tooltip.
 
 ### Fixed
 - **Topology map — group labels flicker on load** — hull labels are now hidden during the entire settling animation and only appear (without transition) once the simulation alpha drops below 0.015. Previously labels were repositioned every tick, causing visible jitter even with the D3 transition added in v1.0.13.
@@ -97,7 +97,7 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 ## [1.0.13] — 2026-06-04
 
 ### Added
-- **Scan-in-progress indicator** — clicking "nmap starten" no longer redirects the page. The button disables, a "läuft…" badge appears in the accordion header, and the UI polls `/devices/{mac}/nmap/status` every 2 s. When the scan finishes the page reloads automatically to show the new activity-log entry. Opening the device page while a scan is already running detects the state immediately and shows the same indicator. Concurrent scan requests for the same device are rejected with HTTP 409.
+- **Scan-in-progress indicator** — clicking the nmap button no longer redirects the page. The button disables, a "running…" badge appears in the accordion header, and the UI polls `/devices/{mac}/nmap/status` every 2 s. When the scan finishes the page reloads automatically to show the new activity-log entry. Opening the device page while a scan is already running detects the state immediately and shows the same indicator. Concurrent scan requests for the same device are rejected with HTTP 409.
 - **nmap / mDNS data in map tooltip** — the hover tooltip on the topology map now shows vendor, OS info (from nmap) and mDNS service names when available.
 
 ### Fixed
