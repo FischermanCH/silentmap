@@ -453,20 +453,20 @@ func (s *Server) deleteDevice(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) createDevice(w http.ResponseWriter, r *http.Request) {
 	r.ParseForm()
-	mac := r.FormValue("mac")
-	ip := r.FormValue("ip")
+	mac := strings.TrimSpace(r.FormValue("mac"))
+	ip := strings.TrimSpace(r.FormValue("ip"))
 	label := r.FormValue("label")
 	category := r.FormValue("category")
 
 	if ip != "" && net.ParseIP(ip) == nil {
-		http.Error(w, "ungültige IP-Adresse", http.StatusBadRequest)
+		http.Redirect(w, r, "/devices?error="+url.QueryEscape("Ungültige IP-Adresse: "+ip), http.StatusSeeOther)
 		return
 	}
 
 	dev, err := s.reg.AddManual(mac, ip, label, category)
 	if err != nil {
 		slog.Error("manual device create failed", "err", err)
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		http.Redirect(w, r, "/devices?error="+url.QueryEscape(err.Error()), http.StatusSeeOther)
 		return
 	}
 	http.Redirect(w, r, "/devices/"+dev.MAC, http.StatusSeeOther)
