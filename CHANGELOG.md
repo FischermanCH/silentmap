@@ -15,6 +15,16 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [1.0.21] — 2026-06-05
+
+### Added
+- **HTTP Service ohne IP erfassbar** — beim Hinzufügen eines Geräts mit Kategorie "HTTP Service" ist die IP optional. Ohne IP/MAC wird eine UUID-basierte synthetische MAC generiert (lokal-administriert, kein Konflikt mit echter Hardware). Dadurch können mehrere Services auf derselben IP als unabhängige Devices erfasst werden. URL-Feld erscheint direkt im Modal wenn Kategorie = HTTP Service gewählt wird.
+
+### Fixed
+- **Update-Indikator** — prüft jetzt den Tags-API-Endpunkt statt den Releases-Endpunkt. Der Releases-Endpunkt setzt eine explizit erstellte GitHub-Release voraus; der Tags-Endpunkt reagiert sofort nach `git push --tags`.
+
+---
+
 ## [1.0.20] — 2026-06-05
 
 ### Added
