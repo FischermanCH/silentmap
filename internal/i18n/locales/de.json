@@ -59,6 +59,23 @@
   "settings.httpcheck.enabled":        "HTTP Check aktiviert",
   "settings.httpcheck.interval":       "Intervall",
   "settings.httpcheck.save":           "Speichern",
+
+  "settings.secret.configured":    "konfiguriert",
+  "settings.secret.change_hint":   "Leer lassen zum Beibehalten — neu eingeben zum Ändern",
+
+  "settings.email.title":      "E-Mail Alerts",
+  "settings.email.hint":       "Sendet HTML-E-Mails bei Alarmen. Unterstützt STARTTLS (Port 587), direktes TLS (Port 465) und unverschlüsselt (Port 25).",
+  "settings.email.enabled":    "E-Mail Alerts aktiviert",
+  "settings.email.smtp_host":  "SMTP-Server",
+  "settings.email.smtp_port":  "Port",
+  "settings.email.tls_mode":   "Verschlüsselung",
+  "settings.email.smtp_user":  "Benutzername",
+  "settings.email.smtp_pass":  "Passwort",
+  "settings.email.from":       "Absender (From)",
+  "settings.email.to":         "Empfänger (To)",
+  "settings.email.lang":       "E-Mail-Sprache",
+  "settings.email.save":       "Speichern",
+
   "section.httpurl":                   "HTTP-URL",
   "httpurl.hint":                      "URL für den Verfügbarkeitscheck. Jede HTTP-Antwort gilt als online. Kein Antwortverlust nach Timeout = offline.",
   "category.http-service.hint":        "HTTP-Service-Monitoring: URL im Feld 'HTTP-URL' eintragen und HTTP Check in den Einstellungen aktivieren.",

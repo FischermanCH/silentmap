@@ -59,6 +59,23 @@
   "settings.httpcheck.enabled":        "Enable HTTP Check",
   "settings.httpcheck.interval":       "Interval",
   "settings.httpcheck.save":           "Save",
+
+  "settings.secret.configured":    "configured",
+  "settings.secret.change_hint":   "Leave blank to keep — enter new value to change",
+
+  "settings.email.title":      "Email Alerts",
+  "settings.email.hint":       "Sends HTML emails for alerts. Supports STARTTLS (port 587), direct TLS (port 465), and unencrypted (port 25).",
+  "settings.email.enabled":    "Enable email alerts",
+  "settings.email.smtp_host":  "SMTP Host",
+  "settings.email.smtp_port":  "Port",
+  "settings.email.tls_mode":   "Encryption",
+  "settings.email.smtp_user":  "Username",
+  "settings.email.smtp_pass":  "Password",
+  "settings.email.from":       "Sender (From)",
+  "settings.email.to":         "Recipient (To)",
+  "settings.email.lang":       "Email language",
+  "settings.email.save":       "Save",
+
   "section.httpurl":                   "HTTP URL",
   "httpurl.hint":                      "URL to check for availability. Any HTTP response counts as online. No response within timeout = offline.",
   "category.http-service.hint":        "HTTP service monitoring: enter a URL in the 'HTTP URL' field and enable HTTP Check in Settings.",

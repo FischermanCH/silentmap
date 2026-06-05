@@ -14,6 +14,7 @@ import (
 	"syscall"
 	"time"
 
+	emailchan "github.com/silentmap/silentmap/internal/alerting/channels/email"
 	"github.com/silentmap/silentmap/internal/alerting/channels/discord"
 	"github.com/silentmap/silentmap/internal/alerting/channels/ntfy"
 	"github.com/silentmap/silentmap/internal/alerting/engine"
@@ -111,11 +112,13 @@ func main() {
 	alertEngine.Register(ntfyCh)
 	discordCh := discord.New(cfg.Alerts.Channels.Discord)
 	alertEngine.Register(discordCh)
+	emailCh := emailchan.New(emailchan.Config{}, web.LogoBytes())
+	alertEngine.Register(emailCh)
 	alertEngine.Subscribe(b)
 
 	pingCollector := ping.New(reg, cfg.Interface, true, cfg.Collectors.Ping.Interval)
 	httpCollector := httpcheck.New(reg, false, 5*time.Minute) // disabled by default — opt-in via Settings
-	webServer := web.NewServer(reg, alertEngine, db, *flagData, cfg.Collectors.Nmap.Args, discordCh, ntfyCh, pingCollector, httpCollector, version, commit)
+	webServer := web.NewServer(reg, alertEngine, db, *flagData, cfg.Collectors.Nmap.Args, discordCh, ntfyCh, emailCh, pingCollector, httpCollector, version, commit)
 
 	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer cancel()
