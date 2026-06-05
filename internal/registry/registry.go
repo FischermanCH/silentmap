@@ -1062,7 +1062,7 @@ func (r *Registry) GetDeviceGroups(mac string) ([]Group, error) {
 func (r *Registry) GetGroupDevices(groupID string) ([]Device, error) {
 	rows, err := r.db.Query(`
 		SELECT d.mac,d.ip,d.hostname,d.hostname_auto,d.vendor,d.label,d.category,
-		       d.services,d.priority,d.approved,d.online,d.first_seen,d.last_seen,d.os_info,d.force_ping
+		       d.services,d.priority,d.approved,d.online,d.first_seen,d.last_seen,d.os_info,d.force_ping,d.nmap_ports
 		FROM devices d JOIN device_group_members m ON m.mac=d.mac
 		WHERE m.group_id=? ORDER BY d.ip`, groupID)
 	if err != nil {

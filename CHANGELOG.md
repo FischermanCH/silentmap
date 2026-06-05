@@ -15,6 +15,13 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [1.0.15] — 2026-06-05
+
+### Fixed
+- **Groups page — all devices shown without group assignment** — `GetGroupDevices` was missing `nmap_ports` from its SELECT, causing every row scan to fail silently. All group device lists appeared empty on `/groups` even though the map showed correct assignments.
+
+---
+
 ## [1.0.14] — 2026-06-04
 
 ### Added
