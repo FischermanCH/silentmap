@@ -36,14 +36,15 @@ Kurze Orientierung was wo liegt:
 ```
 cmd/silentmap/      → main.go, CLI-Flags, Bootstrap
 internal/bus/       → Event Bus — hier nie Geschäftslogik
-internal/registry/  → Device Registry, SQLite, OUI-DB
+internal/registry/  → Device Registry, SQLite, OUI-DB, Groups
 internal/collectors/→ Ein Ordner pro Collector-Modul
-internal/alerting/  → Rules, Dedup, Channels
-internal/ai/        → Fingerprint, Korrelation, Anomalie
+internal/alerting/  → Rules, Dedup, Channels (discord, ntfy)
+internal/scanner/   → nmap-Integration
 internal/web/       → HTTP-Handler, Templates, API
+internal/i18n/      → DE/EN Übersetzungen
 configs/            → Beispiel-Konfigurationen
 docs/               → Diese Dokumentation
-scripts/            → Hilfsskripte (OUI-Update, Build, ...)
+scripts/            → Hilfsskripte (OUI-Update, ...)
 ```
 
 ## Neues Collector-Modul hinzufügen
@@ -99,7 +100,7 @@ type Channel interface {
 - Config-Änderungen → `docs/configuration.md` aktualisieren
 
 **Neue Features zusätzlich:**
-- Backlog-Eintrag in `docs/backlog.md` auf `[x]` setzen
+- Eintrag unter `[Unreleased]` in `CHANGELOG.md`
 
 ## Commit-Konventionen
 

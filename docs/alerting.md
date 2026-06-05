@@ -34,10 +34,11 @@ Event Bus → Rules Engine → Dedup/Cooldown → AI Korrelation → Channel Rou
 - **Alert-Inhalt:** Gerät, Label, letzte gesehene IP, offline seit
 
 ### `device_back`
-- **Trigger:** Gerät, das als offline galt, sendet wieder
-- **Default-Severity:** `info`
+- **Trigger:** Priority-Gerät, das als offline galt, sendet wieder
+- **Default-Severity:** `high`
 - **Cooldown:** 5 Minuten
-- **Alert-Inhalt:** Gerät, Offline-Dauer
+- **Alert-Inhalt:** Gerät, zuletzt offline seit
+- **Wichtig:** Nur für als Priority markierte Geräte — gleich wie `priority_offline`
 
 ### `anomaly`
 - **Trigger:** KI-Anomaliemodul meldet Score > Schwelle
@@ -49,131 +50,69 @@ Event Bus → Rules Engine → Dedup/Cooldown → AI Korrelation → Channel Rou
 
 Jeder Alert bekommt einen Fingerprint aus `type + MAC`. Gleicher Fingerprint innerhalb der Cooldown-Zeit wird verworfen.
 
-**Flapping-Erkennung:** Gerät geht 3x innerhalb 5 Minuten on/off → einen kombinierten Alert statt drei separate.
-
-## KI-Korrelation
-
-Wenn Ollama konfiguriert ist, werden alle Alerts in einem 90-Sekunden-Fenster gesammelt und dem Modell übergeben:
-
-**Prompt-Kontext (vereinfacht):**
-```
-Folgende Netzwerk-Events sind innerhalb von 90 Sekunden aufgetreten:
-- [02:34:12] 8 Geräte offline
-- [02:34:15] 3 weitere Geräte offline
-- [02:35:40] Alle 11 Geräte wieder online
-
-Bekannte Geräte: NAS, Router, 2x iPhone, iPad, Samsung TV, ...
-
-Bitte: Sind das zusammengehörige Events? Was ist wahrscheinlich passiert?
-Antworte mit: korreliert (ja/nein), Zusammenfassung (1 Satz), Handlungsbedarf (ja/nein)
-```
-
-**Output:**
-```json
-{
-  "correlated": true,
-  "summary": "Router-Neustart um 02:34 — alle Geräte kurz offline, selbst erholt.",
-  "action_required": false,
-  "severity_override": "info"
-}
-```
-
-Ohne Ollama: alle Alerts werden einzeln weitergeleitet (Fallback: `passthrough`).
+**Flapping-Erkennung:** Noch nicht implementiert — geplant.
 
 ## Alert-Payload
 
-Jeder Alert wird als strukturiertes JSON an alle Kanäle übergeben:
+Das `Alert`-Struct das an alle Kanäle übergeben wird:
 
-```json
-{
-  "id": "01J...",
-  "type": "new_device",
-  "severity": "high",
-  "title": "Neues Gerät erkannt",
-  "summary": "Apple iPhone — 192.168.1.44 — zuerst gesehen 14:23",
-  "ai_context": "Wahrscheinlich Gast-Smartphone. Erstmals heute Nachmittag.",
-  "correlated": false,
-  "device": {
-    "mac": "aa:bb:cc:dd:ee:ff",
-    "ip": "192.168.1.44",
-    "hostname": "Johns-iPhone",
-    "vendor": "Apple",
-    "category": "smartphone",
-    "first_seen": "2026-05-16T14:23:05Z"
-  },
-  "timestamp": "2026-05-16T14:23:06Z"
+```go
+Alert {
+    ID       string
+    Type     string         // "new_device" | "priority_offline" | "device_back"
+    Severity string         // "critical" | "high" | "medium" | "info" | "low"
+    Title    string         // i18n-Key, z.B. "alert.title.new_device"
+    Summary  string         // Menschenlesbare Zusammenfassung
+    MAC      string
+    IP       string
+    FiredAt  time.Time
+    Meta     map[string]any // Geräte-Kontext: label, hostname, vendor, category, groups, ...
 }
 ```
 
 ## Kanäle
 
-### ntfy (empfohlen)
+### ntfy (implementiert)
 
-Einfachste Einrichtung, Push auf iOS/Android, self-hostbar.
+Push auf iOS/Android, self-hostbar.
 
 ```yaml
 channels:
   ntfy:
     enabled: true
     url: "https://ntfy.sh/mein-geheimes-topic"
+    token: ""   # optional, für self-hosted mit Auth
 ```
 
-Nachrichtenformat:
-- **Title:** Alert-Titel
-- **Body:** Summary + AI-Kontext
-- **Priority:** critical=5, high=4, medium=3, info=2
-- **Tags:** Geräte-Kategorie als Emoji-Tag
+### Discord (implementiert)
 
-### Telegram
+Webhook-Integration.
 
 ```yaml
 channels:
-  telegram:
+  discord:
     enabled: true
-    token: "123456:ABC..."
-    chat_id: "-100..."
+    webhook_url: "https://discord.com/api/webhooks/..."
 ```
 
-Nachrichtenformat: Markdown mit Inline-Keyboard für Quick-Actions (Label setzen, als trusted markieren).
+Nachrichtenformat: Embed mit Farbe nach Severity, Felder für IP, Hostname, Vendor, MAC, Gruppe.
 
-### Webhook (generic)
+### Webhook (geplant)
 
-```yaml
-channels:
-  webhook:
-    enabled: true
-    url: "https://mein-server.de/silentmap-hook"
-    method: "POST"
-    headers:
-      Authorization: "Bearer mein-token"
-```
+Noch nicht implementiert.
 
-Body: vollständiger Alert-Payload als JSON.
+### E-Mail (geplant)
 
-### E-Mail (SMTP)
-
-```yaml
-channels:
-  email:
-    enabled: true
-    smtp_host: "smtp.example.com"
-    smtp_port: 587
-    smtp_user: "alert@example.com"
-    smtp_pass: "..."
-    from: "silentmap <alert@example.com>"
-    to: ["admin@example.com"]
-```
-
-Format: HTML-E-Mail mit Gerätedaten-Tabelle.
+Noch nicht implementiert.
 
 ## Severity-Routing
 
 ```yaml
 alerts:
   routing:
-    critical: ["ntfy", "telegram", "email"]
-    high:     ["ntfy", "telegram"]
-    medium:   ["webhook"]
+    critical: ["ntfy", "discord"]
+    high:     ["ntfy", "discord"]
+    medium:   []
     info:     []
     low:      []
 ```

@@ -83,63 +83,48 @@ Zentrale Datenhaltung in SQLite. Verantwortlich für:
 
 ```
 Device {
-    MAC          string    (Primary Key)
+    MAC          string    (Primary Key, normalisiert AA:BB:CC:DD:EE:FF)
     IP           string    (letzte bekannte)
-    Hostname     string    (aus mDNS/DHCP)
+    Hostname     string    (manuell gesetzt, UI)
+    HostnameAuto string    (automatisch via mDNS/DHCP/PTR)
     Vendor       string    (aus OUI-Datenbank)
-    Label        string    (manuell, optional)
-    Category     string    (KI-Fingerprint: "smartphone", "nas", ...)
+    Label        string    (Freitext-Label, optional)
+    Category     string    (z.B. "smartphone", "nas", "router")
+    Services     []string  (mDNS-Dienste, z.B. ["_airplay._tcp"])
+    NmapPorts    []string  (offene Ports, z.B. ["22/tcp open ssh"])
+    OsInfo       string    (nmap OS-Erkennung)
+    ForcePing    bool      (ICMP statt ARP für Geräte ausserhalb Subnet)
     Priority     bool      (manuell, löst kritische Alerts aus)
+    Approved     bool      (neue Geräte starten mit false)
+    Online       bool
     FirstSeen    time.Time
     LastSeen     time.Time
-    Online       bool
-    Meta         JSON      (collector-spezifische Felder)
 }
 ```
 
 ## KI-Engine
 
-Drei unabhängige Sub-Module:
-
-### 1. Fingerprinting (`internal/ai/fingerprint/`)
-- **Input:** MAC-OUI + Hostname + mDNS-Services + offene Ports
-- **Modell:** ONNX Classifier (~5MB, lokal, keine GPU)
-- **Output:** Kategorie + Konfidenz (z.B. `"smartphone" 0.94`)
-- **Trigger:** Bei jedem `device.new` und wenn neue Meta-Daten ankommen
-
-### 2. Alert-Korrelation (`internal/ai/correlation/`)
-- **Input:** Alert-Events im 90-Sekunden-Fenster + Gerätekontext
-- **Modell:** Phi-3 mini via Ollama (optional, konfigurierbar)
-- **Output:** Korreliertes Alert-Event mit menschenlesbarer Zusammenfassung
-- **Fallback:** Ohne Ollama werden Alerts einzeln weitergeleitet
-
-### 3. Anomalieerkennung (`internal/ai/anomaly/`)
-- **Input:** Aktivitäts-Zeitstempel je Gerät (letzte 30 Tage)
-- **Modell:** Statistisches Baseline-Modell (kein LLM nötig)
-- **Output:** `anomaly.detected` Event mit Score und Beschreibung
-- **Trigger:** Bei `device.seen` Events außerhalb der gelernten Aktivitätsfenster
+Noch nicht implementiert — in Planung. Die Config-Struktur ist vorhanden,
+die Logik noch nicht. Konfigurierbar unter `ai.*` in `silentmap.yaml`.
 
 ## Alerting-Pipeline
 
 ```
 Event Bus
-    │ device.new / device.lost / ai.insight
+    │ device.new / device.lost / device.back
     ▼
-Alert Rules Engine          ← YAML-Regeln + Defaults
+Alert Rules Engine          ← eingebaute Regeln + Cooldown
     │
     ▼
 Dedup & Cooldown Layer      ← verhindert Alert-Flut
     │
     ▼
-AI Korrelation              ← bündelt verwandte Alerts (optional)
-    │
-    ▼
 Channel Router              ← Severity → Kanal-Mapping
     │
-    ├── ntfy
-    ├── Telegram
-    ├── Webhook (generic)
-    └── E-Mail (SMTP)
+    ├── ntfy        (implementiert)
+    ├── Discord     (implementiert)
+    ├── Webhook     (geplant)
+    └── E-Mail      (geplant)
 ```
 
 ## Web UI
@@ -149,22 +134,27 @@ Server-Side Rendering mit HTMX — kein JavaScript-Framework.
 | Route | Inhalt |
 |---|---|
 | `GET /` | Dashboard — Online/Offline-Übersicht, letzte Events |
-| `GET /devices` | Inventory — alle Geräte, filterbar/sortierbar |
-| `GET /devices/:mac` | Geräte-Detail — History, Labels, Priority setzen |
-| `GET /alerts` | Alert-Log + Channel-Konfiguration |
-| `GET /settings` | Module aktivieren/deaktivieren, Config |
-| `GET /api/v1/*` | REST API für externe Integration |
+| `GET /devices` | Inventory — alle Geräte |
+| `GET /devices/:mac` | Geräte-Detail — History, Labels, nmap, Priority |
+| `GET /groups` | Gruppen verwalten, Geräte zuweisen |
+| `GET /alerts` | Alert-Log |
+| `GET /log` | Aktivitäts-Log aller Geräte |
+| `GET /settings` | Discord, ntfy, Ping, Theme, Sprache |
+| `GET /api/topology` | Topologie-Daten für D3-Map (JSON) |
+| `GET /api/export` | Export aller Geräte + Gruppen als JSON |
+| `POST /api/import` | Import eines Exports |
+| `GET /api/stats` | Online-Zähler und Uptime |
+| `GET /health` | Health-Check Endpoint |
 
 ## Dateistruktur im Betrieb
 
 ```
 /data/
 ├── silentmap.db        # SQLite — alle Gerätedaten, Events, Alerts
-├── silentmap.yaml      # Konfiguration (auto-erstellt mit Defaults)
-├── oui.db              # MAC OUI Datenbank (auto-download)
-└── models/
-    └── fingerprint.onnx  # KI-Modell für Geräteklassifikation
+└── silentmap.yaml      # Konfiguration (auto-erstellt mit Defaults)
 ```
+
+OUI-Daten werden in die SQLite-DB integriert, kein separates File.
 
 ## Technologie-Entscheidungen
 
@@ -175,6 +165,4 @@ Server-Side Rendering mit HTMX — kein JavaScript-Framework.
 | Datenbank | SQLite (modernc) | Kein Daemon, Backup = cp, CGO-frei möglich |
 | Web-Framework | chi Router + html/template | Leichtgewichtig, stdlib-nah |
 | Frontend | HTMX + Tailwind CSS (CDN) | Kein Build-Step, kein JS-Framework |
-| KI Inference | ONNX Runtime (Go binding) | Plattformunabhängig, keine Python-Dependency |
-| LLM | Ollama HTTP API | Lokales Modell, optional, einfache Integration |
-| Container | Alpine + libpcap | ~25MB Image |
+| Container | Alpine + nmap + nmap-scripts | ~25MB Image |
