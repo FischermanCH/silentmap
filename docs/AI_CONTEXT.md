@@ -266,26 +266,22 @@ werden Werte automatisch verschlüsselt.
 
 1. Bug fixen / Feature implementieren
 2. `VERSION` hochzählen (z.B. `1.0.14` → `1.0.15`)
-3. `CHANGELOG.md` — neuen Abschnitt unter `[Unreleased]` einfügen
-4. Git commit + Tag:
+3. `CHANGELOG.md` — neuen Abschnitt einfügen
+4. Git commit + Tag (**Tag muss vor dem Docker-Build gesetzt sein!**):
    ```bash
    git add -A
    git commit -m "fix: <beschreibung> (v1.0.15)"
    git tag v1.0.15
+   git push && git push --tags
    ```
-5. Docker bauen und pushen:
+5. Docker bauen und pushen (multi-platform, amd64 + arm64):
    ```bash
-   make docker        # baut fischermanch/silentmap:v1.0.15 + :latest
-   make docker-push   # pusht beide Tags auf Docker Hub
+   make docker        # buildx --push: baut + pusht direkt auf Docker Hub
    ```
-6. GitHub Release erstellen:
-   ```bash
-   gh release create v1.0.15 --title "v1.0.15" --notes "<changelog-text>"
-   ```
-7. Auf dem Server neu deployen (Portainer → Stack updaten oder `docker pull` + restart)
+6. Auf dem Server neu deployen (Portainer → Stack updaten oder `docker pull` + restart)
 
-**Wichtig:** `make docker` liest VERSION aus `git describe --tags` — der Tag muss
-**vor** dem Docker-Build gesetzt sein, sonst landet `-dirty` im Image-Tag.
+**Wichtig:** `make docker` = `docker buildx build --platform linux/amd64,linux/arm64 --push`.
+Der Push passiert inline — `make docker-push` ist ein No-Op.
 
 ---
 
@@ -298,6 +294,17 @@ werden Werte automatisch verschlüsselt.
 - Web UI: `http://<server-ip>:8080`
 
 ---
+
+### Authentifizierung (seit v1.0.29)
+Single-Operator Passwortschutz für die gesamte Web-UI.
+
+- Passwort: bcrypt-Hash in `$DATA_DIR/auth.hash` (0600), Package `internal/auth/auth.go`
+- Erster Start ohne `auth.hash` → alle Requests leiten auf `/setup` (Credential-Setup-Seite)
+- `/login` und `/setup` sind public; alle anderen Routen in einer Chi-Group mit `requireAuth`-Middleware
+- Session: zufälliger 32-Byte-Token, In-Memory-Map mit 7-Tage-Ablauf, Cookie `sm-session` (HttpOnly, SameSite=Lax)
+- Logout: `POST /logout` (im Nav-Dropdown), löscht Session + setzt Cookie MaxAge=-1
+- Passwort ändern: `POST /settings/password` → Settings → General
+- Login/Setup-Seiten sind **standalone HTML** (kein base.html), Terminal/Spy-Ästhetik (phosphorgrün auf schwarz, Scanlines)
 
 ## Alert-Kanäle (aktuell implementiert)
 

@@ -8,9 +8,12 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-- Webhook alert channel
-- Basic auth for web UI
-- Multi-platform Docker builds (arm64)
+---
+
+## [1.0.30] — 2026-06-06
+
+### Changed
+- **Multi-platform Docker builds** — `make docker` now uses `docker buildx build --platform linux/amd64,linux/arm64 --push`. The image runs natively on ARM64 (Raspberry Pi, Apple Silicon, ARM-based NAS). No code changes — the binary was already CGO-free (`modernc/sqlite` is pure Go). `make docker-push` is now a no-op since buildx pushes inline.
 
 ---
 
