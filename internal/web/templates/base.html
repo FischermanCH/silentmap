@@ -233,4 +233,12 @@ setInterval(loadNavStats, 30000);
   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="flex-shrink:0"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
   {{t "nav.help"}}
 </a>
+<div class="my-1 mx-3" style="border-top:1px solid var(--sm-card-border)"></div>
+<form method="POST" action="/logout" style="margin:0">
+  <button type="submit" class="dd-link flex items-center gap-2 px-4 py-2.5 text-sm hover:opacity-80 w-full text-left"
+          style="background:none;border:0;cursor:pointer;color:inherit;font:inherit">
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="flex-shrink:0"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+    {{t "nav.logout"}}
+  </button>
+</form>
 {{end}}

@@ -28,6 +28,7 @@ import (
 	"github.com/silentmap/silentmap/internal/alerting/channels/discord"
 	"github.com/silentmap/silentmap/internal/alerting/channels/ntfy"
 	"github.com/silentmap/silentmap/internal/alerting/engine"
+	"github.com/silentmap/silentmap/internal/auth"
 	"github.com/silentmap/silentmap/internal/bus"
 	"github.com/silentmap/silentmap/internal/collectors/httpcheck"
 	"github.com/silentmap/silentmap/internal/collectors/ping"
@@ -101,6 +102,7 @@ type Server struct {
 	pingCol   *ping.Collector
 	httpCol   *httpcheck.Collector
 	encKey    []byte
+	auth      *auth.Manager
 	version   string
 	buildTime string
 	scanMu    sync.RWMutex
@@ -129,6 +131,12 @@ func NewServer(reg *registry.Registry, alertEng *engine.Engine, db *sql.DB, data
 		encKey = make([]byte, 32) // fallback zero-key; decrypt still works (returns cleartext)
 	}
 
+	authMgr, err := auth.New(dataDir)
+	if err != nil {
+		slog.Error("cannot initialize auth manager", "err", err)
+		authMgr, _ = auth.New(os.TempDir()) // fallback; setup page will catch it
+	}
+
 	s := &Server{
 		reg:       reg,
 		bundle:    bundle,
@@ -143,6 +151,7 @@ func NewServer(reg *registry.Registry, alertEng *engine.Engine, db *sql.DB, data
 		pingCol:   pingCol,
 		httpCol:   httpCol,
 		encKey:    encKey,
+		auth:      authMgr,
 		version:   version,
 		scanning:  make(map[string]bool),
 		buildTime: buildTime,
@@ -365,58 +374,203 @@ func (s *Server) saveAppSettings(cfg AppSettings) error {
 	return os.WriteFile(filepath.Join(s.dataDir, "settings.json"), data, 0644)
 }
 
+func (s *Server) requireAuth(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if !s.auth.IsSetup() {
+			http.Redirect(w, r, "/setup", http.StatusFound)
+			return
+		}
+		cookie, err := r.Cookie(auth.CookieName)
+		if err != nil || !s.auth.ValidSession(cookie.Value) {
+			http.Redirect(w, r, "/login", http.StatusFound)
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+
+func (s *Server) isAuthenticated(r *http.Request) bool {
+	cookie, err := r.Cookie(auth.CookieName)
+	return err == nil && s.auth.ValidSession(cookie.Value)
+}
+
+func (s *Server) renderAuth(w http.ResponseWriter, name string, data map[string]any) {
+	tmpl, err := template.ParseFS(templateFS, "templates/"+name)
+	if err != nil {
+		http.Error(w, "template error", http.StatusInternalServerError)
+		return
+	}
+	if data == nil {
+		data = map[string]any{}
+	}
+	data["Version"] = s.version
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	if err := tmpl.Execute(w, data); err != nil {
+		slog.Error("auth template render failed", "template", name, "err", err)
+	}
+}
+
+func (s *Server) loginPage(w http.ResponseWriter, r *http.Request) {
+	if !s.auth.IsSetup() {
+		http.Redirect(w, r, "/setup", http.StatusFound)
+		return
+	}
+	if s.isAuthenticated(r) {
+		http.Redirect(w, r, "/", http.StatusFound)
+		return
+	}
+	s.renderAuth(w, "login.html", map[string]any{"Error": r.URL.Query().Get("error")})
+}
+
+func (s *Server) doLogin(w http.ResponseWriter, r *http.Request) {
+	r.ParseForm()
+	if !s.auth.CheckPassword(r.FormValue("password")) {
+		http.Redirect(w, r, "/login?error=Invalid+access+code", http.StatusSeeOther)
+		return
+	}
+	http.SetCookie(w, &http.Cookie{
+		Name:     auth.CookieName,
+		Value:    s.auth.NewSession(),
+		Path:     "/",
+		HttpOnly: true,
+		SameSite: http.SameSiteLaxMode,
+		MaxAge:   86400 * 7,
+	})
+	http.Redirect(w, r, "/", http.StatusSeeOther)
+}
+
+func (s *Server) doLogout(w http.ResponseWriter, r *http.Request) {
+	if cookie, err := r.Cookie(auth.CookieName); err == nil {
+		s.auth.DeleteSession(cookie.Value)
+	}
+	http.SetCookie(w, &http.Cookie{Name: auth.CookieName, Value: "", Path: "/", MaxAge: -1})
+	http.Redirect(w, r, "/login", http.StatusSeeOther)
+}
+
+func (s *Server) setupPage(w http.ResponseWriter, r *http.Request) {
+	if s.auth.IsSetup() {
+		http.Redirect(w, r, "/login", http.StatusFound)
+		return
+	}
+	s.renderAuth(w, "setup.html", map[string]any{"Error": r.URL.Query().Get("error")})
+}
+
+func (s *Server) doSetup(w http.ResponseWriter, r *http.Request) {
+	if s.auth.IsSetup() {
+		http.Redirect(w, r, "/login", http.StatusFound)
+		return
+	}
+	r.ParseForm()
+	pass, confirm := r.FormValue("password"), r.FormValue("confirm")
+	if len(pass) < 8 {
+		http.Redirect(w, r, "/setup?error=Minimum+8+characters+required", http.StatusSeeOther)
+		return
+	}
+	if pass != confirm {
+		http.Redirect(w, r, "/setup?error=Passwords+do+not+match", http.StatusSeeOther)
+		return
+	}
+	if err := s.auth.SetPassword(pass); err != nil {
+		slog.Error("auth setup: failed to save password", "err", err)
+		http.Redirect(w, r, "/setup?error=Failed+to+save+credentials", http.StatusSeeOther)
+		return
+	}
+	http.SetCookie(w, &http.Cookie{
+		Name:     auth.CookieName,
+		Value:    s.auth.NewSession(),
+		Path:     "/",
+		HttpOnly: true,
+		SameSite: http.SameSiteLaxMode,
+		MaxAge:   86400 * 7,
+	})
+	http.Redirect(w, r, "/", http.StatusSeeOther)
+}
+
+func (s *Server) changePassword(w http.ResponseWriter, r *http.Request) {
+	r.ParseForm()
+	pass, confirm := r.FormValue("new_password"), r.FormValue("confirm_password")
+	if len(pass) < 8 {
+		s.settingsError(w, r, "New password must be at least 8 characters")
+		return
+	}
+	if pass != confirm {
+		s.settingsError(w, r, "Passwords do not match")
+		return
+	}
+	if err := s.auth.SetPassword(pass); err != nil {
+		slog.Error("change password failed", "err", err)
+		s.settingsError(w, r, "Failed to update password")
+		return
+	}
+	s.settingsRedirect(w, r)
+}
+
 func (s *Server) Handler() http.Handler {
 	r := chi.NewRouter()
 	r.Use(middleware.Logger)
 	r.Use(middleware.Recoverer)
 
-	r.Get("/", s.dashboard)
-	r.Get("/devices", s.deviceList)
-	r.Get("/devices/{mac}", s.deviceDetail)
-	r.Post("/devices/{mac}/label", s.setLabel)
-	r.Post("/devices/{mac}/hostname", s.setHostname)
-	r.Post("/devices/{mac}/priority", s.setPriority)
-	r.Post("/devices/{mac}/force-ping", s.setForcePing)
-	r.Post("/devices/{mac}/approve", s.approveDevice)
-	r.Post("/devices/{mac}/category", s.setCategory)
-	r.Get("/alerts", s.alertList)
-	r.Get("/log", s.eventLog)
-	r.Post("/devices/new", s.createDevice)
-	r.Post("/devices/{mac}/delete", s.deleteDevice)
-	r.Post("/devices/{mac}/connections", s.addConnection)
-	r.Post("/devices/{mac}/connections/{id}/delete", s.removeConnection)
-	r.Get("/groups", s.groupList)
-	r.Post("/groups", s.createGroup)
-	r.Post("/groups/{id}/update", s.updateGroup)
-	r.Post("/groups/{id}/delete", s.deleteGroup)
-	r.Post("/groups/{id}/move", s.moveGroup)
-	r.Post("/devices/{mac}/groups", s.addDeviceToGroup)
-	r.Post("/devices/{mac}/groups/{groupId}/remove", s.removeDeviceFromGroup)
-	r.Get("/api/topology", s.apiTopology)
-	r.Get("/api/export", s.exportDevices)
-	r.Post("/api/import", s.importDevices)
-	r.Post("/devices/{mac}/nmap", s.runNmap)
-	r.Get("/devices/{mac}/nmap/status", s.nmapStatus)
-	r.Get("/settings", s.settingsPage)
-	r.Post("/settings/theme", s.setTheme)
-	r.Post("/settings/lang", s.setLang)
-	r.Post("/settings/discord", s.setDiscord)
-	r.Post("/settings/ntfy", s.setNtfy)
-	r.Post("/settings/email", s.setEmail)
-	r.Post("/settings/email/test", s.testEmail)
-	r.Post("/settings/listening", s.toggleListening)
-	r.Post("/settings/ping", s.setPing)
-	r.Post("/settings/httpcheck", s.setHttpCheck)
-	r.Post("/settings/maintenance", s.setMaintenance)
-	r.Post("/settings/auto-nmap", s.setAutoNmap)
-	r.Post("/devices/{mac}/notes", s.setNotes)
-	r.Post("/devices/{mac}/http-url", s.setHttpUrl)
-	r.Post("/devices/approve-all", s.approveAll)
-	r.Get("/api/stats", s.apiStats)
-	r.Get("/api/alerts", s.apiAlerts)
-	r.Get("/api/version", s.apiVersion)
-	r.Get("/api/settings/{key}", s.apiGetSetting)
-	r.Post("/api/settings/{key}", s.apiSetSetting)
+	// Public — no auth required
+	r.Get("/login", s.loginPage)
+	r.Post("/login", s.doLogin)
+	r.Post("/logout", s.doLogout)
+	r.Get("/setup", s.setupPage)
+	r.Post("/setup", s.doSetup)
+
+	// Protected — auth required
+	r.Group(func(r chi.Router) {
+		r.Use(s.requireAuth)
+
+		r.Get("/", s.dashboard)
+		r.Get("/devices", s.deviceList)
+		r.Get("/devices/{mac}", s.deviceDetail)
+		r.Post("/devices/{mac}/label", s.setLabel)
+		r.Post("/devices/{mac}/hostname", s.setHostname)
+		r.Post("/devices/{mac}/priority", s.setPriority)
+		r.Post("/devices/{mac}/force-ping", s.setForcePing)
+		r.Post("/devices/{mac}/approve", s.approveDevice)
+		r.Post("/devices/{mac}/category", s.setCategory)
+		r.Get("/alerts", s.alertList)
+		r.Get("/log", s.eventLog)
+		r.Post("/devices/new", s.createDevice)
+		r.Post("/devices/{mac}/delete", s.deleteDevice)
+		r.Post("/devices/{mac}/connections", s.addConnection)
+		r.Post("/devices/{mac}/connections/{id}/delete", s.removeConnection)
+		r.Get("/groups", s.groupList)
+		r.Post("/groups", s.createGroup)
+		r.Post("/groups/{id}/update", s.updateGroup)
+		r.Post("/groups/{id}/delete", s.deleteGroup)
+		r.Post("/groups/{id}/move", s.moveGroup)
+		r.Post("/devices/{mac}/groups", s.addDeviceToGroup)
+		r.Post("/devices/{mac}/groups/{groupId}/remove", s.removeDeviceFromGroup)
+		r.Get("/api/topology", s.apiTopology)
+		r.Get("/api/export", s.exportDevices)
+		r.Post("/api/import", s.importDevices)
+		r.Post("/devices/{mac}/nmap", s.runNmap)
+		r.Get("/devices/{mac}/nmap/status", s.nmapStatus)
+		r.Get("/settings", s.settingsPage)
+		r.Post("/settings/theme", s.setTheme)
+		r.Post("/settings/lang", s.setLang)
+		r.Post("/settings/discord", s.setDiscord)
+		r.Post("/settings/ntfy", s.setNtfy)
+		r.Post("/settings/email", s.setEmail)
+		r.Post("/settings/email/test", s.testEmail)
+		r.Post("/settings/listening", s.toggleListening)
+		r.Post("/settings/ping", s.setPing)
+		r.Post("/settings/httpcheck", s.setHttpCheck)
+		r.Post("/settings/maintenance", s.setMaintenance)
+		r.Post("/settings/auto-nmap", s.setAutoNmap)
+		r.Post("/settings/password", s.changePassword)
+		r.Post("/devices/{mac}/notes", s.setNotes)
+		r.Post("/devices/{mac}/http-url", s.setHttpUrl)
+		r.Post("/devices/approve-all", s.approveAll)
+		r.Get("/api/stats", s.apiStats)
+		r.Get("/api/alerts", s.apiAlerts)
+		r.Get("/api/version", s.apiVersion)
+		r.Get("/api/settings/{key}", s.apiGetSetting)
+		r.Post("/api/settings/{key}", s.apiSetSetting)
+	}) // end protected group
+
 	r.Get("/health", s.health)
 	r.Handle("/static/*", http.FileServer(http.FS(templateFS)))
 

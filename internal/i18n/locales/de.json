@@ -7,6 +7,7 @@
   "nav.lang":        "Sprache",
   "nav.settings":    "Einstellungen",
   "nav.help":        "GitHub / Hilfe",
+  "nav.logout":      "Abmelden",
 
   "settings.title":              "Einstellungen",
   "settings.subtitle":           "Alerting & Konfiguration",
@@ -76,6 +77,11 @@
   "settings.email.lang":       "E-Mail-Sprache",
   "settings.email.save":       "Speichern",
   "settings.email.test":       "Verbindung testen",
+
+  "settings.password.title":   "Passwort ändern",
+  "settings.password.new":     "Neues Passwort",
+  "settings.password.confirm": "Passwort bestätigen",
+  "settings.password.save":    "Passwort aktualisieren",
 
   "section.httpurl":                   "HTTP-URL",
   "httpurl.hint":                      "URL für den Verfügbarkeitscheck. Jede HTTP-Antwort gilt als online. Kein Antwortverlust nach Timeout = offline.",
