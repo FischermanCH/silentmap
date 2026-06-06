@@ -403,6 +403,7 @@ func (s *Server) Handler() http.Handler {
 	r.Post("/settings/discord", s.setDiscord)
 	r.Post("/settings/ntfy", s.setNtfy)
 	r.Post("/settings/email", s.setEmail)
+	r.Post("/settings/email/test", s.testEmail)
 	r.Post("/settings/listening", s.toggleListening)
 	r.Post("/settings/ping", s.setPing)
 	r.Post("/settings/httpcheck", s.setHttpCheck)
@@ -866,6 +867,87 @@ func (s *Server) setEmail(w http.ResponseWriter, r *http.Request) {
 		Lang:     cfg.Email.Lang,
 	})
 	s.settingsRedirect(w, r)
+}
+
+func writeJSON(w http.ResponseWriter, ok bool, errMsg string) {
+	w.Header().Set("Content-Type", "application/json")
+	if ok {
+		w.Write([]byte(`{"ok":true}`))
+		return
+	}
+	b, _ := json.Marshal(map[string]any{"ok": false, "error": errMsg})
+	w.Write(b)
+}
+
+func (s *Server) testEmail(w http.ResponseWriter, r *http.Request) {
+	if err := r.ParseForm(); err != nil {
+		writeJSON(w, false, "bad request")
+		return
+	}
+
+	host := strings.TrimSpace(r.FormValue("smtp_host"))
+	from := strings.TrimSpace(r.FormValue("from"))
+	to := strings.TrimSpace(r.FormValue("to"))
+	port, _ := strconv.Atoi(r.FormValue("smtp_port"))
+	if port <= 0 {
+		port = 587
+	}
+
+	if host == "" {
+		writeJSON(w, false, "SMTP host is required")
+		return
+	}
+	if from == "" || !isValidEmail(from) {
+		writeJSON(w, false, "Invalid sender address (From)")
+		return
+	}
+	if to == "" || !isValidEmail(to) {
+		writeJSON(w, false, "Invalid recipient address (To)")
+		return
+	}
+
+	tlsMode := r.FormValue("tls_mode")
+	if tlsMode != "tls" && tlsMode != "none" {
+		tlsMode = "starttls"
+	}
+	lang := r.FormValue("lang")
+	if lang != "de" {
+		lang = "en"
+	}
+
+	// Use submitted password; fall back to stored (decrypted) if blank.
+	pass := strings.TrimSpace(r.FormValue("smtp_pass"))
+	if pass == "" {
+		stored := s.loadAppSettings()
+		pass = s.decrypt(stored.Email.SMTPPass)
+	}
+
+	cfg := emailchan.Config{
+		Enabled:  true,
+		SMTPHost: host,
+		SMTPPort: port,
+		SMTPUser: strings.TrimSpace(r.FormValue("smtp_user")),
+		SMTPPass: pass,
+		From:     from,
+		To:       to,
+		TLSMode:  tlsMode,
+		Lang:     lang,
+	}
+
+	type result struct{ err error }
+	ch := make(chan result, 1)
+	go func() { ch <- result{emailchan.TestConnection(cfg)} }()
+
+	select {
+	case res := <-ch:
+		if res.err != nil {
+			writeJSON(w, false, res.err.Error())
+		} else {
+			writeJSON(w, true, "")
+		}
+	case <-time.After(15 * time.Second):
+		writeJSON(w, false, "timeout: SMTP server did not respond within 15 seconds")
+	}
 }
 
 func (s *Server) setPing(w http.ResponseWriter, r *http.Request) {

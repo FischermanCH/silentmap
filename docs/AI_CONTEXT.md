@@ -247,6 +247,11 @@ werden Werte automatisch verschlüsselt.
   wird im Email-Kanal als base64 Data-URI eingebettet (`src="data:image/png;base64,..."`)
 - Bilingual via interne `i18n`-Map (kein Bundle, autark im Package)
 - Alert-Typen: `new_device`, `priority_offline`, `device_back`, `service_down`, `service_back`
+- `TestConnection(cfg Config) error` — sendet eine Test-E-Mail ohne Channel-State zu ändern;
+  intern: `sendSMTP(cfg, subject, html)` → gleiche Verbindungslogik wie beim echten Alert
+- Route: `POST /settings/email/test` — liest Formwerte, fällt bei leerem Passwort auf
+  gespeicherten (entschlüsselten) Wert zurück; gibt JSON `{"ok":true}` / `{"ok":false,"error":"..."}`;
+  15s-Timeout via Goroutine + `time.After`. Kein `settingsError`-Redirect, kein Seiten-Reload.
 
 ### Deployment (Produktion, seit v1.0.21 Update)
 - Bind Mount: `/opt/silentmap:/data` (statt Named Volume — Portainer-Validator akzeptiert

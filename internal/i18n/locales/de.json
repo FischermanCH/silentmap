@@ -75,6 +75,7 @@
   "settings.email.to":         "Empfänger (To)",
   "settings.email.lang":       "E-Mail-Sprache",
   "settings.email.save":       "Speichern",
+  "settings.email.test":       "Verbindung testen",
 
   "section.httpurl":                   "HTTP-URL",
   "httpurl.hint":                      "URL für den Verfügbarkeitscheck. Jede HTTP-Antwort gilt als online. Kein Antwortverlust nach Timeout = offline.",

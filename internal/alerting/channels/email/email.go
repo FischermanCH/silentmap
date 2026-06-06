@@ -222,6 +222,13 @@ func sendSMTP(cfg Config, subject, htmlBody string) error {
 	}
 }
 
+// TestConnection dials the SMTP server, authenticates, sends a test email, and returns any error.
+// It is safe to call concurrently and does not affect the running channel state.
+func TestConnection(cfg Config) error {
+	return sendSMTP(cfg, "silentmap — SMTP test",
+		"<p>This is a test message from <b>silentmap</b> to verify your SMTP configuration. You can ignore this email.</p>")
+}
+
 func sendData(client *smtp.Client, from, to string, msg []byte) error {
 	if err := client.Mail(from); err != nil {
 		return err
