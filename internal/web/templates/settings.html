@@ -467,11 +467,18 @@
         .then(function(j) {
           result.classList.remove('hidden');
           if (j.ok) {
-            result.textContent = '✓ ' + (j.message || 'Test email sent successfully');
+            result.textContent = '✓ Test email sent successfully';
             result.style.color = 'var(--sm-badge-success-text, #15803d)';
           } else {
-            result.textContent = '✗ ' + (j.error || 'Unknown error');
+            var errMsg = j.error || 'Unknown error';
             result.style.color = 'var(--sm-badge-danger-text, #b91c1c)';
+            if (errMsg.indexOf('Application-specific password') !== -1 || errMsg.indexOf('5.7.9') !== -1) {
+              result.innerHTML = '✗ Gmail requires an <b>app password</b> — regular passwords are blocked. ' +
+                '<a href="https://myaccount.google.com/apppasswords" target="_blank" rel="noopener" style="text-decoration:underline">Create one here</a> ' +
+                'and enter it as the SMTP password.';
+            } else {
+              result.textContent = '✗ ' + errMsg;
+            }
           }
         })
         .catch(function(e) {
