@@ -23,16 +23,17 @@ lint:
 	golangci-lint run ./...
 
 docker:
-	docker build \
+	docker buildx build \
+		--platform linux/amd64,linux/arm64 \
 		--build-arg VERSION=$(VERSION) \
 		--build-arg COMMIT=$(COMMIT) \
 		-t fischermanch/silentmap:$(VERSION) \
 		-t fischermanch/silentmap:latest \
+		--push \
 		.
 
 docker-push:
-	docker push fischermanch/silentmap:$(VERSION)
-	docker push fischermanch/silentmap:latest
+	@echo "Images already pushed by 'make docker' (buildx --push). Nothing to do."
 
 docker-up:
 	docker compose up -d
