@@ -186,7 +186,7 @@ func Defaults() *Config {
 			},
 			Routing: RoutingCfg{
 				Critical: []string{"ntfy", "discord", "email"},
-				High:     []string{"ntfy", "discord"},
+				High:     []string{"ntfy", "discord", "email"},
 				Medium:   []string{"webhook"},
 				Info:     []string{},
 				Low:      []string{},
