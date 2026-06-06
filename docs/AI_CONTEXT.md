@@ -257,8 +257,7 @@ werden Werte automatisch verschlüsselt.
 - Bind Mount: `/opt/silentmap:/data` (statt Named Volume — Portainer-Validator akzeptiert
   kein top-level `volumes:` in Stack-Dateien)
 - SQLite darf **nicht** auf einem SMB/NFS-Share liegen (Locking-Probleme, 10s-Busy-Timeout)
-- Backup-Script: `/home/fischerman/scripts/backup-silentmap.sh` (kopiert DB auf NAS)
-- Cron (root): täglich 03:00, Log: `/var/log/silentmap-backup.log`
+- Backup-Script: lokal auf dem Server (kopiert DB auf NAS), Cron als root täglich 03:00
 
 ---
 
