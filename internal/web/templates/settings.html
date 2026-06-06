@@ -458,7 +458,7 @@
     btnTest.addEventListener('click', function() {
       var form = document.getElementById('form-email');
       var result = document.getElementById('email-test-result');
-      var data = new FormData(form);
+      var data = new URLSearchParams(new FormData(form));
       btnTest.disabled = true;
       btnTest.textContent = '…';
       result.className = 'text-sm hidden';
