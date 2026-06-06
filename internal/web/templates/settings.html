@@ -304,7 +304,7 @@
         <h3 class="font-medium text-sm">{{t "settings.email.title"}}</h3>
       </div>
       <p class="text-xs mb-4" style="color:var(--sm-text-muted)">{{t "settings.email.hint"}}</p>
-      <form method="POST" action="/settings/email" class="space-y-3">
+      <form id="form-email" method="POST" action="/settings/email" class="space-y-3">
         <label class="flex items-center gap-2 cursor-pointer select-none">
           <input type="checkbox" name="enabled" {{if .Email.Enabled}}checked{{end}}
                  class="w-4 h-4 rounded cursor-pointer" style="accent-color:var(--sm-accent)">
@@ -387,10 +387,18 @@
         </div>
 
         <input type="hidden" name="_tab" value="alerts">
-        <button type="submit" class="px-4 py-1.5 rounded text-sm font-medium cursor-pointer"
-                style="background:var(--sm-accent);color:var(--sm-page-bg)">
-          {{t "settings.email.save"}}
-        </button>
+        <div class="flex items-center gap-3 flex-wrap">
+          <button type="submit" class="px-4 py-1.5 rounded text-sm font-medium cursor-pointer"
+                  style="background:var(--sm-accent);color:var(--sm-page-bg)">
+            {{t "settings.email.save"}}
+          </button>
+          <button type="button" id="btn-email-test"
+                  class="px-4 py-1.5 rounded text-sm font-medium cursor-pointer"
+                  style="background:var(--sm-card-border);color:var(--sm-text-primary)">
+            {{t "settings.email.test"}}
+          </button>
+          <span id="email-test-result" class="text-sm hidden"></span>
+        </div>
       </form>
     </div>
 
@@ -443,6 +451,42 @@
   switchTab(tab || 'general');
 
   window.switchTab = switchTab;
+
+  // Email connection test
+  var btnTest = document.getElementById('btn-email-test');
+  if (btnTest) {
+    btnTest.addEventListener('click', function() {
+      var form = document.getElementById('form-email');
+      var result = document.getElementById('email-test-result');
+      var data = new FormData(form);
+      btnTest.disabled = true;
+      btnTest.textContent = '…';
+      result.className = 'text-sm hidden';
+      fetch('/settings/email/test', { method: 'POST', body: data })
+        .then(function(r) { return r.json(); })
+        .then(function(j) {
+          result.classList.remove('hidden');
+          if (j.ok) {
+            result.textContent = '✓ ' + (j.message || 'Test email sent successfully');
+            result.style.color = 'var(--sm-badge-success-text, #15803d)';
+          } else {
+            result.textContent = '✗ ' + (j.error || 'Unknown error');
+            result.style.color = 'var(--sm-badge-danger-text, #b91c1c)';
+          }
+        })
+        .catch(function(e) {
+          result.classList.remove('hidden');
+          result.textContent = '✗ ' + e.message;
+          result.style.color = 'var(--sm-badge-danger-text, #b91c1c)';
+        })
+        .finally(function() {
+          btnTest.disabled = false;
+          btnTest.textContent = btnTest.dataset.label || 'Test';
+        });
+    });
+    // Store original label for restore after async
+    btnTest.dataset.label = btnTest.textContent.trim();
+  }
 })();
 </script>
 {{end}}

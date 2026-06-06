@@ -14,6 +14,20 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [1.0.25] — 2026-06-06
+
+### Added
+- **SMTP connection test** — "Test connection" button in Settings → Alerts → Email. Clicking it sends a real test email using the current form values (or the stored password if the password field is left blank). Shows inline ✓/✗ result without saving. 15-second timeout with error message on failure.
+
+---
+
+## [1.0.24] — 2026-06-06
+
+### Added
+- **Email settings validation** — required fields (SMTP host, sender, recipient) and port range (1–65535) are validated server-side when email alerts are enabled. Invalid input shows a red error toast without losing the entered values.
+
+---
+
 ## [1.0.23] — 2026-06-06
 
 ### Changed
