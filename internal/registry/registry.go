@@ -276,7 +276,8 @@ func (r *Registry) checkOffline() {
 	// Collect candidates first, then close the cursor before writing.
 	rows, err := r.db.Query(
 		`SELECT mac, ip, label, priority, hostname, hostname_auto, category, vendor, last_seen
-		 FROM devices WHERE online = 1 AND last_seen < ? AND category != 'virtual'`, cutoff,
+		 FROM devices WHERE online = 1 AND last_seen < ? AND category != 'virtual'
+		 AND NOT (category = 'http-service' AND http_url != '')`, cutoff,
 	)
 	if err != nil {
 		return
@@ -1369,6 +1370,46 @@ func (r *Registry) HttpServiceDevices() []Device {
 	defer rows.Close()
 	devices, _ := r.scanDevices(rows)
 	return devices
+}
+
+// MarkHttpServiceOffline explicitly marks an http-service device offline after
+// consecutive HTTP check failures. Unlike checkOffline, this respects the actual
+// check interval and is not subject to the ARP offline timeout.
+func (r *Registry) MarkHttpServiceOffline(mac, ip string) {
+	mac = normalizeMac(mac)
+
+	r.mu.Lock()
+	existing, err := r.get(mac)
+	r.mu.Unlock()
+
+	if err != nil || !existing.Online {
+		return
+	}
+
+	groups := r.deviceGroupNames(mac)
+
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	// Re-check under lock to prevent a race with handleSeen.
+	recheck, err := r.get(mac)
+	if err != nil || !recheck.Online {
+		return
+	}
+
+	r.db.Exec(`UPDATE devices SET online = 0 WHERE mac = ?`, mac)
+	r.logEvent(mac, ip, "offline", "http-checker", "")
+	slog.Info("http-service offline (http check failed)", "mac", mac)
+	r.b.Publish(bus.NewEvent(bus.EventDeviceLost, mac, ip, "http-checker", map[string]any{
+		"label":        existing.Label,
+		"hostname":     existing.Hostname,
+		"hostnameAuto": existing.HostnameAuto,
+		"category":     existing.Category,
+		"vendor":       existing.Vendor,
+		"groups":       groups,
+		"lastSeen":     existing.LastSeen.Format("02.01.2006 15:04"),
+		"priority":     existing.Priority,
+	}))
 }
 
 // AddEvent logs a device event (public wrapper for internal logEvent).

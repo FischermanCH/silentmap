@@ -129,6 +129,16 @@ func buildTitle(a channels.Alert, name string) string {
 			return "🟢 " + name + " ist wieder online"
 		}
 		return "🟢 Gerät wieder online"
+	case "service_down":
+		if named {
+			return "🔴 " + name + " nicht erreichbar"
+		}
+		return "🔴 HTTP-Service nicht erreichbar"
+	case "service_back":
+		if named {
+			return "🟢 " + name + " wieder erreichbar"
+		}
+		return "🟢 HTTP-Service wieder erreichbar"
 	default:
 		return "ℹ️ " + a.Title
 	}
@@ -165,6 +175,14 @@ func buildDescription(a channels.Alert, name string) string {
 	case "new_device":
 		if name == a.MAC {
 			parts = append(parts, "noch kein Name vergeben")
+		}
+	case "service_down":
+		if ls := str("lastSeen"); ls != "" {
+			parts = append(parts, "zuletzt "+ls)
+		}
+	case "service_back":
+		if ls := str("lastSeen"); ls != "" {
+			parts = append(parts, "war offline seit "+ls)
 		}
 	}
 
@@ -215,9 +233,9 @@ func buildFields(a channels.Alert) []map[string]any {
 	switch a.Type {
 	case "new_device":
 		field("Erstmals gesehen", firstSeen, false)
-	case "priority_offline":
+	case "priority_offline", "service_down":
 		field("Zuletzt gesehen", lastSeen, false)
-	case "device_back":
+	case "device_back", "service_back":
 		field("Offline seit", lastSeen, false)
 	}
 
