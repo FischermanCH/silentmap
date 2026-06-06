@@ -14,6 +14,13 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [1.0.26] — 2026-06-06
+
+### Fixed
+- **Email test button — "SMTP host is required" despite host being entered** — the fetch call sent `multipart/form-data` which `r.ParseForm()` does not parse; converted to `URLSearchParams` so all SMTP fields reach the server correctly.
+
+---
+
 ## [1.0.25] — 2026-06-06
 
 ### Added
