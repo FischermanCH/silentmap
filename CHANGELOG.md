@@ -14,6 +14,13 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [1.0.27] — 2026-06-06
+
+### Added
+- **Gmail app-password hint** — when the SMTP test returns a Gmail 5.7.9 error ("Application-specific password required"), the error message is replaced with a readable explanation and a direct link to `myaccount.google.com/apppasswords`.
+
+---
+
 ## [1.0.26] — 2026-06-06
 
 ### Fixed
