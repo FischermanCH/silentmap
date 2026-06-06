@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SILENTMAP // SECURE ACCESS</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --g:#00ff41;--gd:#00b32d;--gdk:#003d0f;
+  --r:#ff2828;--bg:#000;--tm:#00ff4118;
+  --muted:#008f23;--bdr:#00ff4140;
+}
+body{
+  background:var(--bg);color:var(--g);
+  font-family:'Courier New',Courier,monospace;
+  min-height:100vh;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;
+  position:relative;overflow:hidden;
+}
+/* scanlines */
+body::before{
+  content:'';position:fixed;inset:0;
+  background:repeating-linear-gradient(0deg,transparent,transparent 3px,rgba(0,0,0,.12) 3px,rgba(0,0,0,.12) 4px);
+  pointer-events:none;z-index:20;
+}
+/* vignette */
+body::after{
+  content:'';position:fixed;inset:0;
+  background:radial-gradient(ellipse at center,transparent 55%,rgba(0,0,0,.85) 100%);
+  pointer-events:none;z-index:19;
+}
+.grid{
+  position:fixed;inset:0;
+  background-image:linear-gradient(rgba(0,255,65,.025) 1px,transparent 1px),linear-gradient(90deg,rgba(0,255,65,.025) 1px,transparent 1px);
+  background-size:48px 48px;pointer-events:none;z-index:0;
+}
+.wrap{position:relative;z-index:5;width:100%;max-width:440px;padding:1.25rem}
+
+/* header */
+.cls-banner{
+  text-align:center;margin-bottom:.6rem;
+  font-size:.55rem;letter-spacing:.35em;color:var(--r);
+  animation:blink 3s step-end infinite;
+}
+.logo{
+  text-align:center;margin-bottom:1.8rem;
+}
+.logo-name{
+  font-size:2rem;font-weight:bold;letter-spacing:.25em;
+  text-shadow:0 0 18px var(--g),0 0 40px rgba(0,255,65,.25);
+  animation:flicker 10s infinite;
+}
+.logo-tag{font-size:.58rem;letter-spacing:.45em;color:var(--muted);margin-top:.35rem}
+
+/* terminal box */
+.box{
+  border:1px solid var(--gd);background:rgba(0,18,5,.92);
+  padding:1.5rem;position:relative;
+}
+.box-title{
+  position:absolute;top:-.6rem;left:1rem;
+  background:var(--bg);padding:0 .5rem;
+  font-size:.55rem;letter-spacing:.2em;color:var(--muted);
+}
+.sys-lines{
+  font-size:.6rem;color:var(--muted);letter-spacing:.08em;
+  line-height:1.7;margin-bottom:1.2rem;
+  padding-bottom:1rem;border-bottom:1px solid rgba(0,255,65,.1);
+}
+.sys-lines span{color:var(--g)}
+
+/* error */
+.err{
+  background:rgba(255,40,40,.08);border:1px solid rgba(255,40,40,.35);
+  color:var(--r);font-size:.65rem;letter-spacing:.08em;
+  padding:.5rem .75rem;margin-bottom:1rem;
+}
+
+/* fields */
+.lbl{display:block;font-size:.58rem;letter-spacing:.25em;color:var(--muted);margin-bottom:.35rem}
+.fg{margin-bottom:1rem}
+input[type=password]{
+  width:100%;background:var(--tm);border:1px solid var(--gd);
+  color:var(--g);font-family:'Courier New',monospace;
+  font-size:.95rem;padding:.5rem .75rem;outline:none;
+  letter-spacing:.08em;transition:border-color .15s,box-shadow .15s;
+}
+input[type=password]:focus{
+  border-color:var(--g);
+  box-shadow:0 0 10px rgba(0,255,65,.25),inset 0 0 6px rgba(0,255,65,.06);
+}
+input[type=password]::placeholder{color:rgba(0,255,65,.18)}
+
+/* button */
+.btn{
+  width:100%;background:transparent;border:1px solid var(--g);
+  color:var(--g);font-family:'Courier New',monospace;
+  font-size:.7rem;letter-spacing:.3em;padding:.75rem;
+  cursor:pointer;margin-top:.5rem;
+  transition:background .15s,box-shadow .15s;
+}
+.btn:hover{background:rgba(0,255,65,.09);box-shadow:0 0 14px rgba(0,255,65,.25)}
+.btn:active{background:rgba(0,255,65,.18)}
+
+/* status bar */
+.status{
+  display:flex;align-items:center;gap:.5rem;
+  margin-top:1.2rem;padding-top:.9rem;
+  border-top:1px solid rgba(0,255,65,.1);
+  font-size:.52rem;letter-spacing:.15em;color:var(--muted);
+}
+.dot{width:5px;height:5px;border-radius:50%;background:var(--g);flex-shrink:0;animation:blink 1.4s step-end infinite}
+
+/* footer */
+.foot{text-align:center;margin-top:1.8rem;font-size:.5rem;letter-spacing:.15em;color:rgba(0,255,65,.18)}
+
+@keyframes blink{0%,100%{opacity:1}50%{opacity:0}}
+@keyframes flicker{0%,93%,100%{opacity:1}94%{opacity:.75}95.5%{opacity:1}97%{opacity:.85}98.5%{opacity:1}}
+</style>
+</head>
+<body>
+<div class="grid"></div>
+<div class="wrap">
+
+  <div class="cls-banner">▸▸ TOP SECRET // AUTHORIZED PERSONNEL ONLY // EYES ONLY ◂◂</div>
+
+  <div class="logo">
+    <div class="logo-name">SILENTMAP</div>
+    <div class="logo-tag">NETWORK INTELLIGENCE SYSTEM</div>
+  </div>
+
+  <div class="box">
+    <span class="box-title">■ SECURE ACCESS TERMINAL ■</span>
+
+    <div class="sys-lines">
+      &gt; ENCRYPTED CHANNEL <span>ESTABLISHED</span><br>
+      &gt; NODE AUTH REQUIRED &mdash; AWAITING OPERATOR INPUT<span style="animation:blink 1s step-end infinite;display:inline-block">_</span>
+    </div>
+
+    {{if .Error}}
+    <div class="err">⚠ ACCESS DENIED &mdash; {{.Error}}</div>
+    {{end}}
+
+    <form method="POST" action="/login">
+      <div class="fg">
+        <label class="lbl">AUTHENTICATION CODE</label>
+        <input type="password" name="password" placeholder="••••••••••••••••"
+               autofocus autocomplete="current-password">
+      </div>
+      <button type="submit" class="btn">▶ &nbsp; INITIATE SECURE ACCESS</button>
+    </form>
+
+    <div class="status">
+      <div class="dot"></div>
+      <span>ALL ACCESS ATTEMPTS LOGGED // AES-256-GCM ENCRYPTION ACTIVE</span>
+    </div>
+  </div>
+
+  <div class="foot">SILENTMAP {{.Version}} // CLASSIFIED // DO NOT DISTRIBUTE</div>
+</div>
+</body>
+</html>

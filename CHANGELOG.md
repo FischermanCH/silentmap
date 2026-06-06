@@ -14,6 +14,14 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [1.0.29] — 2026-06-06
+
+### Added
+- **Authentication** — single-operator password protection for the entire web UI. First-run setup page auto-redirects when no credentials are set ("OPERATOR CREDENTIAL SETUP"). Login page with terminal/spy aesthetic (green-on-black, scanlines, CRT vignette). Session cookie valid for 7 days. Password hashed with bcrypt and stored in `$DATA_DIR/auth.hash`. Logout in navigation dropdown.
+- **Change password** — new section in Settings → General to update the operator password without losing the session.
+
+---
+
 ## [1.0.28] — 2026-06-06
 
 ### Fixed

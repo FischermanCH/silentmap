@@ -7,6 +7,7 @@
   "nav.lang":        "Language",
   "nav.settings":    "Settings",
   "nav.help":        "GitHub / Help",
+  "nav.logout":      "Logout",
 
   "settings.title":              "Settings",
   "settings.subtitle":           "Alerting & Configuration",
@@ -76,6 +77,11 @@
   "settings.email.lang":       "Email language",
   "settings.email.save":       "Save",
   "settings.email.test":       "Test connection",
+
+  "settings.password.title":   "Change Password",
+  "settings.password.new":     "New password",
+  "settings.password.confirm": "Confirm password",
+  "settings.password.save":    "Update password",
 
   "section.httpurl":                   "HTTP URL",
   "httpurl.hint":                      "URL to check for availability. Any HTTP response counts as online. No response within timeout = offline.",
