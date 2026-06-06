@@ -55,7 +55,7 @@ func (c *Channel) Send(ctx context.Context, a channels.Alert) error {
 		return err
 	}
 
-	req.Header.Set("Title", a.Title)
+	req.Header.Set("Title", ntfyTitle(a))
 	req.Header.Set("Priority", ntfyPriority(a.Severity))
 	req.Header.Set("Tags", ntfyTags(a.Type))
 	req.Header.Set("Content-Type", "text/plain")
@@ -83,6 +83,50 @@ func (c *Channel) Send(ctx context.Context, a channels.Alert) error {
 	return nil
 }
 
+func ntfyTitle(a channels.Alert) string {
+	name := func(key string) string {
+		v, _ := a.Meta[key].(string)
+		return v
+	}
+	display := name("label")
+	if display == "" {
+		display = name("hostname")
+	}
+	if display == "" {
+		display = name("hostnameAuto")
+	}
+
+	switch a.Type {
+	case "new_device":
+		if display != "" {
+			return "Neues Gerät: " + display
+		}
+		return "Neues Gerät erkannt"
+	case "priority_offline":
+		if display != "" {
+			return display + " ist offline"
+		}
+		return "Prioritäts-Gerät offline"
+	case "device_back":
+		if display != "" {
+			return display + " ist wieder online"
+		}
+		return "Gerät wieder online"
+	case "service_down":
+		if display != "" {
+			return display + " nicht erreichbar"
+		}
+		return "HTTP-Service nicht erreichbar"
+	case "service_back":
+		if display != "" {
+			return display + " wieder erreichbar"
+		}
+		return "HTTP-Service wieder erreichbar"
+	default:
+		return a.Title
+	}
+}
+
 func ntfyPriority(severity string) string {
 	switch severity {
 	case "critical":
@@ -108,6 +152,10 @@ func ntfyTags(alertType string) string {
 		return "white_check_mark"
 	case "anomaly":
 		return "eyes"
+	case "service_down":
+		return "warning,no_entry"
+	case "service_back":
+		return "white_check_mark,globe_with_meridians"
 	default:
 		return "bell"
 	}

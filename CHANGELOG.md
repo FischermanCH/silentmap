@@ -10,6 +10,14 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [1.0.31] — 2026-06-06
+
+### Fixed
+- **HTTP-service false offline alerts** — devices with `category = http-service` were being marked offline by the ARP offline checker when the HTTP check interval exceeded the offline timeout (default 15 min). The ARP offline checker now skips these devices entirely. Instead, `httpcheck` tracks consecutive failures per device and only fires `EventDeviceLost` (→ `service_down` alert) after 3 consecutive failed checks, regardless of the configured interval.
+- **Alert title shows raw i18n key** — Discord and ntfy alerts for `service_down` and `service_back` were displaying the raw translation key (`alert.title.service_down`, `alert.title.service_back`) instead of a human-readable title. Discord now renders "🔴 … nicht erreichbar" / "🟢 … wieder erreichbar"; ntfy builds the title the same way with proper emoji tags.
+
+---
+
 ## [1.0.30] — 2026-06-06
 
 ### Changed

@@ -16,12 +16,18 @@ import (
 	"github.com/silentmap/silentmap/internal/registry"
 )
 
+// maxConsecutiveFailures is the number of failed HTTP checks before a device
+// is explicitly marked offline (independent of the ARP offline timeout).
+const maxConsecutiveFailures = 3
+
 type Collector struct {
 	reg      *registry.Registry
 	mu       sync.RWMutex
 	enabled  bool
 	interval time.Duration
 	b        *bus.Bus
+	failMu   sync.Mutex
+	failures map[string]int // mac → consecutive failure count
 }
 
 func New(reg *registry.Registry, enabled bool, interval time.Duration) *Collector {
@@ -32,6 +38,7 @@ func New(reg *registry.Registry, enabled bool, interval time.Duration) *Collecto
 		reg:      reg,
 		enabled:  enabled,
 		interval: interval,
+		failures: make(map[string]int),
 	}
 }
 
@@ -118,6 +125,8 @@ func (c *Collector) checkAll() {
 }
 
 // probe performs a single HTTP GET. Returns true if the server responded.
+// Tracks consecutive failures; after maxConsecutiveFailures the device is
+// explicitly marked offline so the alert fires regardless of the ARP timeout.
 func (c *Collector) probe(client *http.Client, mac, ip, rawURL string) bool {
 	req, err := http.NewRequest(http.MethodGet, rawURL, nil)
 	if err != nil {
@@ -129,11 +138,22 @@ func (c *Collector) probe(client *http.Client, mac, ip, rawURL string) bool {
 	resp, err := client.Do(req)
 	if err != nil {
 		slog.Debug("http checker: no response", "mac", mac, "url", rawURL, "err", err)
+		c.failMu.Lock()
+		c.failures[mac]++
+		fails := c.failures[mac]
+		c.failMu.Unlock()
+		if fails >= maxConsecutiveFailures {
+			c.reg.MarkHttpServiceOffline(mac, ip)
+		}
 		return false
 	}
 	resp.Body.Close()
 
-	// Any HTTP response means the service is up.
+	// Any HTTP response (including 4xx/5xx) means the service is reachable.
+	c.failMu.Lock()
+	c.failures[mac] = 0
+	c.failMu.Unlock()
+
 	if c.b != nil {
 		c.b.Publish(bus.NewEvent(bus.EventDeviceSeen, mac, ip, "http-check", nil))
 	}
