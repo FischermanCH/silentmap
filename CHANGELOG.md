@@ -14,6 +14,13 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [1.0.28] — 2026-06-06
+
+### Fixed
+- **Settings page width** — settings page was constrained to `max-w-2xl` (~672px) while the rest of the UI uses `max-w-6xl`. Removed the inner constraint so settings fills the same width as all other pages.
+
+---
+
 ## [1.0.27] — 2026-06-06
 
 ### Added
