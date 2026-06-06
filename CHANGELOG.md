@@ -10,6 +10,13 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [1.0.32] — 2026-06-06
+
+### Changed
+- **Alert routing** — email channel added to "high" severity routing by default. `device_back`, `service_back` and `new_device` alerts now also trigger an email, consistent with Discord and ntfy.
+
+---
+
 ## [1.0.31] — 2026-06-06
 
 ### Fixed
