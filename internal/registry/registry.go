@@ -36,13 +36,14 @@ func parseTime(s string) time.Time {
 
 // DeviceEvent is a single activity entry shown on the device detail page.
 type DeviceEvent struct {
-	ID        string
-	MAC       string
-	Type      string
-	IP        string
-	Source    string
-	Note      string
-	CreatedAt time.Time
+	ID         string
+	MAC        string
+	DeviceName string // best available name: label > hostname > hostname_auto > vendor > MAC
+	Type       string
+	IP         string
+	Source     string
+	Note       string
+	CreatedAt  time.Time
 }
 
 // Device is the core model stored in SQLite.
@@ -750,7 +751,12 @@ func (r *Registry) OnlineCount() (int, error) {
 // RecentEvents returns the latest device_events across all devices for the log page.
 // If types is non-empty, only events of those types are returned.
 func (r *Registry) RecentEvents(limit int, types []string) ([]DeviceEvent, error) {
-	query := `SELECT id, mac, type, ip, source, note, created_at FROM device_events`
+	query := `
+		SELECT e.id, e.mac,
+		       COALESCE(NULLIF(d.label,''), NULLIF(d.hostname,''), NULLIF(d.hostname_auto,''), NULLIF(d.vendor,''), e.mac) AS device_name,
+		       e.type, e.ip, e.source, e.note, e.created_at
+		FROM device_events e
+		LEFT JOIN devices d ON d.mac = e.mac`
 	args := []any{}
 	if len(types) > 0 {
 		placeholders := make([]string, len(types))
@@ -758,9 +764,9 @@ func (r *Registry) RecentEvents(limit int, types []string) ([]DeviceEvent, error
 			placeholders[i] = "?"
 			args = append(args, t)
 		}
-		query += ` WHERE type IN (` + strings.Join(placeholders, ",") + `)`
+		query += ` WHERE e.type IN (` + strings.Join(placeholders, ",") + `)`
 	}
-	query += ` ORDER BY created_at DESC LIMIT ?`
+	query += ` ORDER BY e.created_at DESC LIMIT ?`
 	args = append(args, limit)
 	rows, err := r.db.Query(query, args...)
 	if err != nil {
@@ -772,7 +778,7 @@ func (r *Registry) RecentEvents(limit int, types []string) ([]DeviceEvent, error
 	for rows.Next() {
 		var ev DeviceEvent
 		var createdAt string
-		if err := rows.Scan(&ev.ID, &ev.MAC, &ev.Type, &ev.IP, &ev.Source, &ev.Note, &createdAt); err != nil {
+		if err := rows.Scan(&ev.ID, &ev.MAC, &ev.DeviceName, &ev.Type, &ev.IP, &ev.Source, &ev.Note, &createdAt); err != nil {
 			continue
 		}
 		ev.CreatedAt = parseTime(createdAt)

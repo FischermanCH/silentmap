@@ -46,8 +46,9 @@
             {{eventIcon .Type}} {{t (printf "event.type.%s" .Type)}}
           </span>
         </td>
-        <td class="px-4 py-2 font-mono text-xs">
-          <a href="/devices/{{.MAC}}" class="hover:underline" style="color:var(--sm-accent)">{{.MAC}}</a>
+        <td class="px-4 py-2">
+          <a href="/devices/{{.MAC}}" class="hover:underline block text-sm font-medium" style="color:var(--sm-accent)">{{.DeviceName}}</a>
+          <span class="font-mono text-xs" style="color:var(--sm-text-muted)">{{.MAC}}</span>
         </td>
         <td class="px-4 py-2 font-mono text-xs" style="color:var(--sm-text-secondary)">{{.IP}}</td>
         <td class="px-4 py-2 text-xs" style="color:var(--sm-text-secondary)">{{.Note}}</td>
