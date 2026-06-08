@@ -14,10 +14,10 @@ interface: ""
 # Web UI
 web:
   listen: "0.0.0.0:8080"
-  auth:
-    enabled: false
-    username: "admin"
-    password: ""          # Pflicht wenn auth.enabled = true
+  # Authentifizierung wird nicht via YAML konfiguriert.
+  # Beim ersten Start ohne $DATA_DIR/auth.hash leitet jeder Request auf /setup.
+  # Passwort wird als bcrypt-Hash in auth.hash gespeichert.
+  # Ändern via Settings → General oder /setup.
 
 # Collector-Module
 collectors:
@@ -77,6 +77,16 @@ alerts:
       severity: "high"   # nur für Priority-Geräte
       cooldown: 5m
 
+    service_down:
+      enabled: true
+      severity: "high"   # für Devices mit category == "http-service"
+      cooldown: 15m
+
+    service_back:
+      enabled: true
+      severity: "high"
+      cooldown: 5m
+
     anomaly:
       enabled: true
       severity: "medium"
@@ -91,14 +101,25 @@ alerts:
 
     discord:
       enabled: false
-      webhook_url: ""     # Discord Webhook URL
+      webhook_url: ""     # Discord Webhook URL (verschlüsselt in settings.json)
 
-    # webhook und email: noch nicht implementiert
+    email:
+      enabled: false
+      smtp_host: ""
+      smtp_port: 587      # 465 = TLS, 587 = STARTTLS, sonstige = plain
+      smtp_user: ""
+      smtp_pass: ""       # Wird verschlüsselt gespeichert (AES-256-GCM)
+      from: ""
+      to: ""
+      tls_mode: "starttls" # "starttls" | "tls" | "none"
+      lang: "de"           # "de" | "en"
+
+    # webhook: noch nicht implementiert
 
 # Severity → Kanal Mapping
   routing:
-    critical: ["ntfy", "discord"]
-    high:     ["ntfy", "discord"]
+    critical: ["ntfy", "discord", "email"]
+    high:     ["ntfy", "discord", "email"]
     medium:   []
     info:     []
     low:      []

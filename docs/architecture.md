@@ -104,8 +104,7 @@ Device {
 
 ## KI-Engine
 
-Noch nicht implementiert — in Planung. Die Config-Struktur ist vorhanden,
-die Logik noch nicht. Konfigurierbar unter `ai.*` in `silentmap.yaml`.
+Config-Struktur vorhanden, Logik noch nicht implementiert. Konfigurierbar unter `ai.*` in `silentmap.yaml`.
 
 ## Alerting-Pipeline
 
@@ -123,8 +122,8 @@ Channel Router              ← Severity → Kanal-Mapping
     │
     ├── ntfy        (implementiert)
     ├── Discord     (implementiert)
-    ├── Webhook     (geplant)
-    └── E-Mail      (geplant)
+    ├── E-Mail      (implementiert, seit v1.0.22)
+    └── Webhook     (geplant)
 ```
 
 ## Web UI
@@ -135,11 +134,17 @@ Server-Side Rendering mit HTMX — kein JavaScript-Framework.
 |---|---|
 | `GET /` | Dashboard — Online/Offline-Übersicht, letzte Events |
 | `GET /devices` | Inventory — alle Geräte |
-| `GET /devices/:mac` | Geräte-Detail — History, Labels, nmap, Priority |
+| `GET /devices/:mac` | Geräte-Detail — History, Labels, nmap, Priority, Notes |
 | `GET /groups` | Gruppen verwalten, Geräte zuweisen |
 | `GET /alerts` | Alert-Log |
 | `GET /log` | Aktivitäts-Log aller Geräte |
-| `GET /settings` | Discord, ntfy, Ping, Theme, Sprache |
+| `GET /settings` | Alle Einstellungen (Kanäle, Ping, HTTP-Check, Theme, Sprache, Auth) |
+| `GET /login` | Login-Seite (public) |
+| `GET /setup` | Erstkonfiguration Passwort (public, nur wenn kein auth.hash) |
+| `POST /logout` | Session beenden |
+| `POST /devices/approve-all` | Alle neuen Geräte bestätigen |
+| `POST /settings/maintenance` | Alertpause setzen/löschen |
+| `POST /settings/email/test` | Test-E-Mail senden |
 | `GET /api/topology` | Topologie-Daten für D3-Map (JSON) |
 | `GET /api/export` | Export aller Geräte + Gruppen als JSON |
 | `POST /api/import` | Import eines Exports |
@@ -151,7 +156,10 @@ Server-Side Rendering mit HTMX — kein JavaScript-Framework.
 ```
 /data/
 ├── silentmap.db        # SQLite — alle Gerätedaten, Events, Alerts
-└── silentmap.yaml      # Konfiguration (auto-erstellt mit Defaults)
+├── silentmap.yaml      # Konfiguration (auto-erstellt mit Defaults)
+├── settings.json       # UI-Einstellungen (Kanäle, Intervalle etc.)
+├── secret.key          # AES-256-GCM Schlüssel für Secrets (auto-generiert)
+└── auth.hash           # bcrypt-Hash des Login-Passworts (auto-erstellt via /setup)
 ```
 
 OUI-Daten werden in die SQLite-DB integriert, kein separates File.

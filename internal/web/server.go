@@ -751,7 +751,12 @@ func (s *Server) alertList(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) eventLog(w http.ResponseWriter, r *http.Request) {
-	events, err := s.reg.RecentEvents(200)
+	filter := r.URL.Query().Get("filter")
+	var types []string
+	if filter == "availability" {
+		types = []string{"online", "offline", "new"}
+	}
+	events, err := s.reg.RecentEvents(200, types)
 	if err != nil {
 		http.Error(w, "internal error", http.StatusInternalServerError)
 		return
@@ -759,6 +764,7 @@ func (s *Server) eventLog(w http.ResponseWriter, r *http.Request) {
 	s.render(w, r, "log.html", map[string]any{
 		"Title":  "Log",
 		"Events": events,
+		"Filter": filter,
 	})
 }
 

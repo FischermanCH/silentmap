@@ -2,9 +2,24 @@
 <div class="mb-6 flex items-center justify-between">
   <div>
     <h1 class="text-2xl font-bold">{{t "log.title"}}</h1>
-    <p class="text-sm mt-1" style="color:var(--sm-text-muted)">{{t "log.subtitle"}}</p>
+    <p class="text-sm mt-1" style="color:var(--sm-text-muted)">
+      {{if eq .Filter "availability"}}{{t "log.subtitle.availability"}}{{else}}{{t "log.subtitle.all"}}{{end}}
+    </p>
   </div>
-  <a href="/log" class="text-sm hover:underline" style="color:var(--sm-accent)">{{t "log.refresh"}}</a>
+  <a href="/log{{if eq .Filter "availability"}}?filter=availability{{end}}" class="text-sm hover:underline" style="color:var(--sm-accent)">{{t "log.refresh"}}</a>
+</div>
+
+<div class="mb-4 flex gap-2">
+  <a href="/log"
+     class="px-3 py-1 rounded text-xs font-medium border transition-colors"
+     style="{{if ne .Filter "availability"}}background-color:var(--sm-accent);color:#fff;border-color:var(--sm-accent){{else}}background-color:transparent;color:var(--sm-text-secondary);border-color:var(--sm-card-border){{end}}">
+    {{t "log.filter.all"}}
+  </a>
+  <a href="/log?filter=availability"
+     class="px-3 py-1 rounded text-xs font-medium border transition-colors"
+     style="{{if eq .Filter "availability"}}background-color:var(--sm-accent);color:#fff;border-color:var(--sm-accent){{else}}background-color:transparent;color:var(--sm-text-secondary);border-color:var(--sm-card-border){{end}}">
+    {{t "log.filter.availability"}}
+  </a>
 </div>
 
 {{if .Events}}

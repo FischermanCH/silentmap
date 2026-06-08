@@ -101,17 +101,34 @@ Nachrichtenformat: Embed mit Farbe nach Severity, Felder für IP, Hostname, Vend
 
 Noch nicht implementiert.
 
-### E-Mail (geplant)
+### E-Mail (implementiert, seit v1.0.22)
 
-Noch nicht implementiert.
+SMTP-Integration mit bilingual HTML-Templates (DE/EN).
+
+```yaml
+channels:
+  email:
+    enabled: true
+    smtp_host: "smtp.example.com"
+    smtp_port: 587             # 465 = direktes TLS, 587 = STARTTLS, sonstige = plain
+    smtp_user: "user@example.com"
+    smtp_pass: ""              # Wird verschlüsselt gespeichert (AES-256-GCM)
+    from: "silentmap@example.com"
+    to: "admin@example.com"
+    tls_mode: "starttls"       # "starttls" | "tls" | "none"
+    lang: "de"                 # "de" | "en"
+```
+
+Unterstützte Alert-Typen: `new_device`, `priority_offline`, `device_back`, `service_down`, `service_back`.  
+Test-E-Mail via Settings-UI sendbar (Route: `POST /settings/email/test`).
 
 ## Severity-Routing
 
 ```yaml
 alerts:
   routing:
-    critical: ["ntfy", "discord"]
-    high:     ["ntfy", "discord"]
+    critical: ["ntfy", "discord", "email"]
+    high:     ["ntfy", "discord", "email"]
     medium:   []
     info:     []
     low:      []

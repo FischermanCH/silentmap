@@ -9,7 +9,7 @@ docker run -d \
   --cap-add=NET_RAW \
   --restart=unless-stopped \
   -v silentmap-data:/data \
-  silentmap/silentmap:latest
+  fischermanch/silentmap:latest
 ```
 
 Web UI: `http://localhost:8080`
@@ -17,9 +17,9 @@ Web UI: `http://localhost:8080`
 `--net=host` ist erforderlich — ohne Host-Netzwerk sind ARP/mDNS/DHCP nicht sichtbar.  
 `--cap-add=NET_RAW` erlaubt Packet-Capturing ohne vollständige Root-Rechte.
 
-## docker-compose (empfohlen)
+## docker-compose / Portainer (empfohlen)
 
-Siehe `docker-compose.yml` im Projektroot. Enthält optionalen Ollama-Service für KI-Korrelation.
+Siehe `portainer-stack.yml` im Projektroot.
 
 ```bash
 # Starten
@@ -32,23 +32,19 @@ docker compose logs -f silentmap
 docker compose down
 ```
 
-## Mit Ollama (KI-Korrelation)
-
-```bash
-docker compose --profile ai up -d
-```
-
-Lädt Phi-3 mini automatisch beim ersten Start (~2GB).
-
 ## Daten & Backup
 
-Alle Daten in einem Volume:
+Alle Daten in einem Volume oder Bind Mount:
 ```
 /data/
 ├── silentmap.db      # Gerätedaten, Events, Alerts
 ├── silentmap.yaml    # Konfiguration
-└── models/           # KI-Modelle
+├── settings.json     # UI-Einstellungen (Kanäle etc.)
+├── secret.key        # Verschlüsselungsschlüssel (auto-generiert)
+└── auth.hash         # bcrypt Passwort-Hash (nach /setup)
 ```
+
+**Hinweis:** SQLite nicht auf SMB/NFS-Share betreiben (Locking-Probleme).
 
 Backup:
 ```bash
@@ -58,8 +54,8 @@ docker cp silentmap:/data/silentmap.db ./backup-$(date +%Y%m%d).db
 ## Updates
 
 ```bash
-docker compose pull
-docker compose up -d
+docker pull fischermanch/silentmap:latest
+# dann Container neu starten (Portainer: Stack Update / docker compose up -d)
 ```
 
 Daten bleiben im Volume erhalten.

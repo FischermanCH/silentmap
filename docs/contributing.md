@@ -22,7 +22,7 @@ docker --version
 ### Repository klonen und starten
 
 ```bash
-git clone https://github.com/[user]/silentmap
+git clone https://github.com/FischermanCH/silentmap
 cd silentmap
 
 go mod download
@@ -38,7 +38,7 @@ cmd/silentmap/      → main.go, CLI-Flags, Bootstrap
 internal/bus/       → Event Bus — hier nie Geschäftslogik
 internal/registry/  → Device Registry, SQLite, OUI-DB, Groups
 internal/collectors/→ Ein Ordner pro Collector-Modul
-internal/alerting/  → Rules, Dedup, Channels (discord, ntfy)
+internal/alerting/  → Rules, Dedup, Channels (discord, ntfy, email)
 internal/scanner/   → nmap-Integration
 internal/web/       → HTTP-Handler, Templates, API
 internal/i18n/      → DE/EN Übersetzungen
@@ -78,7 +78,7 @@ func (c *MyCollector) Stop() error { return nil }
 
 ## Neuen Alert-Kanal hinzufügen
 
-1. `internal/alerting/channels/meinkanal.go` anlegen
+1. `internal/alerting/channels/meinkanal/meinkanal.go` anlegen
 2. `Channel`-Interface implementieren:
 
 ```go

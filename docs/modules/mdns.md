@@ -1,6 +1,6 @@
 # Modul: mDNS-Collector
 
-**Typ:** Passiv · **Status:** Geplant (Milestone 0.2) · **Pflicht:** Nein
+**Typ:** Passiv · **Status:** Implementiert · **Pflicht:** Nein
 
 ## Zweck
 

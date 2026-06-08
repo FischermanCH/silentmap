@@ -1,6 +1,6 @@
 # Modul: Ping-Collector
 
-**Typ:** Aktiv · **Status:** Geplant (Milestone 0.4) · **Pflicht:** Nein
+**Typ:** Aktiv · **Status:** Implementiert · **Pflicht:** Nein
 
 ## Zweck
 

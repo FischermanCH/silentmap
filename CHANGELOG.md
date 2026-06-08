@@ -10,6 +10,16 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [1.0.33] — 2026-06-08
+
+### Fixed
+- **Hostname-Flapping** — `hostname_auto`-Änderungen werden nicht mehr in `device_events` geloggt. mDNS-Relay-Geräte (z.B. Synology NAS) lösten durch Weiterleiten fremder mDNS-Pakete massenhaften Hostname-Spam aus, der den Log unbrauchbar machte. Die DB-Aktualisierung von `hostname_auto` bleibt erhalten.
+
+### Added
+- **Log-Filter** — `/log` hat neu Filter-Buttons "Alle" und "Online / Offline". Der Filter "Online / Offline" zeigt server-seitig gefiltert die letzten 200 `online`/`offline`/`new`-Events aller Geräte — inkl. Non-Priority-Geräte.
+
+---
+
 ## [1.0.32] — 2026-06-06
 
 ### Changed

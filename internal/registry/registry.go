@@ -222,7 +222,6 @@ func (r *Registry) handleSeen(e bus.Event) {
 
 	if hostnameChanged {
 		updates["hostname_auto"] = hostnameAuto
-		r.logEvent(mac, e.IP, "hostname", e.Source, hostnameAuto)
 	}
 	if svcsChanged {
 		merged := mergeServices(existing.Services, svcs)
@@ -749,11 +748,21 @@ func (r *Registry) OnlineCount() (int, error) {
 }
 
 // RecentEvents returns the latest device_events across all devices for the log page.
-func (r *Registry) RecentEvents(limit int) ([]DeviceEvent, error) {
-	rows, err := r.db.Query(`
-		SELECT id, mac, type, ip, source, note, created_at
-		FROM device_events
-		ORDER BY created_at DESC LIMIT ?`, limit)
+// If types is non-empty, only events of those types are returned.
+func (r *Registry) RecentEvents(limit int, types []string) ([]DeviceEvent, error) {
+	query := `SELECT id, mac, type, ip, source, note, created_at FROM device_events`
+	args := []any{}
+	if len(types) > 0 {
+		placeholders := make([]string, len(types))
+		for i, t := range types {
+			placeholders[i] = "?"
+			args = append(args, t)
+		}
+		query += ` WHERE type IN (` + strings.Join(placeholders, ",") + `)`
+	}
+	query += ` ORDER BY created_at DESC LIMIT ?`
+	args = append(args, limit)
+	rows, err := r.db.Query(query, args...)
 	if err != nil {
 		return nil, err
 	}

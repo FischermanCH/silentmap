@@ -19,7 +19,7 @@ curl -fsSL https://get.docker.com | sh
 sudo usermod -aG docker $USER
 
 # Projekt holen
-git clone https://github.com/[user]/silentmap
+git clone https://github.com/FischermanCH/silentmap
 cd silentmap
 
 # Starten
@@ -30,7 +30,7 @@ docker compose up -d
 
 ```bash
 # ARM64-Binary herunterladen
-curl -L https://github.com/[user]/silentmap/releases/latest/download/silentmap-linux-arm64 \
+curl -L https://github.com/FischermanCH/silentmap/releases/latest/download/silentmap-linux-arm64 \
   -o /usr/local/bin/silentmap
 chmod +x /usr/local/bin/silentmap
 
