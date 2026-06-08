@@ -2,15 +2,25 @@
   <img src="https://raw.githubusercontent.com/FischermanCH/silentmap/master/internal/web/static/silentmap-logo-01.png" alt="SilentMap" width="200">
 </p>
 
-# SilentMap
+# SilentMap — Home Network Monitor
 
-**Passive discovery, minimal footprint — sees everything, disturbs almost nothing.**
+**Passive LAN device discovery and monitoring for self-hosters and homelabs.**
 
-SilentMap discovers devices passively — it listens to the traffic your network already generates (ARP, mDNS, DHCP) and never probes unknown hosts. Once a device is known, it optionally sends lightweight ARP or ICMP requests to track online/offline state. It draws an interactive topology map and alerts you when something unexpected appears or a priority device goes offline.
+SilentMap is a lightweight, self-hosted network monitor that automatically discovers every device on your home or office network — without active scanning. It listens to traffic your network already generates (ARP, mDNS, DHCP) and alerts you when something unexpected appears or a priority device goes offline.
 
-Passive discovery. No agent to install. Minimal wire footprint.
+> **No agent to install. No cloud. No noise. Runs on a Raspberry Pi.**
 
-Single binary · Embedded SQLite · Zero external dependencies · Docker-native
+Single binary · Embedded SQLite · Zero external dependencies · Docker-native · amd64 + arm64
+
+---
+
+## Why SilentMap?
+
+Most network monitors are either too complex (Zabbix, Nagios) or too simple (basic ping sweeps). SilentMap hits the sweet spot for home labs and small networks:
+
+- **Sees everything passively** — phones, IoT devices, smart TVs, guests — without sending a single probe
+- **Alerts that matter** — new device on your network? Priority device offline? You get notified via ntfy, Discord or Email
+- **Runs anywhere** — Raspberry Pi, Proxmox, NAS, any Docker host; uses ~80MB RAM
 
 ---
 
@@ -40,19 +50,14 @@ docker run -d \
   fischermanch/silentmap:latest
 ```
 
-Open **http://localhost:8080** — that's it.
+Open **http://localhost:8080** — done. First run opens a setup page to set your password.
 
-> **Why `--network host`?**
-> SilentMap needs to see raw ARP, mDNS and DHCP traffic on your LAN segment. Host networking is the only way to get that inside a container.
->
-> **Why `--cap-add NET_RAW`?**
-> Grants packet-capture capability without running the container as root.
+> `--network host` is required — SilentMap needs to see raw ARP, mDNS and DHCP traffic on your LAN.  
+> `--cap-add NET_RAW` grants packet-capture without running as root.
 
 ---
 
-## Docker Compose (recommended)
-
-Create a `docker-compose.yml` file:
+## Docker Compose
 
 ```yaml
 services:
@@ -77,103 +82,69 @@ volumes:
   silentmap-data:
 ```
 
-Start:
-```bash
-docker compose up -d
-```
+---
 
-Open **http://localhost:8080**
+## Features
+
+| Feature | Details |
+|---|---|
+| **Passive discovery** | ARP · mDNS · DHCP — no active scanning by default |
+| **Active monitoring** | Optional ICMP ping for priority devices · on-demand nmap port scan |
+| **Device inventory** | Hostname · label · category · vendor (OUI) · groups · notes |
+| **Topology map** | Interactive D3.js network graph with connection relationships |
+| **Alert engine** | New device · priority device offline · device back online · HTTP service down |
+| **Notification channels** | ntfy (push) · Discord (webhook) · Email (SMTP) |
+| **HTTP monitoring** | Opt-in HTTP/HTTPS availability check for services on your network |
+| **Authentication** | Single-operator password protection for the web UI |
+| **Maintenance mode** | Pause alerts during planned downtime |
+| **Export / Import** | Full JSON backup of device inventory, labels and groups |
+| **Themes** | Dark · light · custom, switchable at runtime |
+| **Bilingual** | German and English UI, switchable at runtime |
+| **REST API** | `/health` · `/api/stats` · `/api/topology` · `/api/export` |
 
 ---
 
 ## Update
 
 ```bash
-docker compose pull
-docker compose up -d
+docker compose pull && docker compose up -d
 ```
 
-Your device inventory, labels, groups and settings are stored in the named volume and survive every update.
+Device inventory, labels, groups and settings survive every update — stored in the volume.
 
 ---
 
-## Volume & Data
-
-| Path in container | Purpose |
-|---|---|
-| `/data` | SQLite database, settings, logs |
-
-Mount a named volume (`silentmap-data:/data`) or a host path (`/opt/silentmap/data:/data`) — your choice.
-
----
-
-## Environment variables
+## Environment Variables
 
 | Variable | Default | Description |
 |---|---|---|
-| `TZ` | UTC | Timezone for timestamps in the UI and logs |
+| `TZ` | UTC | Timezone for UI timestamps |
 | `SILENTMAP_INTERFACE` | auto | Network interface to listen on |
 | `SILENTMAP_LISTEN` | 0.0.0.0:8080 | Web UI bind address |
 
-All settings can also be set in a `silentmap.yaml` config file placed in the `/data` volume.
-
 ---
 
-## Configuration file (optional)
+## Data
 
-Place `silentmap.yaml` in your `/data` volume to override defaults:
+All persistent data is stored in `/data` inside the container:
 
-```yaml
-interface: ""           # empty = auto-detect
+| File | Purpose |
+|---|---|
+| `silentmap.db` | SQLite — all device data, events, alerts |
+| `settings.json` | UI settings (channels, intervals, etc.) |
+| `auth.hash` | bcrypt password hash |
+| `secret.key` | AES-256 encryption key for stored secrets |
 
-web:
-  listen: "0.0.0.0:8080"
+Mount a named volume or a host path (`/opt/silentmap:/data`).
 
-collectors:
-  ping:
-    enabled: true
-    targets: "priority"  # ICMP-ping only devices marked as Priority
-    interval: 5m
-
-alerts:
-  channels:
-    ntfy:
-      enabled: true
-      url: "https://ntfy.sh/your-topic"
-    discord:
-      enabled: false
-      webhook_url: ""
-  routing:
-    critical: ["ntfy", "discord"]
-    high:     ["ntfy"]
-    info:     []
-```
-
-Full configuration reference: [silentmap.example.yaml on GitHub](https://github.com/FischermanCH/silentmap/blob/master/configs/silentmap.example.yaml)
-
----
-
-## Features
-
-- **100% passive** — no ping, no scan, no network noise by default
-- **Multi-collector** — ARP · mDNS · DHCP · optional ICMP ping · on-demand nmap
-- **OUI vendor lookup** — MAC resolved to manufacturer, embedded database
-- **Device inventory** — hostname, label, category, groups, priority flag
-- **Topology map** — interactive D3.js network graph with parent/child relationships
-- **Alert engine** — new device · priority offline · device back online
-- **ntfy + Discord** — push notifications and webhook alerts
-- **Export / Import** — full JSON backup of your entire device inventory
-- **Themes** — dark, light and custom themes, switchable at runtime
-- **Bilingual** — German and English UI, switchable at runtime
-- **REST API** — `/health` · `/api/stats` · `/api/topology` · `/api/export`
+> Do not store the volume on SMB/NFS shares — SQLite requires reliable file locking.
 
 ---
 
 ## Links
 
-- **GitHub:** https://github.com/FischermanCH/silentmap — source code, full documentation, configuration reference, changelog
+- **GitHub:** https://github.com/FischermanCH/silentmap — source code, documentation, changelog
 - **Issues / Feature requests:** https://github.com/FischermanCH/silentmap/issues
-- **Product page:** https://fischerman.ch/projects/silentmap/
 
 ---
 

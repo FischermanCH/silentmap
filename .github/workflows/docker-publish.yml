@@ -56,3 +56,11 @@ jobs:
             fischermanch/silentmap:latest
             fischermanch/silentmap:${{ steps.meta.outputs.version }}
 
+      - name: Update Docker Hub description
+        uses: peter-evans/dockerhub-description@v4
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+          repository: fischermanch/silentmap
+          readme-filepath: ./docs/dockerhub-description.md
+
