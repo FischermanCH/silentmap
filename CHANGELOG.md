@@ -10,6 +10,13 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [1.0.34] — 2026-06-08
+
+### Changed
+- **Log** — Geräte-Spalte zeigt nun den besten verfügbaren Namen (Label > Hostname manuell > Hostname auto > Vendor > MAC). MAC wird klein darunter angezeigt.
+
+---
+
 ## [1.0.33] — 2026-06-08
 
 ### Fixed
