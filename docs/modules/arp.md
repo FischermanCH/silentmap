@@ -1,6 +1,6 @@
 # Modul: ARP-Collector
 
-**Typ:** Passiv · **Status:** Geplant (Milestone 0.1) · **Pflicht:** Ja
+**Typ:** Passiv · **Status:** Implementiert · **Pflicht:** Ja
 
 ## Zweck
 
