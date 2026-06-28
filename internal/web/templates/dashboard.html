@@ -51,7 +51,13 @@
   transform: translateX(0);
   box-shadow: -6px 0 24px rgba(0,0,0,0.18);
 }
+.param-block { margin-bottom: 14px; }
+
+/* ── Mobile overrides (< 768px — must match MOBILE_BP constant in JS below) ── */
 @media (max-width: 767px) {
+  /* 108px = 56px nav-row-1 + ~40px mobile-stats-row + 12px main padding-top */
+  #map-container { height: calc(100vh - 108px); height: calc(100svh - 108px); min-height: 300px; }
+  #map-resize-handle { display: none; }
   #map-settings-panel {
     top: auto;
     left: 0; right: 0;
@@ -75,9 +81,8 @@
   }
   #map-settings-panel .panel-header { grid-column: 1 / -1; }
   #map-settings-panel .panel-reset  { grid-column: 1 / -1; }
+  .param-block { margin-bottom: 8px; }
 }
-.param-block { margin-bottom: 14px; }
-@media (max-width: 767px) { .param-block { margin-bottom: 8px; } }
 .param-slider {
   width: 100%;
   accent-color: var(--sm-accent);
@@ -89,7 +94,7 @@
 
 <div id="map-container" class="border overflow-hidden mb-3 md:mb-4" style="background-color:var(--sm-card-bg)">
   <div id="map-toolbar" class="flex items-center gap-2 md:gap-3 px-3 md:px-4 py-2 border-b flex-wrap" style="border-color:var(--sm-card-border)">
-    <span class="text-xs font-medium uppercase tracking-wide flex-shrink-0" style="color:var(--sm-text-muted)">{{t "map.title"}}</span>
+    <span class="hidden md:inline text-xs font-medium uppercase tracking-wide flex-shrink-0" style="color:var(--sm-text-muted)">{{t "map.title"}}</span>
     {{if .UpdateAvailable}}
     <a id="update-dot" href="https://github.com/FischermanCH/silentmap/releases/latest" target="_blank" rel="noopener"
        title="Update verfügbar: {{.LatestVersion}}"
@@ -1020,9 +1025,22 @@ window.addEventListener('pageshow', function(e) {
   const container = document.getElementById('map-container');
   if(!handle || !container) return;
 
-  // Restore saved height
-  const saved = localStorage.getItem('sm_map_h');
-  if(saved) container.style.height = saved + 'px';
+  const MOBILE_BP = 768; // must match CSS: max-width: 767px
+
+  // On mobile: clear any inline style so the CSS calc rule wins (inline style
+  // has higher cascade priority than media-query rules, so without this a
+  // desktop-saved height would survive a rotation into portrait mobile).
+  // On desktop: restore the user's last manually resized height.
+  function syncMapHeight() {
+    if(window.innerWidth < MOBILE_BP) {
+      container.style.height = '';
+    } else {
+      const saved = localStorage.getItem('sm_map_h');
+      if(saved) container.style.height = saved + 'px';
+    }
+  }
+  syncMapHeight();
+  window.addEventListener('resize', syncMapHeight);
 
   let startY, startH;
   handle.addEventListener('mousedown', function(e){
@@ -1049,7 +1067,12 @@ window.addEventListener('pageshow', function(e) {
     container.style.height = h + 'px';
   }
   function onUp(){
-    localStorage.setItem('sm_map_h', container.offsetHeight);
+    // Guard: only persist on desktop. On mobile the handle is hidden (display:none)
+    // but listeners remain in the DOM; an accidental or programmatic touch would
+    // otherwise corrupt the desktop-saved height in localStorage.
+    if(window.innerWidth >= MOBILE_BP) {
+      localStorage.setItem('sm_map_h', container.offsetHeight);
+    }
     document.removeEventListener('mousemove', onMove);
     document.removeEventListener('mouseup', onUp);
     document.removeEventListener('touchmove', onTouchMove);

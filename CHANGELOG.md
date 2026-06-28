@@ -10,6 +10,13 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [1.0.36] — 2026-06-28
+
+### Fixed
+- **Mobile Map-Darstellung** — Auf iPhones (< 768px) wurde die Topologie-Karte zu klein oder falsch gross angezeigt. Ursache: gespeicherte Desktop-Höhe aus `localStorage` überschrieb auf Mobile die CSS-Berechnung. Fix: auf Mobile wird der Inline-Style beim Laden und bei Rotation (resize-Event) gelöscht; der Resize-Handle ist auf Mobile ausgeblendet; `localStorage` wird nur noch auf Desktop geschrieben. Höhenformel korrigiert auf `100svh - 108px` (berücksichtigt zweizeiligen Mobile-Nav). CSS-Media-Queries zu einem einzigen `@media (max-width: 767px)`-Block konsolidiert.
+
+---
+
 ## [1.0.35] — 2026-06-28
 
 ### Added
