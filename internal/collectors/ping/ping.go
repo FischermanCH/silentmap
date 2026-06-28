@@ -20,6 +20,10 @@ import (
 	"golang.org/x/net/ipv4"
 )
 
+// icmpSem limits concurrent ICMP goroutines to avoid socket exhaustion when
+// many force_ping devices are polled at the same time.
+const icmpMaxConcurrent = 8
+
 type Collector struct {
 	reg      *registry.Registry
 	iface    string
@@ -121,6 +125,8 @@ func (c *Collector) pollAll() {
 	}
 	defer arpClient.Close()
 
+	sem := make(chan struct{}, icmpMaxConcurrent)
+	var wg sync.WaitGroup
 	arpCount, pingCount := 0, 0
 	for _, d := range devices {
 		if d.IP == "" || d.Category == "virtual" {
@@ -128,8 +134,14 @@ func (c *Collector) pollAll() {
 		}
 		if d.ForcePing {
 			// Device is outside the local subnet — use ICMP ping directly.
-			// pingICMP publishes EventDeviceSeen on success.
-			go c.pingICMP(d.MAC, d.IP)
+			// Semaphore caps concurrent sockets; pingICMP publishes EventDeviceSeen on success.
+			wg.Add(1)
+			sem <- struct{}{}
+			mac, ip := d.MAC, d.IP
+			go func() {
+				defer func() { <-sem; wg.Done() }()
+				c.pingICMP(mac, ip)
+			}()
 			pingCount++
 		} else {
 			addr, err := netip.ParseAddr(d.IP)
@@ -140,9 +152,9 @@ func (c *Collector) pollAll() {
 				slog.Debug("arp poller: request failed", "ip", d.IP, "err", err)
 			}
 			arpCount++
-			time.Sleep(5 * time.Millisecond)
 		}
 	}
+	wg.Wait()
 	slog.Debug("arp poller: done", "arp_requests", arpCount, "icmp_pings", pingCount)
 }
 

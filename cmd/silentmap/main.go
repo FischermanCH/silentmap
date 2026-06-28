@@ -17,6 +17,7 @@ import (
 	emailchan "github.com/silentmap/silentmap/internal/alerting/channels/email"
 	"github.com/silentmap/silentmap/internal/alerting/channels/discord"
 	"github.com/silentmap/silentmap/internal/alerting/channels/ntfy"
+	webhookchan "github.com/silentmap/silentmap/internal/alerting/channels/webhook"
 	"github.com/silentmap/silentmap/internal/alerting/engine"
 	"github.com/silentmap/silentmap/internal/bus"
 	"github.com/silentmap/silentmap/internal/collectors/arp"
@@ -114,11 +115,27 @@ func main() {
 	alertEngine.Register(discordCh)
 	emailCh := emailchan.New(emailchan.Config{}, web.LogoBytes())
 	alertEngine.Register(emailCh)
+	webhookCh := webhookchan.New(cfg.Alerts.Channels.Webhook)
+	alertEngine.Register(webhookCh)
 	alertEngine.Subscribe(b)
 
 	pingCollector := ping.New(reg, cfg.Interface, true, cfg.Collectors.Ping.Interval)
 	httpCollector := httpcheck.New(reg, false, 5*time.Minute) // disabled by default — opt-in via Settings
-	webServer := web.NewServer(reg, alertEngine, db, *flagData, cfg.Collectors.Nmap.Args, discordCh, ntfyCh, emailCh, pingCollector, httpCollector, version, commit)
+	webServer := web.NewServer(web.ServerOptions{
+		Reg:       reg,
+		AlertEng:  alertEngine,
+		DB:        db,
+		DataDir:   *flagData,
+		NmapArgs:  cfg.Collectors.Nmap.Args,
+		DiscordCh: discordCh,
+		NtfyCh:    ntfyCh,
+		EmailCh:   emailCh,
+		WebhookCh: webhookCh,
+		PingCol:   pingCollector,
+		HttpCol:   httpCollector,
+		Version:   version,
+		BuildTime: commit,
+	})
 
 	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer cancel()

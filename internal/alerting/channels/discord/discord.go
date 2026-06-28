@@ -114,6 +114,8 @@ func displayName(a channels.Alert) string {
 func buildTitle(a channels.Alert, name string) string {
 	named := name != a.MAC // only use name in title if it's more than a MAC
 	switch a.Type {
+	case "new_device_batch":
+		return "🆕 " + a.Summary
 	case "new_device":
 		if named {
 			return "🆕 Neues Gerät: " + name

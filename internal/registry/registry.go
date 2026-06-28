@@ -14,25 +14,9 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/silentmap/silentmap/internal/bus"
+	"github.com/silentmap/silentmap/internal/timeutil"
 	_ "modernc.org/sqlite"
 )
-
-// parseTime handles SQLite datetime strings in multiple formats.
-func parseTime(s string) time.Time {
-	formats := []string{
-		time.RFC3339,
-		"2006-01-02T15:04:05.999999999",
-		"2006-01-02T15:04:05",
-		"2006-01-02 15:04:05",
-	}
-	s = strings.TrimSuffix(s, "Z")
-	for _, f := range formats {
-		if t, err := time.ParseInLocation(f, s, time.Local); err == nil {
-			return t
-		}
-	}
-	return time.Time{}
-}
 
 // DeviceEvent is a single activity entry shown on the device detail page.
 type DeviceEvent struct {
@@ -148,12 +132,11 @@ func (r *Registry) handleSeen(e bus.Event) {
 	r.mu.Unlock()
 
 	if err == sql.ErrNoRows {
-		// New device: do expensive lookups outside any lock.
+		// New device: OUI lookup is fast; reverse DNS can block up to 2s so we
+		// insert immediately with whatever hostname the event carries and backfill
+		// the PTR record asynchronously.
 		vendor := r.oui.Lookup(mac)
 		hostnameAuto, _ := e.Meta["hostname"].(string)
-		if hostnameAuto == "" && e.IP != "" {
-			hostnameAuto = reverseDNS(e.IP) // may take up to 2s — outside lock
-		}
 		svcs, _ := e.Meta["services"].([]string)
 		dev := Device{
 			MAC:          mac,
@@ -180,10 +163,21 @@ func (r *Registry) handleSeen(e bus.Event) {
 		r.logEvent(mac, e.IP, "seen", e.Source, "")
 		slog.Info("new device", "mac", mac, "ip", e.IP, "vendor", vendor)
 		r.b.Publish(bus.NewEvent(bus.EventDeviceNew, mac, e.IP, "registry", map[string]any{
-			"vendor":   vendor,
-			"hostname": hostnameAuto,
+			"vendor":    vendor,
+			"hostname":  hostnameAuto,
 			"firstSeen": time.Now().Format("2006-01-02 15:04"),
 		}))
+		// Backfill PTR record without blocking the event handler.
+		if hostnameAuto == "" && e.IP != "" {
+			ip := e.IP
+			go func() {
+				if name := reverseDNS(ip); name != "" {
+					r.mu.Lock()
+					r.db.Exec(`UPDATE devices SET hostname_auto = ? WHERE mac = ? AND hostname_auto = ''`, name, mac)
+					r.mu.Unlock()
+				}
+			}()
+		}
 		return
 	}
 	if err != nil {
@@ -535,7 +529,7 @@ func (r *Registry) DeviceEvents(mac string, limit int) ([]DeviceEvent, error) {
 		if err := rows.Scan(&ev.ID, &ev.MAC, &ev.Type, &ev.IP, &ev.Source, &ev.Note, &createdAt); err != nil {
 			continue
 		}
-		ev.CreatedAt = parseTime(createdAt)
+		ev.CreatedAt = timeutil.ParseSQLiteTime(createdAt)
 		events = append(events, ev)
 	}
 	return events, nil
@@ -781,7 +775,7 @@ func (r *Registry) RecentEvents(limit int, types []string) ([]DeviceEvent, error
 		if err := rows.Scan(&ev.ID, &ev.MAC, &ev.DeviceName, &ev.Type, &ev.IP, &ev.Source, &ev.Note, &createdAt); err != nil {
 			continue
 		}
-		ev.CreatedAt = parseTime(createdAt)
+		ev.CreatedAt = timeutil.ParseSQLiteTime(createdAt)
 		events = append(events, ev)
 	}
 	return events, nil
@@ -896,8 +890,8 @@ func (r *Registry) scanDevice(row *sql.Row) (Device, error) {
 	if err != nil {
 		return d, err
 	}
-	d.FirstSeen = parseTime(firstSeen)
-	d.LastSeen = parseTime(lastSeen)
+	d.FirstSeen = timeutil.ParseSQLiteTime(firstSeen)
+	d.LastSeen = timeutil.ParseSQLiteTime(lastSeen)
 	d.Services = unmarshalServices(servicesJSON)
 	d.NmapPorts = unmarshalServices(nmapPortsJSON)
 	return d, nil
@@ -913,8 +907,8 @@ func (r *Registry) scanDevices(rows *sql.Rows) ([]Device, error) {
 		if err != nil {
 			continue
 		}
-		d.FirstSeen = parseTime(firstSeen)
-		d.LastSeen = parseTime(lastSeen)
+		d.FirstSeen = timeutil.ParseSQLiteTime(firstSeen)
+		d.LastSeen = timeutil.ParseSQLiteTime(lastSeen)
 		d.Services = unmarshalServices(servicesJSON)
 		d.NmapPorts = unmarshalServices(nmapPortsJSON)
 		devices = append(devices, d)

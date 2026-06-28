@@ -10,6 +10,23 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [1.0.35] — 2026-06-28
+
+### Added
+- **Webhook-Channel** — neuer Alert-Channel `webhook` (Settings → Alerts → Webhook). Schickt einen JSON-Payload per HTTP POST/PUT an einen beliebigen Endpoint. Kompatibel mit n8n, Home Assistant, eigenen Skripten. URL wird verschlüsselt gespeichert (AES-256-GCM, wie Discord/Email). Routing: standardmässig für `medium`-Severity aktiv.
+- **Alert-Batching** — `new_device`-Events werden bis zu 60 Sekunden gesammelt. Kommen innerhalb dieses Fensters mehrere neue Geräte an (z.B. nach Netzwerk-Reboot), wird ein einziger Sammel-Alert „N neue Geräte entdeckt" verschickt anstatt N einzelne Benachrichtigungen. Einzelne Events werden weiterhin sofort als normaler Alert angezeigt.
+
+### Changed
+- **`NewServer()` → `ServerOptions`-Struct** — Die Web-Server-Initialisierung nimmt jetzt eine `ServerOptions`-Struct statt 12 Einzelparameter. Kein Behaviour-Change, saubere API.
+
+### Fixed
+- **Reverse DNS blockiert nicht mehr** — Beim Eintragen neuer Geräte wird der PTR-Lookup jetzt asynchron im Hintergrund durchgeführt. Vorher konnte ein hängendes DNS-Request den ARP-Event-Handler bis zu 2 Sekunden blockieren.
+- **ICMP-Goroutines begrenzt** — Der Ping-Collector limitiert jetzt parallele ICMP-Pings auf max. 8 gleichzeitig (Semaphore). Vorher wurden für alle `force_ping`-Geräte unbegrenzt Goroutines gestartet.
+- **`cooldown`-Map bereinigt sich** — Die Alert-Engine bereinigt abgelaufene Cooldown-Einträge alle 30 Minuten. Vorher wuchs die Map über lange Laufzeiten unbegrenzt.
+- **`parseTime`-Duplikat entfernt** — Die SQLite-Datetime-Parse-Funktion existierte identisch in `registry` und `alerting/engine`. Jetzt in `internal/timeutil` zentralisiert.
+
+---
+
 ## [1.0.34] — 2026-06-08
 
 ### Changed

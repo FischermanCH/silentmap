@@ -78,6 +78,14 @@
   "settings.email.save":       "Speichern",
   "settings.email.test":       "Verbindung testen",
 
+  "settings.webhook.title":    "Webhook Alerts",
+  "settings.webhook.hint":     "Sendet einen JSON-POST an einen beliebigen HTTP-Endpoint. Geeignet für n8n, Home Assistant, eigene Skripte und andere Integrationen.",
+  "settings.webhook.enabled":  "Webhook Alerts aktiviert",
+  "settings.webhook.url":      "Endpoint-URL",
+  "settings.webhook.url.ph":   "https://example.com/silentmap-alert",
+  "settings.webhook.method":   "HTTP-Methode",
+  "settings.webhook.save":     "Speichern",
+
   "settings.password.title":   "Passwort ändern",
   "settings.password.new":     "Neues Passwort",
   "settings.password.confirm": "Passwort bestätigen",

@@ -6,8 +6,8 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"fmt"
 	"log/slog"
-	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -16,10 +16,60 @@ import (
 	"github.com/silentmap/silentmap/internal/alerting/channels"
 	"github.com/silentmap/silentmap/internal/bus"
 	"github.com/silentmap/silentmap/internal/config"
+	"github.com/silentmap/silentmap/internal/timeutil"
 )
 
 // Alert re-exports channels.Alert for callers that only import engine.
 type Alert = channels.Alert
+
+// newDeviceBatchWindow is how long the engine waits before flushing a batch of
+// new_device events. Events that arrive within this window are grouped into a
+// single "N neue Geräte entdeckt" notification instead of N individual ones.
+const newDeviceBatchWindow = 60 * time.Second
+
+// newDeviceBatch accumulates new_device alerts before dispatching them.
+type newDeviceBatch struct {
+	mu      sync.Mutex
+	pending []Alert
+	timer   *time.Timer
+	engine  *Engine
+}
+
+func (b *newDeviceBatch) add(a Alert) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	b.pending = append(b.pending, a)
+	if b.timer == nil {
+		b.timer = time.AfterFunc(newDeviceBatchWindow, b.flush)
+	}
+}
+
+func (b *newDeviceBatch) flush() {
+	b.mu.Lock()
+	alerts := b.pending
+	b.pending = nil
+	b.timer = nil
+	b.mu.Unlock()
+
+	if len(alerts) == 0 {
+		return
+	}
+	if len(alerts) == 1 {
+		b.engine.dispatchToChannels(alerts[0])
+		return
+	}
+	batch := Alert{
+		ID:       uuid.NewString(),
+		Type:     "new_device_batch",
+		Severity: alerts[0].Severity,
+		Title:    "alert.title.new_device_batch",
+		Summary:  fmt.Sprintf("%d neue Geräte entdeckt", len(alerts)),
+		FiredAt:  time.Now(),
+	}
+	b.engine.persist(batch)
+	b.engine.dispatchToChannels(batch)
+	slog.Info("alert batch flushed", "count", len(alerts), "severity", batch.Severity)
+}
 
 type Engine struct {
 	cfg              config.AlertsCfg
@@ -28,6 +78,7 @@ type Engine struct {
 	cooldown         map[string]time.Time
 	mu               sync.Mutex
 	maintenanceUntil int64 // Unix timestamp; 0 = disabled; accessed via sync/atomic
+	newDevBatch      newDeviceBatch
 }
 
 // SetMaintenance puts the alert engine into maintenance mode until `until`.
@@ -50,10 +101,30 @@ func (e *Engine) MaintenanceUntil() time.Time {
 }
 
 func New(cfg config.AlertsCfg, db *sql.DB) *Engine {
-	return &Engine{
+	e := &Engine{
 		cfg:      cfg,
 		db:       db,
 		cooldown: make(map[string]time.Time),
+	}
+	e.newDevBatch.engine = e
+	go e.runCooldownCleanup()
+	return e
+}
+
+// runCooldownCleanup periodically removes expired entries from the cooldown map
+// so it does not grow unboundedly over long uptimes.
+func (e *Engine) runCooldownCleanup() {
+	ticker := time.NewTicker(30 * time.Minute)
+	defer ticker.Stop()
+	for range ticker.C {
+		now := time.Now()
+		e.mu.Lock()
+		for key, t := range e.cooldown {
+			if now.Sub(t) > time.Hour {
+				delete(e.cooldown, key)
+			}
+		}
+		e.mu.Unlock()
 	}
 }
 
@@ -71,6 +142,10 @@ func (e *Engine) onDeviceNew(ev bus.Event) {
 	if !e.cfg.Rules.NewDevice.Enabled {
 		return
 	}
+	if v := atomic.LoadInt64(&e.maintenanceUntil); v > 0 && time.Now().Unix() < v {
+		return
+	}
+
 	vendor, _ := ev.Meta["vendor"].(string)
 	hostname, _ := ev.Meta["hostname"].(string)
 
@@ -86,15 +161,20 @@ func (e *Engine) onDeviceNew(ev bus.Event) {
 		summary = hostname + " (" + vendor + ") — " + ev.IP
 	}
 
-	e.fire(Alert{
+	a := Alert{
+		ID:       uuid.NewString(),
 		Type:     "new_device",
 		Severity: e.cfg.Rules.NewDevice.Severity,
 		Title:    "alert.title.new_device",
 		Summary:  summary,
 		MAC:      ev.MAC,
 		IP:       ev.IP,
+		FiredAt:  time.Now(),
 		Meta:     ev.Meta,
-	}, e.cfg.Rules.NewDevice.Cooldown)
+	}
+	e.persist(a)
+	// Route through batcher so boot-time floods become a single summary notification.
+	e.newDevBatch.add(a)
 }
 
 func (e *Engine) onDeviceLost(ev bus.Event) {
@@ -200,7 +280,12 @@ func (e *Engine) fire(a Alert, cooldownDur time.Duration) {
 	e.persist(a)
 
 	slog.Info("alert fired", "type", a.Type, "severity", a.Severity, "summary", a.Summary)
+	e.dispatchToChannels(a)
+}
 
+// dispatchToChannels sends a ready-to-send alert to all enabled channels
+// that are configured for the alert's severity routing.
+func (e *Engine) dispatchToChannels(a Alert) {
 	targets := e.routeChannels(a.Severity)
 	for _, ch := range e.channels {
 		for _, name := range targets {
@@ -242,23 +327,6 @@ func (e *Engine) persist(a Alert) {
 	}
 }
 
-// parseTime handles SQLite datetime strings in multiple formats.
-func parseTime(s string) time.Time {
-	formats := []string{
-		time.RFC3339,
-		"2006-01-02T15:04:05.999999999",
-		"2006-01-02T15:04:05",
-		"2006-01-02 15:04:05",
-	}
-	s = strings.TrimSuffix(s, "Z")
-	for _, f := range formats {
-		if t, err := time.ParseInLocation(f, s, time.Local); err == nil {
-			return t
-		}
-	}
-	return time.Time{}
-}
-
 // RecentAlerts returns the last N alerts for the web UI.
 func (e *Engine) RecentAlerts(limit int) ([]Alert, error) {
 	rows, err := e.db.Query(`
@@ -276,7 +344,7 @@ func (e *Engine) RecentAlerts(limit int) ([]Alert, error) {
 		if err := rows.Scan(&a.ID, &a.Type, &a.Severity, &a.Title, &a.Summary, &a.MAC, &firedAt); err != nil {
 			continue
 		}
-		a.FiredAt = parseTime(firedAt)
+		a.FiredAt = timeutil.ParseSQLiteTime(firedAt)
 		alerts = append(alerts, a)
 	}
 	return alerts, nil

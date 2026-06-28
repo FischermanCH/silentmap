@@ -27,6 +27,7 @@ import (
 	emailchan "github.com/silentmap/silentmap/internal/alerting/channels/email"
 	"github.com/silentmap/silentmap/internal/alerting/channels/discord"
 	"github.com/silentmap/silentmap/internal/alerting/channels/ntfy"
+	webhookchan "github.com/silentmap/silentmap/internal/alerting/channels/webhook"
 	"github.com/silentmap/silentmap/internal/alerting/engine"
 	"github.com/silentmap/silentmap/internal/auth"
 	"github.com/silentmap/silentmap/internal/bus"
@@ -72,10 +73,17 @@ type HttpCheckSettings struct {
 	Interval int  `json:"interval_min"` // minutes
 }
 
+type WebhookSettings struct {
+	Enabled bool   `json:"enabled"`
+	URL     string `json:"url"`
+	Method  string `json:"method"` // "POST" (default) or "PUT"
+}
+
 type AppSettings struct {
 	Discord           DiscordSettings   `json:"discord"`
 	Ntfy              NtfySettings      `json:"ntfy"`
 	Email             EmailSettings     `json:"email"`
+	Webhook           WebhookSettings   `json:"webhook"`
 	Ping              PingSettings      `json:"ping"`
 	HttpCheck         HttpCheckSettings `json:"http_check"`
 	Listening         bool              `json:"listening"`
@@ -99,6 +107,7 @@ type Server struct {
 	discordCh *discord.Channel
 	ntfyCh    *ntfy.Channel
 	emailCh   *emailchan.Channel
+	webhookCh *webhookchan.Channel
 	pingCol   *ping.Collector
 	httpCol   *httpcheck.Collector
 	encKey    []byte
@@ -118,7 +127,28 @@ func LogoBytes() []byte {
 	return data
 }
 
-func NewServer(reg *registry.Registry, alertEng *engine.Engine, db *sql.DB, dataDir string, nmapArgs string, discordCh *discord.Channel, ntfyCh *ntfy.Channel, emailCh *emailchan.Channel, pingCol *ping.Collector, httpCol *httpcheck.Collector, version, buildTime string) *Server {
+// ServerOptions groups all dependencies for the web server.
+type ServerOptions struct {
+	Reg       *registry.Registry
+	AlertEng  *engine.Engine
+	DB        *sql.DB
+	DataDir   string
+	NmapArgs  string
+	DiscordCh *discord.Channel
+	NtfyCh    *ntfy.Channel
+	EmailCh   *emailchan.Channel
+	WebhookCh *webhookchan.Channel
+	PingCol   *ping.Collector
+	HttpCol   *httpcheck.Collector
+	Version   string
+	BuildTime string
+}
+
+func NewServer(opts ServerOptions) *Server {
+	reg := opts.Reg
+	alertEng := opts.AlertEng
+	db := opts.DB
+	dataDir := opts.DataDir
 	bundle, err := i18n.New()
 	if err != nil {
 		slog.Warn("i18n: failed to load translations, using keys as fallback", "err", err)
@@ -143,18 +173,19 @@ func NewServer(reg *registry.Registry, alertEng *engine.Engine, db *sql.DB, data
 		alertEng:  alertEng,
 		db:        db,
 		themes:    NewThemeManager(dataDir),
-		nmapArgs:  nmapArgs,
+		nmapArgs:  opts.NmapArgs,
 		dataDir:   dataDir,
-		discordCh: discordCh,
-		ntfyCh:    ntfyCh,
-		emailCh:   emailCh,
-		pingCol:   pingCol,
-		httpCol:   httpCol,
+		discordCh: opts.DiscordCh,
+		ntfyCh:    opts.NtfyCh,
+		emailCh:   opts.EmailCh,
+		webhookCh: opts.WebhookCh,
+		pingCol:   opts.PingCol,
+		httpCol:   opts.HttpCol,
 		encKey:    encKey,
 		auth:      authMgr,
-		version:   version,
+		version:   opts.Version,
 		scanning:  make(map[string]bool),
-		buildTime: buildTime,
+		buildTime: opts.BuildTime,
 		funcMap: template.FuncMap{
 			// t/tf/timeAgo are injected per-request in render() with lang baked in
 			"severityClass":  severityClass,
@@ -194,6 +225,13 @@ func NewServer(reg *registry.Registry, alertEng *engine.Engine, db *sql.DB, data
 			To:       stored.Email.To,
 			TLSMode:  stored.Email.TLSMode,
 			Lang:     stored.Email.Lang,
+		})
+	}
+	if stored.Webhook.URL != "" || stored.Webhook.Enabled {
+		s.webhookCh.Update(config.WebhookCfg{
+			Enabled: stored.Webhook.Enabled,
+			URL:     s.decrypt(stored.Webhook.URL),
+			Method:  stored.Webhook.Method,
 		})
 	}
 	s.reg.SetListening(stored.Listening)
@@ -555,6 +593,7 @@ func (s *Server) Handler() http.Handler {
 		r.Post("/settings/ntfy", s.setNtfy)
 		r.Post("/settings/email", s.setEmail)
 		r.Post("/settings/email/test", s.testEmail)
+		r.Post("/settings/webhook", s.setWebhook)
 		r.Post("/settings/listening", s.toggleListening)
 		r.Post("/settings/ping", s.setPing)
 		r.Post("/settings/httpcheck", s.setHttpCheck)
@@ -880,6 +919,9 @@ func (s *Server) settingsPage(w http.ResponseWriter, r *http.Request) {
 		"NtfyTokenConfigured":  s.decrypt(settings.Ntfy.Token) != "",
 		"Email":                settings.Email,
 		"EmailPassConfigured":  s.decrypt(settings.Email.SMTPPass) != "",
+		"WebhookEnabled":       settings.Webhook.Enabled,
+		"WebhookURL":           s.decrypt(settings.Webhook.URL),
+		"WebhookMethod":        settings.Webhook.Method,
 		"Ping":                 ping,
 		"HttpCheck":            httpCheck,
 		"MaintenanceActive":    maintenanceActive,
@@ -1025,6 +1067,41 @@ func (s *Server) setEmail(w http.ResponseWriter, r *http.Request) {
 		To:       cfg.Email.To,
 		TLSMode:  cfg.Email.TLSMode,
 		Lang:     cfg.Email.Lang,
+	})
+	s.settingsRedirect(w, r)
+}
+
+func (s *Server) setWebhook(w http.ResponseWriter, r *http.Request) {
+	if err := r.ParseForm(); err != nil {
+		http.Error(w, "bad request", http.StatusBadRequest)
+		return
+	}
+	cfg := s.loadAppSettings()
+	webhookURL := strings.TrimSpace(r.FormValue("url"))
+	if webhookURL != "" {
+		if err := requireHTTPS(webhookURL); err != nil {
+			s.settingsError(w, r, err.Error())
+			return
+		}
+		if isPrivateHost(webhookURL) {
+			s.settingsError(w, r, "Webhook URL must not point to a private/internal host")
+			return
+		}
+		cfg.Webhook.URL = s.encrypt(webhookURL)
+	}
+	method := r.FormValue("method")
+	if method != "PUT" {
+		method = "POST"
+	}
+	cfg.Webhook.Enabled = r.FormValue("enabled") == "on"
+	cfg.Webhook.Method = method
+	if err := s.saveAppSettings(cfg); err != nil {
+		slog.Error("save webhook settings failed", "err", err)
+	}
+	s.webhookCh.Update(config.WebhookCfg{
+		Enabled: cfg.Webhook.Enabled,
+		URL:     s.decrypt(cfg.Webhook.URL),
+		Method:  cfg.Webhook.Method,
 	})
 	s.settingsRedirect(w, r)
 }

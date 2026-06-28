@@ -97,6 +97,8 @@ func ntfyTitle(a channels.Alert) string {
 	}
 
 	switch a.Type {
+	case "new_device_batch":
+		return a.Summary
 	case "new_device":
 		if display != "" {
 			return "Neues Gerät: " + display
@@ -144,6 +146,8 @@ func ntfyPriority(severity string) string {
 
 func ntfyTags(alertType string) string {
 	switch alertType {
+	case "new_device_batch":
+		return "new,computer"
 	case "new_device":
 		return "new,computer"
 	case "priority_offline":
